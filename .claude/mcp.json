@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "sqlite": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-sqlite", "--db-path", "./data/entries.db"],
+      "description": "Direkter Zugriff auf die Dev-SQLite-Datenbank"
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."],
+      "description": "Dateisystem-Zugriff auf das Projekt-Root"
+    }
+  }
+}

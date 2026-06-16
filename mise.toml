@@ -1,3 +1,61 @@
 [tools]
 bun = "latest"
-claude = { version = "latest", bin = "claude", platforms = { windows-x64 = { bin = "claude.exe", url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{{ version }}/win32-x64/claude.exe" } }, url = 'https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{{ version }}/{{ os(macos="darwin") }}-{{ arch() }}/claude', version_list_url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest" }
+claude = { version = "latest", bin = "claude", platforms = { windows-x64 = { bin = "claude.exe", url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{{ version }}/win32-x64/claude.exe" } }, url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/{{ version }}/linux-x64/claude", version_list_url = "https://storage.googleapis.com/claude-code-dist-86c565f3-f756-42ad-8dfa-d59b1c096819/claude-code-releases/latest" }
+node = "latest"
+npm = "latest"
+oxfmt = "latest"
+oxlint = "latest"
+python = "3.13"
+
+[tasks.dev]
+description = "Frontend im Browser, kein Electrobun nötig (Mock-Modus)"
+run = "cd src/views/main && bun run vite --mode mock"
+
+[tasks.build-fe]
+description = "Frontend Production Build (Vite → dist/)"
+run = "cd src/views/main && bun run vite build"
+
+[tasks.dev-electrobun]
+description = "Vollständige App mit Electrobun"
+depends = ["build-fe"]
+run = "bun run electrobun dev"
+
+[tasks.build]
+description = "Production Build"
+depends = ["build-fe"]
+run = "bun run electrobun build"
+
+[tasks.test-bun]
+description = "Bun Tests für Main Process"
+run = "bun test ./src/bun/"
+
+[tasks.test-fe]
+description = "Vitest für Frontend"
+run = "cd src/views/main && bun run vitest run"
+
+[tasks.test]
+description = "Alle Tests"
+depends = ["test-bun", "test-fe"]
+
+[tasks.lint]
+description = "oxlint + oxfmt"
+run = """
+oxlint ./src/
+oxfmt ./src/
+"""
+
+[tasks.doctor]
+description = "React Doctor"
+run = "cd src/views/main && npx react-doctor"
+
+[tasks.migrate]
+description = "Migrations ausführen (Dev)"
+run = "bun run ./src/bun/repository/migrate.ts"
+
+[tasks.typecheck]
+description = "TypeScript Typprüfung"
+run = "bunx tsc --noEmit"
+
+[tasks.backup]
+description = "Dev SQLite sichern"
+run = "cp ./data/entries.db ./data/entries.backup.$(date +%Y%m%d%H%M%S).db"

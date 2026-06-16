@@ -1,0 +1,159 @@
+import type {
+  AppEvent,
+  Entry,
+  EntryCreate,
+  EntryFilter,
+  RpcResponse,
+  Settings,
+  Tag,
+  Template,
+  Ticket,
+  TicketFilter,
+} from "../../../../shared/types";
+import { entryFixtures } from "../fixtures/entries";
+import { ticketFixtures } from "../fixtures/tickets";
+import { tagFixtures } from "../fixtures/tags";
+import { templateFixtures } from "../fixtures/templates";
+
+// In-Memory-Store für den Browser-Dev-Modus (vite --mode mock).
+const store = {
+  entries: structuredClone(entryFixtures) as Entry[],
+  tickets: structuredClone(ticketFixtures) as Ticket[],
+  tags: structuredClone(tagFixtures) as Tag[],
+  templates: structuredClone(templateFixtures) as Template[],
+  deadEvents: [] as AppEvent[],
+  settings: {
+    gitlabUrl: "https://gitlab.example.com",
+    projectId: 42,
+    syncIntervalSec: 300,
+  } as Settings,
+  nextId: 1000,
+};
+
+const ok = <T>(data: T): Promise<RpcResponse<T>> => Promise.resolve({ data, error: null });
+const fail = <T>(code: string, message: string): Promise<RpcResponse<T>> =>
+  Promise.resolve({ data: null, error: { code, message, retry: false } });
+
+function startEnd(date: string, duration: number): [number, number] {
+  const start = new Date(date).getTime();
+  return [start, start + duration * 60_000];
+}
+
+function hasOverlap(date: string, duration: number, ignoreId?: number): boolean {
+  const [s, e] = startEnd(date, duration);
+  return store.entries.some((x) => {
+    if (x.id === ignoreId) return false;
+    const [xs, xe] = startEnd(x.date, x.durationMinutes);
+    return xs < e && xe > s;
+  });
+}
+
+const now = () => new Date().toISOString();
+
+export const getEntries = (filter: EntryFilter) => {
+  let result = store.entries;
+  if (filter.status) result = result.filter((e) => e.status === filter.status);
+  if (filter.dateFrom) result = result.filter((e) => e.date >= filter.dateFrom!);
+  if (filter.dateTo) result = result.filter((e) => e.date <= filter.dateTo!);
+  if (filter.tagIds?.length) {
+    result = result.filter((e) => e.tagIds.some((t) => filter.tagIds!.includes(t)));
+  }
+  return ok([...result].sort((a, b) => b.date.localeCompare(a.date)));
+};
+
+export const getEntry = (id: number) => {
+  const entry = store.entries.find((e) => e.id === id);
+  return entry ? ok(entry) : fail<Entry>("NOT_FOUND", `Entry ${id} nicht gefunden`);
+};
+
+export const createEntry = (input: EntryCreate) => {
+  if (hasOverlap(input.date, input.durationMinutes)) {
+    return fail<number>("OVERLAP", "Überschneidung mit bestehendem Entry");
+  }
+  const id = store.nextId++;
+  store.entries.push({ ...input, id, createdAt: now(), updatedAt: now() });
+  return ok(id);
+};
+
+export const updateEntry = (entry: Entry) => {
+  if (hasOverlap(entry.date, entry.durationMinutes, entry.id)) {
+    return fail<void>("OVERLAP", "Überschneidung mit bestehendem Entry");
+  }
+  store.entries = store.entries.map((e) =>
+    e.id === entry.id ? { ...entry, updatedAt: now() } : e,
+  );
+  return ok(undefined as void);
+};
+
+export const deleteEntry = (id: number) => {
+  store.entries = store.entries.filter((e) => e.id !== id);
+  return ok(undefined as void);
+};
+
+export const assignTicket = (entryId: number, ticketId: number) => {
+  const entry = store.entries.find((e) => e.id === entryId);
+  if (entry && !entry.ticketIds.includes(ticketId)) entry.ticketIds.push(ticketId);
+  return ok(undefined as void);
+};
+
+export const removeTicket = (entryId: number, ticketId: number) => {
+  const entry = store.entries.find((e) => e.id === entryId);
+  if (entry) entry.ticketIds = entry.ticketIds.filter((t) => t !== ticketId);
+  return ok(undefined as void);
+};
+
+export const getTickets = (filter: TicketFilter) => {
+  let result = store.tickets;
+  if (filter.status) result = result.filter((t) => t.status === filter.status);
+  if (filter.state) result = result.filter((t) => t.state === filter.state);
+  return ok([...result]);
+};
+
+export const bookEntry = (entryId: number) => {
+  const entry = store.entries.find((e) => e.id === entryId);
+  if (!entry) return fail<void>("NOT_FOUND", `Entry ${entryId} nicht gefunden`);
+  if (entry.ticketIds.length === 0) return fail<void>("NO_TICKET", "Kein Ticket zugewiesen");
+  entry.status = "pending_booking";
+  return ok(undefined as void);
+};
+
+export const getDeadEvents = () => ok([...store.deadEvents]);
+export const retryDeadEvent = (eventId: number) => {
+  store.deadEvents = store.deadEvents.filter((e) => e.id !== eventId);
+  return ok(undefined as void);
+};
+
+export const getTags = () => ok([...store.tags]);
+export const createTag = (tag: Omit<Tag, "id">) => {
+  const id = store.nextId++;
+  store.tags.push({ ...tag, id });
+  return ok(id);
+};
+export const deleteTag = (id: number) => {
+  store.tags = store.tags.filter((t) => t.id !== id);
+  return ok(undefined as void);
+};
+
+export const getTemplates = () => ok([...store.templates]);
+export const createTemplate = (t: Omit<Template, "id">) => {
+  const id = store.nextId++;
+  store.templates.push({ ...t, id });
+  return ok(id);
+};
+export const updateTemplate = (t: Template) => {
+  store.templates = store.templates.map((x) => (x.id === t.id ? t : x));
+  return ok(undefined as void);
+};
+export const deleteTemplate = (id: number) => {
+  store.templates = store.templates.filter((t) => t.id !== id);
+  return ok(undefined as void);
+};
+
+export const triggerSync = () => ok(undefined as void);
+export const getSettings = () => ok({ ...store.settings });
+export const saveSettings = (s: Settings) => {
+  store.settings = { ...s };
+  return ok(undefined as void);
+};
+export const setGitLabToken = (_token: string) => ok(undefined as void);
+export const backupDatabase = (_destPath: string) => ok(undefined as void);

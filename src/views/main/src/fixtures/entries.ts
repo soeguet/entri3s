@@ -1,0 +1,40 @@
+import type { Entry } from "../../../../shared/types";
+
+export const entryFixtures: Entry[] = [
+  {
+    id: 1,
+    title: "Login-Flow implementiert",
+    notes: "OAuth-Redirect gefixt",
+    durationMinutes: 90,
+    date: "2024-01-15T09:00:00.000Z",
+    status: "draft",
+    tagIds: [1],
+    ticketIds: [1],
+    createdAt: "2024-01-15T09:00:00.000Z",
+    updatedAt: "2024-01-15T09:00:00.000Z",
+  },
+  {
+    id: 2,
+    title: "Daily Standup",
+    notes: null,
+    durationMinutes: 15,
+    date: "2024-01-15T08:30:00.000Z",
+    status: "booked",
+    tagIds: [3],
+    ticketIds: [],
+    createdAt: "2024-01-15T08:30:00.000Z",
+    updatedAt: "2024-01-15T08:45:00.000Z",
+  },
+  {
+    id: 3,
+    title: "Dashboard-Profiling",
+    notes: "Flamegraph aufgenommen",
+    durationMinutes: 120,
+    date: "2024-01-16T13:00:00.000Z",
+    status: "pending_booking",
+    tagIds: [2],
+    ticketIds: [2],
+    createdAt: "2024-01-16T13:00:00.000Z",
+    updatedAt: "2024-01-16T15:00:00.000Z",
+  },
+];

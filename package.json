@@ -1,29 +1,51 @@
 {
-	"name": "electrobun-react-tailwind-vite",
-	"version": "1.0.0",
-	"description": "Electrobun app with React, Tailwind CSS, and Vite HMR",
-	"scripts": {
-		"start": "vite build && electrobun dev",
-		"dev": "electrobun dev --watch",
-		"dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
-		"hmr": "vite --port 5173",
-		"build:canary": "vite build && electrobun build --env=canary"
-	},
-	"dependencies": {
-		"electrobun": "1.18.1",
-		"react": "^19.2.7",
-		"react-dom": "^19.2.7"
-	},
-	"devDependencies": {
-		"@types/bun": "latest",
-		"@types/react": "^19.2.17",
-		"@types/react-dom": "^19.2.3",
-		"@vitejs/plugin-react": "^6.0.2",
-		"autoprefixer": "^10.4.20",
-		"concurrently": "^9.2.1",
-		"postcss": "^8.4.49",
-		"tailwindcss": "^3.4.19",
-		"typescript": "^5.7.2",
-		"vite": "^8.0.16"
-	}
+  "name": "entries",
+  "version": "0.0.1",
+  "description": "Desktop app für Arbeitszeiterfassung, Notizen, GitLab Ticket-Zuweisung und Buchung",
+  "scripts": {
+    "build:fe": "cd src/views/main && vite build",
+    "start": "bun run build:fe && electrobun dev",
+    "dev": "electrobun dev --watch",
+    "dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
+    "hmr": "cd src/views/main && vite --port 5173"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^5.4.0",
+    "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-router": "^1.170.15",
+    "@tanstack/react-table": "^8.21.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "date-fns": "^4.4.0",
+    "date-fns-tz": "^3.2.0",
+    "electrobun": "1.18.1",
+    "keytar": "^7.9.0",
+    "lucide-react": "^1.20.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "react-hook-form": "^7.79.0",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@babel/core": "^8.0.0",
+    "@rolldown/plugin-babel": "^0.2.3",
+    "@tanstack/router-plugin": "^1.168.18",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/bun": "latest",
+    "@types/react": "^19.2.17",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.2",
+    "autoprefixer": "^10.4.20",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "concurrently": "^9.2.1",
+    "jsdom": "^29.1.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.19",
+    "typescript": "^5.7.2",
+    "vite": "^8.0.16",
+    "vitest": "^4.1.9"
+  }
 }

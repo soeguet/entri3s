@@ -1,0 +1,72 @@
+import { z } from "zod";
+import { formatInTimeZone, fromZonedTime } from "date-fns-tz";
+import type { Entry, EntryCreate } from "../../../../../shared/types";
+
+const TZ = "Europe/Berlin";
+
+export const entrySchema = z
+  .object({
+    title: z.string().min(1, "Titel ist erforderlich"),
+    date: z.string().min(1, "Datum ist erforderlich"),
+    startTime: z.string().regex(/^\d{2}:\d{2}$/, "Startzeit fehlt"),
+    endTime: z.string().regex(/^\d{2}:\d{2}$/, "Endzeit fehlt"),
+    notes: z.string(),
+    tagIds: z.array(z.number()),
+    ticketId: z.number().nullable(),
+  })
+  .refine((v) => toMinutes(v.endTime) > toMinutes(v.startTime), {
+    message: "Ende muss nach Start liegen",
+    path: ["endTime"],
+  });
+
+export type EntryFormValues = z.infer<typeof entrySchema>;
+
+function toMinutes(time: string): number {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function minutesToTime(total: number): string {
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Form-Werte (Europe/Berlin) → EntryCreate (UTC). */
+export function toEntryCreate(values: EntryFormValues): EntryCreate {
+  const start = fromZonedTime(`${values.date}T${values.startTime}:00`, TZ);
+  const durationMinutes = toMinutes(values.endTime) - toMinutes(values.startTime);
+  return {
+    title: values.title.trim(),
+    notes: values.notes.trim() === "" ? null : values.notes.trim(),
+    durationMinutes,
+    date: start.toISOString(),
+    status: "draft",
+    tagIds: values.tagIds,
+    ticketIds: values.ticketId === null ? [] : [values.ticketId],
+  };
+}
+
+/** Entry (UTC) → Form-Werte (Europe/Berlin). */
+export function toFormValues(entry: Entry): EntryFormValues {
+  const startMinutes = toMinutes(formatInTimeZone(entry.date, TZ, "HH:mm"));
+  return {
+    title: entry.title,
+    date: formatInTimeZone(entry.date, TZ, "yyyy-MM-dd"),
+    startTime: formatInTimeZone(entry.date, TZ, "HH:mm"),
+    endTime: minutesToTime(startMinutes + entry.durationMinutes),
+    notes: entry.notes ?? "",
+    tagIds: entry.tagIds,
+    ticketId: entry.ticketIds[0] ?? null,
+  };
+}
+
+export const emptyFormValues: EntryFormValues = {
+  title: "",
+  date: formatInTimeZone(new Date(), TZ, "yyyy-MM-dd"),
+  startTime: "09:00",
+  endTime: "10:00",
+  notes: "",
+  tagIds: [],
+  ticketId: null,
+};

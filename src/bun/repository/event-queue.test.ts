@@ -1,0 +1,62 @@
+import { test, expect, beforeEach } from "bun:test";
+import { createTestDb } from "./test-helper";
+import { createEventQueueRepository } from "./event-queue";
+
+let repo: ReturnType<typeof createEventQueueRepository>;
+
+beforeEach(() => {
+  repo = createEventQueueRepository(createTestDb());
+});
+
+test("enqueue → claimNext returns the event with parsed payload available", () => {
+  repo.enqueue("booking", { entryId: 1 });
+  const event = repo.claimNext();
+  expect(event?.type).toBe("booking");
+  expect(JSON.parse(event!.payload)).toEqual({ entryId: 1 });
+});
+
+test("claimNext returns null on empty queue", () => {
+  expect(repo.claimNext()).toBeNull();
+});
+
+test("claimNext marks the event processing (not re-claimable)", () => {
+  repo.enqueue("booking", {});
+  expect(repo.claimNext()).not.toBeNull();
+  expect(repo.claimNext()).toBeNull();
+});
+
+test("complete finishes the event", () => {
+  repo.enqueue("booking", {});
+  const event = repo.claimNext()!;
+  repo.complete(event.id);
+  expect(repo.claimNext()).toBeNull();
+  expect(repo.listDead()).toHaveLength(0);
+});
+
+test("fail re-queues until 3 retries, then dead-letters", () => {
+  repo.enqueue("booking", {});
+  for (let i = 0; i < 3; i++) {
+    const event = repo.claimNext();
+    expect(event).not.toBeNull();
+    repo.fail(event!.id, "boom");
+  }
+  expect(repo.claimNext()).toBeNull(); // jetzt dead, nicht mehr pending
+  const dead = repo.listDead();
+  expect(dead).toHaveLength(1);
+  expect(dead[0].error).toBe("boom");
+});
+
+test("resetStuck moves processing back to pending", () => {
+  repo.enqueue("booking", {});
+  repo.claimNext(); // processing
+  repo.resetStuck();
+  expect(repo.claimNext()).not.toBeNull();
+});
+
+test("retryDead revives a dead event", () => {
+  repo.enqueue("booking", {});
+  for (let i = 0; i < 3; i++) repo.fail(repo.claimNext()!.id, "boom");
+  const dead = repo.listDead();
+  repo.retryDead(dead[0].id);
+  expect(repo.claimNext()).not.toBeNull();
+});
