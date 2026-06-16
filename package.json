@@ -6,8 +6,12 @@
     "build:fe": "cd src/views/main && vite build",
     "start": "bun run build:fe && electrobun dev",
     "dev": "electrobun dev --watch",
+    "build": "electrobun build",
     "dev:hmr": "concurrently \"bun run hmr\" \"bun run start\"",
-    "hmr": "cd src/views/main && vite --port 5173"
+    "hmr": "cd src/views/main && vite --port 5173",
+    "build:dev": "bun install && electrobun build",
+    "build:canary": "electrobun build --env=canary",
+    "build:stable": "electrobun build --env=stable"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
