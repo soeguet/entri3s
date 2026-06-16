@@ -1,0 +1,17 @@
+services:
+  electrobun-dev:
+    container_name: electrobun-dev
+    build: .
+    working_dir: /workspace
+    volumes:
+      - C:/Users/soeguet/entri3s/:/workspace
+      - ssh-host-keys:/etc/ssh
+      - /workspace/node_modules/
+      - /workspace/.serena/
+      - /workspace/.vscode/
+    ports:
+      - "2222:22"
+      - "5173:5173"
+
+volumes:
+  ssh-host-keys:
