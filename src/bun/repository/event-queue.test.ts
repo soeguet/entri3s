@@ -60,3 +60,22 @@ test("retryDead revives a dead event", () => {
   repo.retryDead(dead[0].id);
   expect(repo.claimNext()).not.toBeNull();
 });
+
+test("discardDead removes a dead event permanently", () => {
+  repo.enqueue("booking_delete", {});
+  for (let i = 0; i < 3; i++) repo.fail(repo.claimNext()!.id, "gone");
+  const dead = repo.listDead();
+  expect(dead).toHaveLength(1);
+
+  repo.discardDead(dead[0].id);
+  expect(repo.listDead()).toHaveLength(0);
+  expect(repo.claimNext()).toBeNull(); // nicht wieder pending — endgültig weg
+});
+
+test("discardDead ignores a non-dead event", () => {
+  repo.enqueue("booking", {});
+  const event = repo.claimNext()!; // processing, nicht dead
+  repo.discardDead(event.id);
+  repo.resetStuck();
+  expect(repo.claimNext()).not.toBeNull(); // unangetastet
+});

@@ -77,6 +77,7 @@ export const deleteBooking = (bookingId: number) => r.deleteBooking({ bookingId 
 export const getBookingsForEntry = (entryId: number) => r.getBookingsForEntry({ entryId });
 export const getDeadEvents = () => r.getDeadEvents({});
 export const retryDeadEvent = (eventId: number) => r.retryDeadEvent({ eventId });
+export const discardDeadEvent = (eventId: number) => r.discardDeadEvent({ eventId });
 export const getTags = () => r.getTags({});
 export const createTag = (tag: Omit<Tag, "id">) => r.createTag(tag);
 export const deleteTag = (id: number) => r.deleteTag({ id });

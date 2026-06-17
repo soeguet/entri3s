@@ -130,20 +130,42 @@ interface TimelogDeleteResponse {
   timelogDelete: { timelog: { id: string } | null; errors: string[] };
 }
 
-/** Erkennt GitLab-Fehlermeldungen, die "Timelog existiert nicht (mehr)" bedeuten. */
+/**
+ * Erkennt GitLab-Fehlermeldungen, die "Timelog existiert nicht (mehr)" bedeuten.
+ * Schließt GitLabs Standard-Autorisierungsmeldung ein ("The resource that you are
+ * attempting to access does not exist or you don't have permission..."), die beim
+ * Löschen eines extern bereits entfernten Timelogs erscheint. Das maskiert bewusst
+ * auch echte Permission-Fehler dieses einen Calls — ein Timelog, den der Worker
+ * nicht löschen darf, lässt sich ohnehin nicht stornieren, also wird der lokale
+ * Record entfernt statt für immer hängen zu bleiben.
+ */
 function isAlreadyGone(errors: string[]): boolean {
-  return errors.some((e) => /not found|does not exist|resource not available/i.test(e));
+  return errors.some((e) =>
+    /not found|does not exist|resource not available|don't have permission/i.test(e),
+  );
 }
 
 /**
  * Löscht einen Timelog wieder (für Korrektur-Buchungen). Ist der Timelog bereits
- * weg (z.B. ein Retry nach erfolgreichem Löschen), wird das als Erfolg gewertet —
- * sonst bliebe der lokale Booking-Record für immer hängen.
+ * weg (z.B. ein Retry nach erfolgreichem Löschen ODER direkt in GitLab gelöscht),
+ * wird das als Erfolg gewertet — sonst bliebe der lokale Booking-Record für immer
+ * hängen und das booking_delete-Event liefe ins Dead-Letter.
+ *
+ * Wichtig: einen extern gelöschten Timelog meldet GitLab nicht im feldspezifischen
+ * `timelogDelete.errors`, sondern als Top-Level-GraphQL-Error — der wird von
+ * `gqlRequest` als Exception geworfen, bevor wir `result` sehen. Daher BEIDE Pfade
+ * über `isAlreadyGone` tolerieren.
  */
 export async function deleteTimelog(client: GqlClient, timelogId: number): Promise<void> {
-  const data = (await client.gqlRequest(DELETE_MUTATION, {
-    id: `gid://gitlab/Timelog/${timelogId}`,
-  })) as TimelogDeleteResponse;
+  let data: TimelogDeleteResponse;
+  try {
+    data = (await client.gqlRequest(DELETE_MUTATION, {
+      id: `gid://gitlab/Timelog/${timelogId}`,
+    })) as TimelogDeleteResponse;
+  } catch (e) {
+    if (isAlreadyGone([e instanceof Error ? e.message : String(e)])) return;
+    throw e;
+  }
 
   const result = data.timelogDelete;
   if (result.errors.length > 0 && !isAlreadyGone(result.errors)) {

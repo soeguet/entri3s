@@ -107,6 +107,11 @@ export function createEventQueueRepository(db: Database) {
         [id],
       );
     },
+
+    /** Endgültig verwerfen: entfernt ein Dead-Letter-Event aus der Queue. */
+    discardDead(id: number): void {
+      db.run("DELETE FROM event_queue WHERE id = ? AND status = 'dead'", [id]);
+    },
   };
 }
 
