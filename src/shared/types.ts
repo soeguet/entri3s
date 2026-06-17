@@ -10,7 +10,6 @@ export type EntryStatus = "draft" | "pending_booking" | "booked" | "booking_fail
 
 export interface Entry {
   id: number;
-  title: string;
   notes: string | null;
   durationMinutes: number;
   date: string; // ISO UTC
@@ -100,7 +99,6 @@ export interface AppEvent {
 
 export interface Settings {
   gitlabUrl: string;
-  projectId: number;
   syncIntervalSec: number;
 }
 

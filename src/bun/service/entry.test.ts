@@ -14,7 +14,6 @@ beforeEach(() => {
 
 function input(date: string, durationMinutes: number): EntryInput {
   return {
-    title: "E",
     notes: null,
     durationMinutes,
     date,
@@ -54,7 +53,7 @@ test("separate slots do not overlap", () => {
 test("update does not conflict with itself", () => {
   const id = svc.create(input("2024-01-15T10:00:00.000Z", 60));
   const entry = repo.entries.getById(id)!;
-  expect(() => svc.update({ ...entry, title: "Renamed" })).not.toThrow();
+  expect(() => svc.update({ ...entry, notes: "Renamed" })).not.toThrow();
 });
 
 test("update detects overlap with another entry", () => {

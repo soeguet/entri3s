@@ -3,7 +3,6 @@ import type { Entry, EntryFilter, EntryStatus } from "../../shared/types";
 
 interface EntryRow {
   id: number;
-  title: string;
   notes: string | null;
   duration: number;
   date: string;
@@ -25,7 +24,6 @@ export function createEntryRepository(db: Database) {
   function toEntry(row: EntryRow): Entry {
     return {
       id: row.id,
-      title: row.title,
       notes: row.notes,
       durationMinutes: row.duration,
       date: row.date,
@@ -84,21 +82,20 @@ export function createEntryRepository(db: Database) {
     create(input: EntryInput): number {
       const now = new Date().toISOString();
       const row = db
-        .query<{ id: number }, [string, string | null, number, string, string, string, string]>(
-          `INSERT INTO entries (title, notes, duration, date, status, created_at, updated_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?) RETURNING id`,
+        .query<{ id: number }, [string | null, number, string, string, string, string]>(
+          `INSERT INTO entries (notes, duration, date, status, created_at, updated_at)
+           VALUES (?, ?, ?, ?, ?, ?) RETURNING id`,
         )
-        .get(input.title, input.notes, input.durationMinutes, input.date, input.status, now, now)!;
+        .get(input.notes, input.durationMinutes, input.date, input.status, now, now)!;
       replaceRelations(row.id, input.tagIds, input.ticketIds);
       return row.id;
     },
 
     update(entry: Entry): void {
       db.run(
-        `UPDATE entries SET title = ?, notes = ?, duration = ?, date = ?, status = ?, updated_at = ?
+        `UPDATE entries SET notes = ?, duration = ?, date = ?, status = ?, updated_at = ?
          WHERE id = ?`,
         [
-          entry.title,
           entry.notes,
           entry.durationMinutes,
           entry.date,

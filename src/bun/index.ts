@@ -17,17 +17,20 @@ const repo = createRepository(db);
 repo.eventQueue.resetStuck();
 
 const token = (await getToken()) ?? "";
-const glClient = createGitLabClient(token, repo.settings.getAll());
-const svc = createService(repo, glClient, db);
+// Settings live lesen, damit eine geänderte gitlabUrl ohne Neustart wirkt.
+const glClient = createGitLabClient(token, () => repo.settings.getAll());
 
-const win = new BrowserWindow({
+// Emitter vor dem Fenster bauen (Services brauchen ihn), Fenster lazy nachreichen.
+let win: BrowserWindow<ReturnType<typeof createRpc>> | undefined;
+const emit = createWindowEmitter(() => win);
+const svc = createService(repo, glClient, db, emit);
+
+win = new BrowserWindow({
   title: "entries",
   url: await resolveViewUrl(),
   frame: { width: 1280, height: 800, x: 200, y: 200 },
   rpc: createRpc(svc),
 });
-
-const emit = createWindowEmitter(win);
 const workerHandle = startWorker(repo, glClient, emit);
 const schedulerHandle = startScheduler(repo, svc, emit);
 

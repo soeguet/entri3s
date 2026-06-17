@@ -43,7 +43,11 @@ export function EntryList(props: EntryListProps) {
         </span>
       ),
     }),
-    helper.accessor("title", { header: "Titel", enableSorting: false }),
+    helper.accessor("notes", {
+      header: "Notiz",
+      enableSorting: false,
+      cell: (c) => c.getValue() ?? <span className="text-slate-400">–</span>,
+    }),
     helper.accessor("durationMinutes", {
       header: "Dauer",
       cell: (c) => formatDuration(c.getValue()),

@@ -11,16 +11,6 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-test("zeigt Validierungsfehler bei leerem Titel", async () => {
-  const user = userEvent.setup();
-  renderWithClient(<EntryForm open onClose={() => {}} />);
-
-  await user.click(screen.getByRole("button", { name: "Erstellen" }));
-
-  expect(await screen.findByText("Titel ist erforderlich")).toBeInTheDocument();
-  expect(api.createEntry).not.toHaveBeenCalled();
-});
-
 test("zeigt Overlap-Fehler inline", async () => {
   vi.mocked(api.createEntry).mockResolvedValueOnce({
     data: null,
@@ -29,7 +19,7 @@ test("zeigt Overlap-Fehler inline", async () => {
   const user = userEvent.setup();
   renderWithClient(<EntryForm open onClose={() => {}} />);
 
-  await user.type(screen.getByLabelText("Titel"), "Neue Aufgabe");
+  await user.type(screen.getByLabelText("Notizen"), "Neue Aufgabe");
   await user.click(screen.getByRole("button", { name: "Erstellen" }));
 
   expect(await screen.findByText("Überschneidung mit bestehendem Entry")).toBeInTheDocument();

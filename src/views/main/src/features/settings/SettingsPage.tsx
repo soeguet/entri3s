@@ -20,7 +20,6 @@ export function SettingsPage() {
   });
 
   const [gitlabUrl, setGitlabUrl] = useState("");
-  const [projectId, setProjectId] = useState("");
   const [intervalMin, setIntervalMin] = useState("5");
   const [token, setToken] = useState("");
   const [backupPath, setBackupPath] = useState("");
@@ -28,7 +27,6 @@ export function SettingsPage() {
   useEffect(() => {
     if (settings.data) {
       setGitlabUrl(settings.data.gitlabUrl);
-      setProjectId(String(settings.data.projectId));
       setIntervalMin(String(Math.round(settings.data.syncIntervalSec / 60)));
     }
   }, [settings.data]);
@@ -38,7 +36,6 @@ export function SettingsPage() {
       unwrap(
         await saveSettings({
           gitlabUrl: gitlabUrl.trim(),
-          projectId: Number(projectId) || 0,
           syncIntervalSec: Math.max(1, Number(intervalMin) || 5) * 60,
         }),
       ),
@@ -71,15 +68,10 @@ export function SettingsPage() {
             placeholder="https://gitlab.example.com"
           />
         </div>
-        <div>
-          <Label htmlFor="s-project">Projekt-ID</Label>
-          <Input
-            id="s-project"
-            type="number"
-            value={projectId}
-            onChange={(e) => setProjectId(e.target.value)}
-          />
-        </div>
+        <p className="text-sm text-slate-500">
+          Synchronisiert projektübergreifend alle Tickets, auf die dein Token Zugriff hat — keine
+          Projekt-ID nötig.
+        </p>
         <div>
           <Label htmlFor="s-interval">Sync-Intervall (Minuten)</Label>
           <Input

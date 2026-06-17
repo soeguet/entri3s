@@ -9,7 +9,7 @@ const ticketsById = new Map(ticketFixtures.map((t) => [t.id, t]));
 
 function noop() {}
 
-test("rendert Entries mit Titel und Status", () => {
+test("rendert Entries mit Notiz und Status", () => {
   renderWithClient(
     <EntryList
       entries={entryFixtures}
@@ -19,7 +19,7 @@ test("rendert Entries mit Titel und Status", () => {
       onBook={noop}
     />,
   );
-  expect(screen.getByText("Login-Flow implementiert")).toBeInTheDocument();
+  expect(screen.getByText("OAuth-Redirect gefixt")).toBeInTheDocument();
   expect(screen.getByText("Gebucht")).toBeInTheDocument();
 });
 

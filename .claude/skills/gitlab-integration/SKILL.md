@@ -17,7 +17,7 @@ Kein extra npm-Paket für GitLab nötig.
 import type { Settings } from "../../shared/types";
 
 export interface GitLabClient {
-  fetchIssues(projectId: number, since?: Date): Promise<GitLabIssue[]>;
+  fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
   bookTime(
     projectId: number,
@@ -34,12 +34,15 @@ export interface GitLabClient {
   ): Promise<GitLabBookingResult | null>;
 }
 
-export function createGitLabClient(token: string, settings: Settings): GitLabClient {
+// getSettings wird pro Request frisch ausgewertet → geänderte gitlabUrl wirkt
+// ohne App-Neustart. buildApiUrl validiert das http(s)-Schema (sonst AppError
+// NO_GITLAB_URL statt "fetch() URL is invalid").
+export function createGitLabClient(token: string, getSettings: () => Settings): GitLabClient {
   const limiter = createRateLimiter(5); // 5 req/s
 
   async function apiRequest(path: string, options?: RequestInit) {
     await limiter.throttle();
-    const res = await fetch(`${settings.gitlabUrl}/api/v4${path}`, {
+    const res = await fetch(buildApiUrl(getSettings().gitlabUrl, path), {
       ...options,
       headers: {
         "PRIVATE-TOKEN": token,
@@ -86,7 +89,7 @@ function createRateLimiter(reqPerSec: number) {
 ```typescript
 // src/bun/gitlab/types.ts
 export interface GitLabClient {
-  fetchIssues(projectId: number, since?: Date): Promise<GitLabIssue[]>;
+  fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
   bookTime(
     projectId: number,
@@ -134,38 +137,58 @@ export class FakeGitLabClient implements GitLabClient {
 }
 ```
 
-## Pagination – Pflicht
+## Projektübergreifend – kein per-Projekt-Sync
+
+Wir syncen NICHT pro Projekt (`/projects/:id/issues`), sondern projektübergreifend
+alle Issues, auf die der Token Zugriff hat (über GraphQL, siehe nächster Abschnitt).
+Jedes Issue trägt seine `project_id`, über die der Sync die Tickets weiterhin pro
+Projekt zuordnet. Es gibt KEINE Projekt-ID in den Settings. Buchungen
+(`bookTime`/`findBookingNote`) bleiben per-Projekt, weil die Notes-API
+projektgebunden ist — die `projectId` stammt dann aus dem Ticket-Row.
+
+## Hybrid: Sync=GraphQL, Buchungen=REST
+
+Der **Lese-Pfad (Sync)** läuft über **GraphQL**, der **Schreib-Pfad (Buchungen)**
+bleibt **REST**. Beide teilen sich denselben Rate-Limiter (5 req/s).
+
+| Pfad | Transport | Endpoint | Auth |
+| --- | --- | --- | --- |
+| Sync (`fetchIssues`) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
+| `fetchIssue` / Buchungen | REST | `{base}/api/v4/...` | `PRIVATE-TOKEN: <token>` |
+
+Hintergrund/Entscheidung: `.claude/specs/12-gitlab-graphql-evaluation.md`.
+
+## Sync – GraphQL mit Cursor-Pagination (Pflicht)
 
 ```typescript
-// src/bun/gitlab/fetch.ts
-export async function fetchIssues(
-  client: { apiRequest: Function },
-  projectId: number,
-  since?: Date,
-): Promise<GitLabIssue[]> {
-  const all: GitLabIssue[] = [];
-  let page = 1;
-
-  while (true) {
-    const params = new URLSearchParams({
-      per_page: "100",
-      page: String(page),
-      ...(since ? { updated_after: since.toISOString() } : {}),
-    });
-    const res = await client.apiRequest(`/projects/${projectId}/issues?${params}`);
-    const issues: GitLabIssue[] = await res.json();
-    all.push(...issues);
-
-    const totalPages = Number(res.headers.get("x-total-pages") ?? 1);
-    if (page >= totalPages) break;
-    page++;
+// src/bun/gitlab/graphql.ts — Root-level issues-Connection
+query($after: String, $since: Time) {
+  issues(first: 100, after: $after, updatedAfter: $since) {
+    nodes { iid title state webUrl updatedAt timeEstimate totalTimeSpent project { id } }
+    pageInfo { hasNextPage endCursor }
   }
-
-  return all;
 }
 ```
 
+- Schleife solange `pageInfo.hasNextPage`, jeweils `after: endCursor` mitgeben.
+- **Kein `state`-Filter** — wir brauchen auch geschlossene Issues für die
+  Orphan-Erkennung.
+- Mapping GraphQL → `GitLabIssue`: `iid` ist ein String → `Number(...)`;
+  `project.id` ist eine GID (`gid://gitlab/Project/123`) → trailing Integer
+  parsen (`parseGid`); `state` ist bereits lowercase (opened/closed/locked);
+  `timeEstimate`/`totalTimeSpent` → `time_stats` (null → 0).
+- `since` → GraphQL-Variable `updatedAfter` als ISO-String.
+
 Nie einen List-Endpoint ohne Pagination aufrufen. Stille Datenverluste sonst.
+
+### GraphQL-Fehler (HTTP 200 mit `errors[]`)
+
+GraphQL liefert **HTTP 200 auch bei Fehlern** — der Fehler steckt im
+`errors`-Array des Bodys. Nach dem JSON-Parsen: ist `body.errors` ein nicht-leeres
+Array → `AppError` mit Code `GITLAB_ERROR` (Message = zusammengeführte
+Fehlermeldungen, `retry: false`). Non-ok HTTP-Status weiterhin über `toApiError`.
+Diese Logik liegt in `client.ts` `gqlRequest`. GraphQL braucht Token-Scope
+`read_api`.
 
 ## Inkrementeller Sync
 
@@ -177,16 +200,16 @@ Nie einen List-Endpoint ohne Pagination aufrufen. Stille Datenverluste sonst.
 
 ```typescript
 // src/bun/service/sync.ts
-export async function syncIssues(repo: Repository, gl: GitLabClient, projectId: number) {
+export async function syncIssues(repo: Repository, gl: GitLabClient) {
   const schedule = repo.schedules.get("gitlab_sync");
   const since = schedule.lastRun ? new Date(schedule.lastRun) : ninetyDaysAgo();
 
-  const issues = await gl.fetchIssues(projectId, since);
+  const issues = await gl.fetchIssues(since); // projektübergreifend
 
   for (const issue of issues) {
-    repo.tickets.upsert(issue);
+    repo.tickets.upsert(issue); // projectId kommt aus issue.project_id
     if (issue.state === "closed" || issue.state === "locked") {
-      repo.tickets.markOrphaned(issue.iid, projectId);
+      repo.tickets.markOrphaned(issue.iid, issue.project_id);
     }
   }
 

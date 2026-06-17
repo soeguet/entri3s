@@ -89,7 +89,7 @@ export function EntriesPage() {
     setFormOpen(true);
   }
   function confirmDelete(entry: Entry) {
-    if (window.confirm(`Entry "${entry.title}" löschen?`)) remove.mutate(entry.id);
+    if (window.confirm(`Entry #${entry.id} löschen?`)) remove.mutate(entry.id);
   }
 
   return (

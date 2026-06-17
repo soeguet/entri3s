@@ -6,8 +6,8 @@ import type { AppRpc } from "./handlers";
  * Konkrete AppEmitter-Implementierung, die Events über die RPC-Bridge an die
  * Webview sendet. Optional chaining schützt vor noch nicht bereiter Webview.
  */
-export function createWindowEmitter(win: BrowserWindow<AppRpc>): AppEmitter {
-  const send = () => win.webview?.rpc?.send;
+export function createWindowEmitter(getWin: () => BrowserWindow<AppRpc> | undefined): AppEmitter {
+  const send = () => getWin()?.webview?.rpc?.send;
   return {
     bookingCompleted: () => send()?.bookingCompleted({}),
     bookingFailed: (error) => send()?.bookingFailed({ error }),

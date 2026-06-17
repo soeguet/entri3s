@@ -27,7 +27,6 @@ const store = {
   deadEvents: [] as AppEvent[],
   settings: {
     gitlabUrl: "https://gitlab.example.com",
-    projectId: 42,
     syncIntervalSec: 300,
   } as Settings,
   nextId: 1000,
@@ -128,7 +127,7 @@ export const bookEntry = (entryId: number) => {
       projectId: ticket.projectId,
       issueIid: ticket.gitlabIid,
       durationMinutes: entry.durationMinutes,
-      note: entry.notes ? `${entry.title}\n${entry.notes}` : entry.title,
+      note: entry.notes ?? "",
       spentAt: entry.date.slice(0, 10),
       bookedAt: now(),
     });

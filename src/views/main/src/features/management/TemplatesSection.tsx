@@ -54,7 +54,7 @@ export function TemplatesSection() {
               <div>
                 <p className="font-medium">{template.name}</p>
                 <p className="text-xs text-slate-500">
-                  {payload.title || "(ohne Titel)"} · {formatDuration(payload.durationMinutes)}
+                  {payload.notes || "(ohne Notiz)"} · {formatDuration(payload.durationMinutes)}
                 </p>
               </div>
               <div className="flex gap-1">

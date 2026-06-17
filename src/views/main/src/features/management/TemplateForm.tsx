@@ -21,7 +21,6 @@ export function TemplateForm(props: TemplateFormProps) {
   const qc = useQueryClient();
   const initial = props.template ? parsePayload(props.template.payload) : null;
   const [name, setName] = useState(props.template?.name ?? "");
-  const [title, setTitle] = useState(initial?.title ?? "");
   const [duration, setDuration] = useState(initial?.durationMinutes ?? 60);
   const [notes, setNotes] = useState(initial?.notes ?? "");
   const [tagIds, setTagIds] = useState<number[]>(initial?.tagIds ?? []);
@@ -31,7 +30,6 @@ export function TemplateForm(props: TemplateFormProps) {
   const save = useMutation({
     mutationFn: async () => {
       const payload = buildPayload({
-        title,
         durationMinutes: duration,
         notes: notes || null,
         tagIds,
@@ -62,10 +60,6 @@ export function TemplateForm(props: TemplateFormProps) {
         <div>
           <Label htmlFor="tpl-name">Template-Name</Label>
           <Input id="tpl-name" value={name} onChange={(e) => setName(e.target.value)} />
-        </div>
-        <div>
-          <Label htmlFor="tpl-title">Entry-Titel</Label>
-          <Input id="tpl-title" value={title} onChange={(e) => setTitle(e.target.value)} />
         </div>
         <div>
           <Label htmlFor="tpl-dur">Dauer (Minuten)</Label>

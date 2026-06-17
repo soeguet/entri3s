@@ -2,7 +2,7 @@ import type { Repository } from "../repository";
 import type { GitLabClient, GitLabIssue } from "../gitlab/types";
 import type { TicketUpsert } from "../repository/ticket";
 import type { TicketState } from "../../shared/types";
-import { appError } from "../lib/app-error";
+import type { AppEmitter } from "../app/emitter";
 
 const SYNC_SCHEDULE = "gitlab_sync";
 
@@ -14,10 +14,10 @@ function isOrphanState(state: string): boolean {
   return state === "closed" || state === "locked";
 }
 
-function toUpsert(issue: GitLabIssue, projectId: number): TicketUpsert {
+function toUpsert(issue: GitLabIssue): TicketUpsert {
   return {
     gitlabIid: issue.iid,
-    projectId,
+    projectId: issue.project_id,
     title: issue.title,
     state: issue.state as TicketState,
     timeEstimate: issue.time_stats?.time_estimate ?? null,
@@ -26,49 +26,72 @@ function toUpsert(issue: GitLabIssue, projectId: number): TicketUpsert {
   };
 }
 
-export function createSyncService(repo: Repository, gl: GitLabClient) {
-  async function syncIssues(projectId: number): Promise<{ synced: number; orphaned: number }> {
-    const schedule = repo.schedules.get(SYNC_SCHEDULE);
-    const since = schedule?.lastRun ? new Date(schedule.lastRun) : ninetyDaysAgo();
+export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppEmitter) {
+  // Verhindert, dass manueller Trigger und Scheduler gleichzeitig syncen.
+  let syncing = false;
 
-    const issues = await gl.fetchIssues(projectId, since);
-    let orphaned = 0;
-    for (const issue of issues) {
-      repo.tickets.upsert(toUpsert(issue, projectId));
-      if (isOrphanState(issue.state)) {
-        repo.tickets.markOrphaned(issue.iid, projectId);
-        orphaned++;
-      } else {
-        // Wieder geöffnete Issues, die zuvor orphaned waren, reaktivieren.
-        repo.tickets.markActive(issue.iid, projectId);
+  /**
+   * Projektübergreifender Sync: holt alle für den Token erreichbaren Issues
+   * (globaler /issues-Endpoint) und schreibt sie pro Projekt in die Tickets.
+   */
+  async function syncIssues(): Promise<{ synced: number; orphaned: number }> {
+    if (syncing) return { synced: 0, orphaned: 0 };
+    syncing = true;
+    try {
+      const schedule = repo.schedules.get(SYNC_SCHEDULE);
+      const since = schedule?.lastRun ? new Date(schedule.lastRun) : ninetyDaysAgo();
+
+      const issues = await gl.fetchIssues(since);
+      let orphaned = 0;
+      for (const issue of issues) {
+        repo.tickets.upsert(toUpsert(issue));
+        if (isOrphanState(issue.state)) {
+          repo.tickets.markOrphaned(issue.iid, issue.project_id);
+          orphaned++;
+        } else {
+          // Wieder geöffnete Issues, die zuvor orphaned waren, reaktivieren.
+          repo.tickets.markActive(issue.iid, issue.project_id);
+        }
       }
-    }
 
-    repo.schedules.updateLastRun(SYNC_SCHEDULE);
-    return { synced: issues.length, orphaned };
+      repo.schedules.updateLastRun(SYNC_SCHEDULE);
+      return { synced: issues.length, orphaned };
+    } finally {
+      syncing = false;
+    }
   }
 
   return {
     syncIssues,
 
-    /** Manueller Sync für das aktuell konfigurierte Projekt. */
-    async triggerSync(): Promise<{ synced: number; orphaned: number }> {
-      const projectId = repo.settings.getAll().projectId;
-      if (!projectId) {
-        throw appError("NO_PROJECT", "Kein GitLab-Projekt konfiguriert", false);
-      }
-      return syncIssues(projectId);
+    /**
+     * Manueller Sync: stösst den Sync im Hintergrund an und kehrt sofort zurück,
+     * damit der RPC-Call nicht über sein Timeout läuft. Ergebnis/Fehler kommen
+     * über die syncCompleted/syncFailed/orphanDetected-Events ans Frontend.
+     */
+    triggerSync(): void {
+      void (async () => {
+        try {
+          const result = await syncIssues();
+          emit.syncCompleted();
+          if (result.orphaned > 0) emit.orphanDetected(result.orphaned);
+        } catch (e) {
+          emit.syncFailed(e instanceof Error ? e.message : String(e));
+        }
+      })();
     },
 
     /** Vollabgleich: aktive Tickets, die GitLab nicht mehr (offen) zurückgibt → orphaned. */
-    async checkOrphans(projectId: number): Promise<number> {
-      const issues = await gl.fetchIssues(projectId);
-      const liveIids = new Set(issues.filter((i) => !isOrphanState(i.state)).map((i) => i.iid));
+    async checkOrphans(): Promise<number> {
+      const issues = await gl.fetchIssues();
+      const liveKeys = new Set(
+        issues.filter((i) => !isOrphanState(i.state)).map((i) => `${i.project_id}:${i.iid}`),
+      );
 
       let orphaned = 0;
       for (const ticket of repo.tickets.list({ status: "active" })) {
-        if (ticket.projectId === projectId && !liveIids.has(ticket.gitlabIid)) {
-          repo.tickets.markOrphaned(ticket.gitlabIid, projectId);
+        if (!liveKeys.has(`${ticket.projectId}:${ticket.gitlabIid}`)) {
+          repo.tickets.markOrphaned(ticket.gitlabIid, ticket.projectId);
           orphaned++;
         }
       }

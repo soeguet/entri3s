@@ -21,7 +21,6 @@ function seedEntryAndTicket(): { entryId: number; ticketId: number } {
   });
   const ticketId = repo.tickets.getByGitLabIid(100, PROJECT_ID)!.id;
   const entryId = repo.entries.create({
-    title: "Work",
     notes: null,
     durationMinutes: 90,
     date: "2024-01-15T10:00:00.000Z",

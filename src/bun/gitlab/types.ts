@@ -1,6 +1,7 @@
 /** Rohe GitLab-Issue-Form (Teilmenge der REST-API v4). */
 export interface GitLabIssue {
   iid: number;
+  project_id: number; // Pflichtfeld am globalen /issues-Endpoint (projektübergreifend)
   title: string;
   state: string; // "opened" | "closed"
   web_url: string;
@@ -18,7 +19,8 @@ export interface GitLabBookingResult {
 }
 
 export interface GitLabClient {
-  fetchIssues(projectId: number, since?: Date): Promise<GitLabIssue[]>;
+  /** Projektübergreifend: alle für den Token erreichbaren Issues (globaler /issues-Endpoint). */
+  fetchIssues(since?: Date): Promise<GitLabIssue[]>;
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
   bookTime(
     projectId: number,

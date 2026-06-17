@@ -19,7 +19,6 @@ function seedEntry(over: { notes?: string | null; date?: string } = {}): number 
   });
   const ticketId = repo.tickets.getByGitLabIid(100, PROJECT_ID)!.id;
   return repo.entries.create({
-    title: "Login-Flow",
     notes: over.notes ?? null,
     durationMinutes: 90,
     date: over.date ?? "2024-01-15T22:00:00.000Z",
@@ -56,16 +55,16 @@ test("spentAt uses the Europe/Berlin calendar day, not the UTC day", () => {
   expect(enqueuedPayload().spentAt).toBe("2024-01-16");
 });
 
-test("note is the title alone when the entry has no notes", () => {
+test("note is empty when the entry has no notes", () => {
   const entryId = seedEntry({ notes: null });
   createBookingService(repo).bookEntry(entryId);
-  expect(enqueuedPayload().note).toBe("Login-Flow");
+  expect(enqueuedPayload().note).toBe("");
 });
 
-test("note combines title and notes when present", () => {
+test("note is the entry notes when present", () => {
   const entryId = seedEntry({ notes: "OAuth-Redirect gefixt" });
   createBookingService(repo).bookEntry(entryId);
-  expect(enqueuedPayload().note).toBe("Login-Flow\nOAuth-Redirect gefixt");
+  expect(enqueuedPayload().note).toBe("OAuth-Redirect gefixt");
 });
 
 test("bookEntry sets the entry to pending_booking", () => {
