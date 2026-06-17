@@ -5,6 +5,7 @@ import { createGitLabClient } from "./gitlab/client";
 import { createService } from "./service";
 import { createRpc } from "./app/handlers";
 import { createWindowEmitter } from "./app/window-emitter";
+import { createTrayController } from "./app/tray";
 import { startWorker } from "./worker/worker";
 import { startScheduler } from "./scheduler/scheduler";
 import { getToken } from "./keychain/keychain";
@@ -34,9 +35,20 @@ win = new BrowserWindow({
 const workerHandle = startWorker(repo, glClient, emit);
 const schedulerHandle = startScheduler(repo, svc, emit);
 
+const trayCtl = createTrayController({
+  getRunning: () => svc.entry.getRunning(),
+  stopRunning: () => {
+    const r = svc.entry.getRunning();
+    if (r) svc.entry.stop(r.id);
+  },
+  onChanged: () => emit.runningEntryChanged(),
+  activateWindow: () => win?.show(),
+});
+
 win.on("close", () => {
   clearInterval(workerHandle);
   clearInterval(schedulerHandle);
+  trayCtl.dispose();
   db.close();
 });
 

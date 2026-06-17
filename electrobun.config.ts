@@ -12,6 +12,7 @@ export default {
       "dist/index.html": "views/main/index.html",
       "dist/assets": "views/main/assets",
       "src/bun/repository/migrations": "bun/migrations",
+      "src/assets/tray": "views/main/tray-icons",
     },
     // Ignore Vite output in watch mode — HMR handles view rebuilds separately
     watchIgnore: ["dist/**"],
