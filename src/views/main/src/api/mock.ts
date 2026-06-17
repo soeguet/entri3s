@@ -212,6 +212,10 @@ export const retryDeadEvent = (eventId: number) => {
   store.deadEvents = store.deadEvents.filter((e) => e.id !== eventId);
   return ok(undefined as void);
 };
+export const discardDeadEvent = (eventId: number) => {
+  store.deadEvents = store.deadEvents.filter((e) => e.id !== eventId);
+  return ok(undefined as void);
+};
 
 export const getTags = () => ok([...store.tags]);
 export const createTag = (tag: Omit<Tag, "id">) => {

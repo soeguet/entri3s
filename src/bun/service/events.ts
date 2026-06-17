@@ -23,6 +23,12 @@ export function createEventService(repo: Repository) {
       }
       repo.eventQueue.retryDead(eventId);
     },
+    discardDead(eventId: number): void {
+      // Verwerfen lässt den lokalen Booking-Record bewusst unangetastet: der Nutzer
+      // entfernt nur das hängende Event aus der Liste, nicht die zugrunde liegende
+      // Buchung. Das eigentliche Stornieren läuft über deleteBooking.
+      repo.eventQueue.discardDead(eventId);
+    },
   };
 }
 

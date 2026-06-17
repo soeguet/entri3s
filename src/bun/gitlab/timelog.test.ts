@@ -125,3 +125,26 @@ test("deleteTimelog throws on a real error", async () => {
   const gql = client([], () => ({ timelogDelete: { timelog: null, errors: ["unauthorized"] } }));
   await expect(deleteTimelog(gql, 42)).rejects.toThrow("unauthorized");
 });
+
+test("deleteTimelog tolerates a top-level 'resource does not exist' error", async () => {
+  // Einen extern (direkt in GitLab) gelöschten Timelog meldet GitLab nicht im
+  // feldspezifischen timelogDelete.errors, sondern als Top-Level-GraphQL-Error,
+  // den gqlRequest als Exception wirft. Dieser Fall soll als Erfolg gelten.
+  const gql: GqlClient = {
+    async gqlRequest() {
+      throw new Error(
+        "The resource that you are attempting to access does not exist or you don't have permission to perform this action",
+      );
+    },
+  };
+  await expect(deleteTimelog(gql, 42)).resolves.toBeUndefined();
+});
+
+test("deleteTimelog rethrows an unrelated thrown error", async () => {
+  const gql: GqlClient = {
+    async gqlRequest() {
+      throw new Error("GitLab nicht erreichbar");
+    },
+  };
+  await expect(deleteTimelog(gql, 42)).rejects.toThrow("GitLab nicht erreichbar");
+});

@@ -46,6 +46,7 @@ export function createRpc(svc: Services) {
         getBookingsForEntry: (p) => wrap(() => svc.booking.listForEntry(p.entryId)),
         getDeadEvents: () => wrap(() => svc.events.getDead()),
         retryDeadEvent: (p) => wrap(() => svc.events.retryDead(p.eventId)),
+        discardDeadEvent: (p) => wrap(() => svc.events.discardDead(p.eventId)),
 
         // Tags
         getTags: () => wrap(() => svc.tag.getAll()),

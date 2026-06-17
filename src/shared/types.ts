@@ -176,6 +176,7 @@ export interface AppRPCType {
       getBookingsForEntry: { params: { entryId: number }; response: RpcResponse<Booking[]> };
       getDeadEvents: { params: Record<string, never>; response: RpcResponse<AppEvent[]> };
       retryDeadEvent: { params: { eventId: number }; response: RpcResponse<void> };
+      discardDeadEvent: { params: { eventId: number }; response: RpcResponse<void> };
       getTags: { params: Record<string, never>; response: RpcResponse<Tag[]> };
       createTag: { params: Omit<Tag, "id">; response: RpcResponse<number> };
       deleteTag: { params: { id: number }; response: RpcResponse<void> };
