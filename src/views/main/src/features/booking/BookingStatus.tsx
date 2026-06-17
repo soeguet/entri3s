@@ -5,6 +5,7 @@ import { unwrap } from "../../lib/errors";
 import { formatDateTime } from "../../lib/dates";
 import { Button } from "../../components/ui/button";
 import { Badge } from "../../components/ui/badge";
+import { ErrorNote } from "../../components/ErrorNote";
 
 export function BookingStatus() {
   const qc = useQueryClient();
@@ -22,6 +23,10 @@ export function BookingStatus() {
     return <p className="py-10 text-center text-sm text-slate-400">Lädt…</p>;
   }
 
+  if (events.isError) {
+    return <ErrorNote error={events.error} className="py-10 text-center" />;
+  }
+
   if ((events.data ?? []).length === 0) {
     return (
       <p className="py-10 text-center text-sm text-slate-400">Keine fehlgeschlagenen Buchungen.</p>
@@ -30,6 +35,7 @@ export function BookingStatus() {
 
   return (
     <ul className="space-y-2">
+      {retry.isError ? <ErrorNote error={retry.error} /> : null}
       {(events.data ?? []).map((event) => (
         <li
           key={event.id}

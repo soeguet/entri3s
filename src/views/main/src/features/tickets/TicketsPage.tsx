@@ -4,17 +4,18 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 import type { TicketFilter, TicketState, TicketStatus } from "../../../../../shared/types";
 import { getTickets, triggerSync } from "../../api";
 import { keys } from "../../lib/queryKeys";
-import { errorMessage, unwrap } from "../../lib/errors";
+import { unwrap } from "../../lib/errors";
 import { Button } from "../../components/ui/button";
 import { formatDuration } from "../../lib/dates";
 import { PageHeader } from "../../components/PageHeader";
+import { ErrorNote } from "../../components/ErrorNote";
 import { Select } from "../../components/ui/select";
 import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 
 function seconds(s: number | null): string {
-  return s ? formatDuration(Math.round(s / 60)) : "–";
+  return s == null ? "–" : formatDuration(Math.round(s / 60));
 }
 
 export function TicketsPage() {
@@ -49,9 +50,8 @@ export function TicketsPage() {
         }
       />
 
-      {sync.isError ? (
-        <p className="mb-3 text-sm text-red-600">{errorMessage(sync.error)}</p>
-      ) : null}
+      {sync.isError ? <ErrorNote error={sync.error} className="mb-3" /> : null}
+      {tickets.isError ? <ErrorNote error={tickets.error} className="mb-3" /> : null}
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
         <div>

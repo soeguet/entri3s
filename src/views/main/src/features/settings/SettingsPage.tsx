@@ -4,6 +4,7 @@ import { getSettings, saveSettings, setGitLabToken, backupDatabase } from "../..
 import { keys } from "../../lib/queryKeys";
 import { errorMessage, unwrap } from "../../lib/errors";
 import { PageHeader } from "../../components/PageHeader";
+import { ErrorNote } from "../../components/ErrorNote";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
@@ -56,6 +57,8 @@ export function SettingsPage() {
   return (
     <div>
       <PageHeader title="Settings" description="GitLab-Verbindung, Sync und Backup" />
+
+      {settings.isError ? <ErrorNote error={settings.error} className="mb-3" /> : null}
 
       <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
         <h2 className="text-lg font-semibold">GitLab</h2>
@@ -118,6 +121,9 @@ export function SettingsPage() {
           </Button>
           {saveToken.isSuccess ? (
             <span className="text-sm text-green-600">Token gespeichert</span>
+          ) : null}
+          {saveToken.isError ? (
+            <span className="text-sm text-red-600">{errorMessage(saveToken.error)}</span>
           ) : null}
         </div>
       </div>
