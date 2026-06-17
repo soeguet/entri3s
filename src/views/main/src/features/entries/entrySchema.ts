@@ -25,6 +25,14 @@ function toMinutes(time: string): number {
   return h * 60 + m;
 }
 
+/** Live-Vorschau der Dauer fürs Form. null = ungültig (Ende ≤ Start). */
+export function previewDurationMinutes(startTime: string, endTime: string): number | null {
+  const re = /^\d{2}:\d{2}$/;
+  if (!re.test(startTime) || !re.test(endTime)) return null;
+  const diff = toMinutes(endTime) - toMinutes(startTime);
+  return diff > 0 ? diff : null;
+}
+
 function minutesToTime(total: number): string {
   const h = Math.floor(total / 60);
   const m = total % 60;

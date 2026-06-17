@@ -28,8 +28,10 @@ import {
   emptyFormValues,
   toEntryCreate,
   toFormValues,
+  previewDurationMinutes,
   type EntryFormValues,
 } from "./entrySchema";
+import { formatDuration, roundUpToQuarterHour } from "../../lib/dates";
 
 interface EntryFormProps {
   open: boolean;
@@ -101,6 +103,8 @@ export function EntryForm(props: EntryFormProps) {
   const selectedTags = form.watch("tagIds");
   const ticketId = form.watch("ticketId");
 
+  const previewMinutes = previewDurationMinutes(form.watch("startTime"), form.watch("endTime"));
+
   const selectedTicket =
     ticketId === null ? null : ((tickets.data ?? []).find((t) => t.id === ticketId) ?? null);
   function projectName(id: number): string {
@@ -165,6 +169,23 @@ export function EntryForm(props: EntryFormProps) {
           </div>
           <FieldError message={form.formState.errors.endTime?.message} />
           <FieldError message={form.formState.errors.startTime?.message} />
+
+          <p className="text-sm text-slate-500">
+            {previewMinutes === null ? (
+              <span className="text-slate-400">Dauer: –</span>
+            ) : (
+              <>
+                Dauer:{" "}
+                <span className="font-medium text-slate-700">{formatDuration(previewMinutes)}</span>
+                {roundUpToQuarterHour(previewMinutes) !== previewMinutes ? (
+                  <span className="text-slate-400">
+                    {" "}
+                    → {formatDuration(roundUpToQuarterHour(previewMinutes))} gebucht
+                  </span>
+                ) : null}
+              </>
+            )}
+          </p>
 
           <div>
             <Label htmlFor="notes">Notizen</Label>
