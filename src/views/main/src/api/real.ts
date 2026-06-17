@@ -4,6 +4,7 @@ import type {
   Entry,
   EntryCreate,
   EntryFilter,
+  EntryStart,
   Settings,
   Tag,
   Template,
@@ -51,6 +52,9 @@ const r = electroview.rpc!.request;
 
 export const getEntries = (filter: EntryFilter) => r.getEntries(filter);
 export const getEntry = (id: number) => r.getEntry({ id });
+export const getRunningEntry = () => r.getRunningEntry({});
+export const startEntry = (input: EntryStart) => r.startEntry(input);
+export const stopEntry = (id: number) => r.stopEntry({ id });
 export const createEntry = (entry: EntryCreate) => r.createEntry(entry);
 export const updateEntry = (entry: Entry) => r.updateEntry(entry);
 export const deleteEntry = (id: number) => r.deleteEntry({ id });

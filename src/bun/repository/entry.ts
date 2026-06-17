@@ -52,6 +52,13 @@ export function createEntryRepository(db: Database) {
       return row ? toEntry(row) : null;
     },
 
+    getRunning(): Entry | null {
+      const row = db
+        .query<EntryRow, []>("SELECT * FROM entries WHERE status = 'running' LIMIT 1")
+        .get();
+      return row ? toEntry(row) : null;
+    },
+
     list(filter: EntryFilter = {}): Entry[] {
       const where: string[] = [];
       const params: (string | number)[] = [];
