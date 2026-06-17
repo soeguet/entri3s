@@ -25,7 +25,13 @@ export interface GitLabClient {
     durationMinutes: number,
     spentAt: string, // ISO-Date YYYY-MM-DD
     note: string,
+    marker: string, // Idempotenz-Marker im Note-Body
   ): Promise<GitLabBookingResult>; // { noteId, createdAt }
+  findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null>;
 }
 
 export function createGitLabClient(token: string, settings: Settings): GitLabClient {
@@ -88,7 +94,13 @@ export interface GitLabClient {
     durationMinutes: number,
     spentAt: string, // ISO-Date YYYY-MM-DD
     note: string,
+    marker: string, // Idempotenz-Marker im Note-Body
   ): Promise<GitLabBookingResult>; // { noteId, createdAt }
+  findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null>;
 }
 
 // Fake für Tests
@@ -109,9 +121,15 @@ export class FakeGitLabClient implements GitLabClient {
   async fetchIssue() {
     return this.issuesToReturn[0] ?? null;
   }
-  async bookTime(p, i, d, spentAt, note) {
-    this.bookedCalls.push({ projectId: p, issueIid: i, durationMinutes: d, spentAt, note });
-    return { noteId: this.nextNoteId++, createdAt: "2024-01-15T10:00:00.000Z" };
+  async bookTime(p, i, d, spentAt, note, marker) {
+    const noteId = this.nextNoteId++;
+    this.bookedCalls.push({ projectId: p, issueIid: i, durationMinutes: d, spentAt, note, marker });
+    this.notes.push({ projectId: p, issueIid: i, marker, noteId });
+    return { noteId, createdAt: "2024-01-15T10:00:00.000Z" };
+  }
+  async findBookingNote(p, i, marker) {
+    const n = this.notes.find((x) => x.projectId === p && x.issueIid === i && x.marker === marker);
+    return n ? { noteId: n.noteId, createdAt: "2024-01-15T10:00:00.000Z" } : null;
   }
 }
 ```
@@ -208,6 +226,22 @@ POST /api/v4/projects/:projectId/issues/:issueIid/notes
 - Response liefert `{ id, created_at }` — `id` ist die `gitlab_note_id`, unsere
   Rückreferenz für die `bookings`-Tabelle. Link: `{ticket.webUrl}#note_{id}`.
 
+### Doppelbuchungs-Schutz (Pflicht)
+
+`/spend` ist **additiv und nicht idempotent** — ein Retry nach erfolgreichem
+API-Call bucht die Zeit doppelt (Arbeitszeitbetrug). Schutz:
+
+- Jeder Note wird ein unsichtbarer Marker mitgegeben:
+  `bookingMarker(entryId)` → `<!-- entries-booking:entry=<id> -->` (HTML-Kommentar,
+  in GitLab nicht gerendert).
+- `handleBooking()` ruft **vor** jedem `/spend` `gl.findBookingNote(projectId,
+  issueIid, marker)` auf. Existiert die Note schon → **nicht** erneut buchen,
+  nur den lokalen Record rekonziliieren.
+- DB-Insert zusätzlich idempotent: `getByNoteId()` + `UNIQUE(gitlab_note_id,
+  project_id)`.
+
+Nie `/spend` ohne diesen Vorab-Check buchen.
+
 ## Fehler-Mapping
 
 ```typescript
@@ -243,7 +277,7 @@ export function bookEntry(repo: Repository, entryId: number) {
     projectId: ticket.projectId,
     ticketIid: ticket.gitlabIid,
     durationMinutes: entry.durationMinutes,
-    spentAt: entry.date.slice(0, 10), // Entry-Datum → ISO-Date
+    spentAt: formatInTimeZone(entry.date, "Europe/Berlin", "yyyy-MM-dd"), // Berliner Tag
     note: entry.notes ? `${entry.title}\n${entry.notes}` : entry.title,
   });
   repo.entries.updateStatus(entryId, "pending_booking");

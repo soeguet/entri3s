@@ -106,6 +106,41 @@ test("failed booking writes no booking record", async () => {
   expect(repo.bookings.listByEntry(entryId)).toHaveLength(0);
 });
 
+test("does NOT double-book when the DB write fails after a successful spend", async () => {
+  // Kritisch (Arbeitszeitbetrug): /spend gelingt, aber der Booking-Record kann
+  // nicht geschrieben werden → Event wird wiederholt. Der zweite Lauf darf NICHT
+  // erneut in GitLab buchen.
+  const entryId = seedBooking();
+  const realCreate = repo.bookings.create;
+  repo.bookings.create = () => {
+    throw new Error("DB locked");
+  };
+
+  await processNext(repo, gl, emit); // bucht in GitLab, create wirft → re-queued
+  expect(gl.bookedCalls).toHaveLength(1);
+  expect(repo.bookings.listByEntry(entryId)).toHaveLength(0);
+
+  repo.bookings.create = realCreate;
+  await processNext(repo, gl, emit); // Idempotenz-Check findet die Note → kein 2. /spend
+
+  expect(gl.bookedCalls).toHaveLength(1); // GENAU einmal in GitLab gebucht
+  expect(repo.bookings.listByEntry(entryId)).toHaveLength(1);
+  expect(repo.entries.getById(entryId)?.status).toBe("booked");
+});
+
+test("a duplicate booking event reconciles instead of booking twice", async () => {
+  const entryId = seedBooking();
+  await processNext(repo, gl, emit);
+  expect(gl.bookedCalls).toHaveLength(1);
+
+  // Dasselbe Event versehentlich erneut einreihen (gleicher Payload).
+  createBookingService(repo).bookEntry(entryId);
+  await processNext(repo, gl, emit);
+
+  expect(gl.bookedCalls).toHaveLength(1); // keine zweite GitLab-Buchung
+  expect(repo.bookings.listByEntry(entryId)).toHaveLength(1);
+});
+
 test("failing booking retries and dead-letters after 3 attempts", async () => {
   const entryId = seedBooking();
   gl.bookShouldThrow = new Error("GitLab down");

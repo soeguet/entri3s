@@ -343,3 +343,17 @@ Keine Rück-Migration nötig, da die alten `add_spent_time`-Calls keine `note_id
 - **`bookings.note`**: Der gebuchte Text wird zusätzlich lokal gespeichert,
   damit die Booking-History ihn ohne GitLab-Roundtrip anzeigen kann
   (`Booking.note` im shared type ergänzt).
+- **Doppelbuchungs-Schutz (nicht in der Spec, aber zwingend):** `/spend` ist
+  additiv und nicht idempotent — ein Retry nach erfolgreichem API-Call (DB-Fehler,
+  verlorene Response, Crash) würde die Zeit ein zweites Mal buchen
+  (Arbeitszeitbetrug). Lösung: jeder Buchungs-Note wird ein unsichtbarer
+  Marker `<!-- entries-booking:entry=<id> -->` mitgegeben. `handleBooking()`
+  ruft vor jedem `/spend` `gl.findBookingNote()` auf; existiert die Note schon,
+  wird NICHT erneut gebucht, sondern nur der lokale Record rekonziliiert. Der
+  Booking-Record wird zusätzlich über `getByNoteId` + `UNIQUE(note_id, project)`
+  idempotent geschrieben. Tests in `worker.test.ts` decken den DB-Fehler- und
+  den Duplikat-Event-Fall ab.
+- **spentAt = Europe/Berlin-Kalendertag**, nicht UTC-Slice. Die Spec sagte
+  `entry.date.slice(0,10)`; das hätte frühe Berliner Einträge (00:30 = 23:30Z
+  Vortag) auf den falschen Tag gebucht — genau der Bug, den die Notes-API
+  beheben sollte. Korrigiert via `formatInTimeZone`.

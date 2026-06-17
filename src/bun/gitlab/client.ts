@@ -2,7 +2,7 @@ import type { Settings } from "../../shared/types";
 import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
 import { fetchIssues, fetchIssue } from "./fetch";
-import { bookTime } from "./push";
+import { bookTime, findBookingNote } from "./push";
 
 /** Schmale Sicht auf den HTTP-Client, die fetch.ts / push.ts brauchen. */
 export interface ApiClient {
@@ -64,7 +64,9 @@ export function createGitLabClient(token: string, settings: Settings): GitLabCli
   return {
     fetchIssues: (projectId, since) => fetchIssues(client, projectId, since),
     fetchIssue: (projectId, issueIid) => fetchIssue(client, projectId, issueIid),
-    bookTime: (projectId, issueIid, durationMinutes, spentAt, note) =>
-      bookTime(client, projectId, issueIid, durationMinutes, spentAt, note),
+    bookTime: (projectId, issueIid, durationMinutes, spentAt, note, marker) =>
+      bookTime(client, projectId, issueIid, durationMinutes, spentAt, note, marker),
+    findBookingNote: (projectId, issueIid, marker) =>
+      findBookingNote(client, projectId, issueIid, marker),
   };
 }

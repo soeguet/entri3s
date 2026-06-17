@@ -26,7 +26,13 @@ export interface GitLabClient {
     durationMinutes: number,
     spentAt: string,
     note: string,
+    marker: string,
   ): Promise<GitLabBookingResult>;
+  findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
@@ -37,6 +43,15 @@ export class FakeGitLabClient implements GitLabClient {
     durationMinutes: number;
     spentAt: string;
     note: string;
+    marker: string;
+  }> = [];
+  /** In GitLab "gespeicherte" Notes — Grundlage für findBookingNote. */
+  notes: Array<{
+    projectId: number;
+    issueIid: number;
+    marker: string;
+    noteId: number;
+    createdAt: string;
   }> = [];
   issuesToReturn: GitLabIssue[] = [];
   bookShouldThrow: Error | null = null;
@@ -56,9 +71,24 @@ export class FakeGitLabClient implements GitLabClient {
     durationMinutes: number,
     spentAt: string,
     note: string,
+    marker: string,
   ): Promise<GitLabBookingResult> {
     if (this.bookShouldThrow) throw this.bookShouldThrow;
-    this.bookedCalls.push({ projectId, issueIid, durationMinutes, spentAt, note });
-    return { noteId: this.nextNoteId++, createdAt: "2024-01-15T10:00:00.000Z" };
+    const noteId = this.nextNoteId++;
+    const createdAt = "2024-01-15T10:00:00.000Z";
+    this.bookedCalls.push({ projectId, issueIid, durationMinutes, spentAt, note, marker });
+    this.notes.push({ projectId, issueIid, marker, noteId, createdAt });
+    return { noteId, createdAt };
+  }
+
+  async findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null> {
+    const hit = this.notes.find(
+      (n) => n.projectId === projectId && n.issueIid === issueIid && n.marker === marker,
+    );
+    return hit ? { noteId: hit.noteId, createdAt: hit.createdAt } : null;
   }
 }
