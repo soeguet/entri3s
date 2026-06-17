@@ -132,13 +132,24 @@ export class FakeGitLabClient implements GitLabClient {
 }
 ```
 
-## Projektübergreifend – kein per-Projekt-Sync
+## Projektübergreifend – Iteration über Mitglieds-Projekte
 
-Wir syncen NICHT pro Projekt (`/projects/:id/issues`), sondern projektübergreifend
-alle Issues, auf die der Token Zugriff hat (über GraphQL, siehe nächster Abschnitt).
-Jedes Issue trägt seine `project_id` (Sync-Zuordnung) und seine globale
-`gitlab_global_id` (aus der GraphQL-GID), die für `timelogCreate` als
-`gid://gitlab/Issue/<id>` gebraucht wird. Es gibt KEINE Projekt-ID in den Settings.
+Wir syncen projektübergreifend alle Issues, auf die der Token Zugriff hat. Die
+GitLab-**Root**-`issues`-GraphQL-Query taugt dafür NICHT: sie verlangt ein
+Pflicht-Filterargument (`"You must provide at least one filter argument for this
+query"`) und verbietet so einen unbegrenzten Sync. Stattdessen:
+
+1. `projects(membership: true)` → alle Projekte, in denen der User Mitglied ist
+   (Cursor-Pagination).
+2. Pro Projekt `project(fullPath:) { issues(...) }` — die **projektgebundene**
+   issues-Connection braucht KEIN Filterargument (das Projekt ist der Scope).
+
+Die Projekte werden nach und nach abgearbeitet, gedrosselt über den gemeinsamen
+Rate-Limiter (5 req/s) — passend zum Hintergrund-Sync (z. B. 1×/Tag + bei Bedarf),
+damit die API nicht überlastet wird. Jedes Issue trägt seine `project_id` (aus dem
+Projekt der Schleife injiziert) und seine globale `gitlab_global_id` (aus der
+GraphQL-GID), die für `timelogCreate` als `gid://gitlab/Issue/<id>` gebraucht wird.
+Es gibt KEINE Projekt-ID in den Settings.
 
 ## Hybrid: Sync=GraphQL, Buchungen=GraphQL, Einzel-Issue=REST
 
@@ -157,22 +168,35 @@ Hintergrund/Entscheidung: `.claude/specs/12-gitlab-graphql-evaluation.md`.
 ## Sync – GraphQL mit Cursor-Pagination (Pflicht)
 
 ```typescript
-// src/bun/gitlab/graphql.ts — Root-level issues-Connection
-query($after: String, $since: Time) {
-  issues(first: 100, after: $after, updatedAfter: $since) {
-    nodes { iid title state webUrl updatedAt timeEstimate totalTimeSpent project { id } }
+// src/bun/gitlab/graphql.ts — Schritt 1: Mitglieds-Projekte
+query($after: String) {
+  projects(membership: true, first: 100, after: $after) {
+    nodes { id fullPath }
     pageInfo { hasNextPage endCursor }
+  }
+}
+
+// Schritt 2: Issues je Projekt (projektgebunden, KEIN Pflicht-Filter nötig)
+query($fullPath: ID!, $after: String, $since: Time) {
+  project(fullPath: $fullPath) {
+    issues(first: 100, after: $after, updatedAfter: $since) {
+      nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent }
+      pageInfo { hasNextPage endCursor }
+    }
   }
 }
 ```
 
-- Schleife solange `pageInfo.hasNextPage`, jeweils `after: endCursor` mitgeben.
+- Schleife solange `pageInfo.hasNextPage`, jeweils `after: endCursor` mitgeben —
+  sowohl für die Projektliste als auch für die Issues je Projekt.
 - **Kein `state`-Filter** — wir brauchen auch geschlossene Issues für die
   Orphan-Erkennung.
+- `Issue.project { id }` existiert je nach GitLab-Version NICHT — deshalb die
+  `project_id` aus dem Projekt der Schleife injizieren (nicht aus dem Issue-Knoten).
+- `data.project` kann `null` sein (Projekt nicht erreichbar) → überspringen.
 - Mapping GraphQL → `GitLabIssue`: `iid` ist ein String → `Number(...)`;
-  `project.id` ist eine GID (`gid://gitlab/Project/123`) → trailing Integer
-  parsen (`parseGid`); `state` ist bereits lowercase (opened/closed/locked);
-  `timeEstimate`/`totalTimeSpent` → `time_stats` (null → 0).
+  `id` (Issue-GID) → `parseGid`; `state` ist bereits lowercase
+  (opened/closed/locked); `timeEstimate`/`totalTimeSpent` → `time_stats` (null → 0).
 - `since` → GraphQL-Variable `updatedAfter` als ISO-String.
 
 Nie einen List-Endpoint ohne Pagination aufrufen. Stille Datenverluste sonst.
@@ -224,7 +248,23 @@ export function formatDuration(minutes: number): string {
   return `${h}h ${m}m`;
 }
 // 90 min → "1h 30m", 60 min → "1h", 30 min → "0h 30m"
+
+// Gebucht wird IMMER auf die nächste volle Viertelstunde aufgerundet
+// (service/booking.ts, beim Bauen des Payloads — der Entry behält seine echte Dauer):
+export function roundUpToQuarterHour(minutes: number): number {
+  return Math.ceil(minutes / 15) * 15; // 1 → 15, 16 → 30, 90 → 90
+}
 ```
+
+## Buchungsdatum: immer 12:00 UTC
+
+`spentAt` wird als Kalendertag `YYYY-MM-DD` durchgereicht (aus dem Berliner Tag des
+Entries, `service/booking.ts`). Beim Senden an `timelogCreate` hängt
+`timelog.ts` jedoch `T12:00:00Z` an (`toNoonUtc`): GitLab interpretiert ein reines
+Datum als **Mitternacht** und verschob die Buchung über die Zeitzonen-Umrechnung
+sonst auf den **Vortag** (z. B. `2026-06-15` → `2026-06-14 22:00 UTC`). Mittags-UTC
+liegt in jeder relevanten Zeitzone sicher auf demselben Tag. Der `findTimelog`-
+Idempotenz-Lookup nutzt weiter den reinen Tag als `startTime`/`endTime`-Fenster.
 
 ## Buchung via Timelog (GraphQL `timelogCreate`)
 
@@ -241,7 +281,7 @@ mutation {
   timelogCreate(input: {
     issuableId: "gid://gitlab/Issue/<globalId>",
     timeSpent: "1h 30m",
-    spentAt: "2024-06-17",   # frei wählbares Datum (ISO-Date, ohne Uhrzeit)
+    spentAt: "2024-06-17T12:00:00Z",  # Kalendertag auf 12:00 UTC (siehe oben)
     summary: "<Entry-Text>"  # max. 255 Zeichen → summary.slice(0, 255)
   }) { timelog { id } errors }
 }

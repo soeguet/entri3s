@@ -13,4 +13,13 @@ export const keys = {
   templates: () => ["templates"] as const,
   deadEvents: () => ["deadEvents"] as const,
   settings: () => ["settings"] as const,
+  // Letzter Sync-Status. triggerSync ist Fire-and-Forget — das Ergebnis kommt
+  // asynchron über die syncCompleted/syncFailed-Events; hier zwischengespeichert,
+  // damit die TicketsPage einen Sync-Fehler anzeigen kann.
+  syncStatus: () => ["syncStatus"] as const,
 };
+
+/** Im Query-Cache abgelegter Sync-Status (siehe keys.syncStatus). */
+export interface SyncStatus {
+  error: string | null;
+}

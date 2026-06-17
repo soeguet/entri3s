@@ -11,6 +11,7 @@ import type {
 } from "../../../../shared/types";
 import { queryClient } from "../lib/queryClient";
 import { keys } from "../lib/queryKeys";
+import type { SyncStatus } from "../lib/queryKeys";
 
 // Einzige Datei, die electrobun/view importiert. Message-Handler invalidieren
 // die betroffenen Queries — nie Event-Handler in Komponenten.
@@ -19,10 +20,17 @@ const rpc = Electroview.defineRPC<AppRPCType>({
     requests: {},
     messages: {
       syncCompleted: () => {
+        queryClient.setQueryData<SyncStatus>(keys.syncStatus(), { error: null });
         queryClient.invalidateQueries({ queryKey: keys.tickets() });
         queryClient.invalidateQueries({ queryKey: keys.entries() });
       },
-      syncFailed: () => {},
+      // Sync ist Fire-and-Forget: der Fehler kommt asynchron als Event, nicht als
+      // RPC-Antwort. Früher wurde er hier verworfen ("null infos") — jetzt im Cache
+      // ablegen, damit die TicketsPage ihn anzeigt, und auf der Konsole loggen.
+      syncFailed: (payload) => {
+        console.error("Sync fehlgeschlagen:", payload.error);
+        queryClient.setQueryData<SyncStatus>(keys.syncStatus(), { error: payload.error });
+      },
       bookingCompleted: () => {
         queryClient.invalidateQueries({ queryKey: keys.entries() });
         queryClient.invalidateQueries({ queryKey: keys.bookings() });

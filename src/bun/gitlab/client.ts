@@ -1,9 +1,22 @@
 import type { Settings } from "../../shared/types";
 import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
+import { createLogger } from "../lib/logger";
 import { fetchIssue } from "./fetch";
 import { fetchIssues as gqlFetchIssues } from "./graphql";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
+
+const log = createLogger("gitlab");
+
+/**
+ * Liest den Namen der GraphQL-Wurzel-Operation aus dem Query-String
+ * ("query(...) { issues(...) ... }" → "issues"), damit Logs lesbar sind statt
+ * den kompletten Query-Text zu zeigen. Fällt auf "graphql" zurück.
+ */
+function operationName(query: string): string {
+  const match = query.match(/^\s*(?:query|mutation)\b[^{]*\{\s*(\w+)/);
+  return match?.[1] ?? "graphql";
+}
 
 /** Schmale Sicht auf den HTTP-Client (REST), die fetch.ts / push.ts brauchen. */
 export interface ApiClient {
@@ -75,6 +88,22 @@ function toApiError(status: number, body: string): AppErrorError {
 }
 
 /**
+ * Wandelt einen `fetch()`-Fehler (DNS, TLS, Connection refused, Timeout) in einen
+ * klaren AppError statt einer rohen "fetch failed"-Exception. Wird geloggt, damit
+ * im Terminal sichtbar ist, welcher Request gegen welche URL scheiterte — vorher
+ * gingen Netzwerkfehler völlig stumm in `emit.syncFailed`.
+ */
+function toNetworkError(label: string, url: string, cause: unknown): AppErrorError {
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  log.error(`${label} → Netzwerkfehler`, { url, error: detail });
+  return new AppErrorError({
+    code: "NETWORK_ERROR",
+    message: `GitLab nicht erreichbar (${label}): ${detail}`,
+    retry: true,
+  });
+}
+
+/**
  * `getSettings` wird bei jedem Request frisch ausgewertet — so wirkt eine in den
  * Settings geänderte gitlabUrl sofort, ohne App-Neustart.
  */
@@ -84,15 +113,26 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
   async function apiRequest(path: string, options?: RequestInit): Promise<Response> {
     await limiter.throttle();
     const url = buildApiUrl(getSettings().gitlabUrl, path);
-    const res = await fetch(url, {
-      ...options,
-      headers: {
-        "PRIVATE-TOKEN": token,
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-    if (!res.ok) throw toApiError(res.status, await res.text());
+    const method = options?.method ?? "GET";
+    log.info(`REST → ${method} ${path}`);
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        ...options,
+        headers: {
+          "PRIVATE-TOKEN": token,
+          "Content-Type": "application/json",
+          ...options?.headers,
+        },
+      });
+    } catch (e) {
+      throw toNetworkError(`${method} ${path}`, url, e);
+    }
+    if (!res.ok) {
+      const body = await res.text();
+      log.error(`REST ${method} ${path} → HTTP ${res.status}`, { body: body.slice(0, 500) });
+      throw toApiError(res.status, body);
+    }
     return res;
   }
 
@@ -104,24 +144,38 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
    */
   async function gqlRequest(query: string, variables: Record<string, unknown>): Promise<any> {
     await limiter.throttle();
+    const op = operationName(query);
     const url = `${validatedBase(getSettings().gitlabUrl)}/api/graphql`;
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ query, variables }),
-    });
-    if (!res.ok) throw toApiError(res.status, await res.text());
-    const json = (await res.json()) as { data?: unknown; errors?: Array<{ message: string }> };
-    if (Array.isArray(json.errors) && json.errors.length > 0) {
-      throw new AppErrorError({
-        code: "GITLAB_ERROR",
-        message: json.errors.map((e) => e.message).join("; "),
-        retry: false,
+    log.info(`GraphQL → ${op}`, { variables });
+
+    let res: Response;
+    try {
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ query, variables }),
       });
+    } catch (e) {
+      throw toNetworkError(`GraphQL ${op}`, url, e);
     }
+
+    if (!res.ok) {
+      const body = await res.text();
+      log.error(`GraphQL ${op} → HTTP ${res.status}`, { body: body.slice(0, 500) });
+      throw toApiError(res.status, body);
+    }
+
+    const json = (await res.json()) as { data?: unknown; errors?: Array<{ message: string }> };
+    // GraphQL liefert HTTP 200 auch bei Fehlern → errors[] im Body prüfen.
+    if (Array.isArray(json.errors) && json.errors.length > 0) {
+      const message = json.errors.map((e) => e.message).join("; ");
+      log.error(`GraphQL ${op} → errors[]`, { errors: json.errors });
+      throw new AppErrorError({ code: "GITLAB_ERROR", message, retry: false });
+    }
+    log.info(`GraphQL ← ${op} ok`);
     return json.data;
   }
 

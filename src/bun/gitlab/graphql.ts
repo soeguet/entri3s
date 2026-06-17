@@ -1,5 +1,8 @@
 import type { GqlClient } from "./client";
 import type { GitLabIssue } from "./types";
+import { createLogger } from "../lib/logger";
+
+const log = createLogger("gitlab");
 
 /** GraphQL-Form eines Issue-Knotens (Teilmenge des GitLab-Schemas). */
 interface GqlIssueNode {
@@ -11,43 +14,70 @@ interface GqlIssueNode {
   updatedAt: string;
   timeEstimate: number | null;
   totalTimeSpent: number | null;
-  project: { id: string }; // GID, z.B. "gid://gitlab/Project/123"
 }
 
-interface IssuesResponse {
-  issues: {
-    nodes: GqlIssueNode[];
+/** Referenz auf ein Projekt, in dem der User Mitglied ist. */
+interface ProjectRef {
+  id: number; // numerische Projekt-ID (aus der GID)
+  fullPath: string; // Pfad für die project(fullPath:)-Query
+}
+
+/**
+ * Projekte, in denen der Token-User Mitglied ist (= "freigegeben"). Die
+ * Root-`issues`-Query verlangt ein Pflicht-Filterargument ("You must provide at
+ * least one filter argument") und taugt deshalb NICHT für einen unbegrenzten
+ * Sync. Stattdessen iterieren wir die Mitglieds-Projekte und holen je Projekt die
+ * Issues — die projektgebundene issues-Connection hat diese Einschränkung nicht.
+ */
+const PROJECTS_QUERY = `query($after: String) {
+  projects(membership: true, first: 100, after: $after) {
+    nodes { id fullPath }
+    pageInfo { hasNextPage endCursor }
+  }
+}`;
+
+interface ProjectsResponse {
+  projects: {
+    nodes: Array<{ id: string; fullPath: string }>;
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 }
 
 /**
- * Root-level `issues`-Query: liefert projektübergreifend alle für den Token
- * sichtbaren Issues. KEIN `state`-Filter — der Sync braucht auch geschlossene
- * Issues für die Orphan-Erkennung. Cursor-Pagination über `after`/`endCursor`.
+ * Issues eines einzelnen Projekts. KEIN `state`-Filter — der Sync braucht auch
+ * geschlossene Issues für die Orphan-Erkennung. Cursor-Pagination, inkrementell
+ * über `updatedAfter`.
  */
-const ISSUES_QUERY = `query($after: String, $since: Time) {
-  issues(first: 100, after: $after, updatedAfter: $since) {
-    nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent project { id } }
-    pageInfo { hasNextPage endCursor }
+const PROJECT_ISSUES_QUERY = `query($fullPath: ID!, $after: String, $since: Time) {
+  project(fullPath: $fullPath) {
+    issues(first: 100, after: $after, updatedAfter: $since) {
+      nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent }
+      pageInfo { hasNextPage endCursor }
+    }
   }
 }`;
 
-/**
- * Parst die trailing Integer-ID aus einer GitLab-GID
- * ("gid://gitlab/Project/123" → 123).
- */
+interface ProjectIssuesResponse {
+  project: {
+    issues: {
+      nodes: GqlIssueNode[];
+      pageInfo: { hasNextPage: boolean; endCursor: string | null };
+    };
+  } | null;
+}
+
+/** Parst die trailing Integer-ID aus einer GitLab-GID ("gid://gitlab/Project/123" → 123). */
 function parseGid(gid: string): number {
   const last = gid.split("/").pop() ?? "";
   return Number(last);
 }
 
 /** Mappt einen GraphQL-Knoten auf die interne GitLabIssue-Form. */
-function mapNode(node: GqlIssueNode): GitLabIssue {
+function mapNode(node: GqlIssueNode, projectId: number): GitLabIssue {
   return {
     iid: Number(node.iid),
     globalId: parseGid(node.id),
-    project_id: parseGid(node.project.id),
+    project_id: projectId,
     title: node.title,
     state: node.state,
     web_url: node.webUrl,
@@ -59,28 +89,69 @@ function mapNode(node: GqlIssueNode): GitLabIssue {
   };
 }
 
-/**
- * Projektübergreifend alle erreichbaren Issues per GraphQL mit Cursor-Pagination
- * (nie ohne!). Ersetzt den REST-Lese-Pfad; Buchungen bleiben REST. Jedes Issue
- * trägt seine `project_id` (aus der Projekt-GID), sodass der Sync weiterhin pro
- * Projekt zuordnen kann.
- */
-export async function fetchIssues(client: GqlClient, since?: Date): Promise<GitLabIssue[]> {
-  const all: GitLabIssue[] = [];
+/** Alle Projekte, in denen der User Mitglied ist (Cursor-Pagination, nie ohne!). */
+async function fetchProjects(client: GqlClient): Promise<ProjectRef[]> {
+  const projects: ProjectRef[] = [];
   let after: string | null = null;
 
   while (true) {
-    const data = (await client.gqlRequest(ISSUES_QUERY, {
-      after,
-      since: since ? since.toISOString() : null,
-    })) as IssuesResponse;
-
-    for (const node of data.issues.nodes) all.push(mapNode(node));
-
-    const pageInfo = data.issues.pageInfo;
+    const data = (await client.gqlRequest(PROJECTS_QUERY, { after })) as ProjectsResponse;
+    for (const node of data.projects.nodes) {
+      projects.push({ id: parseGid(node.id), fullPath: node.fullPath });
+    }
+    const pageInfo = data.projects.pageInfo;
     if (!pageInfo.hasNextPage) break;
     after = pageInfo.endCursor;
   }
 
+  return projects;
+}
+
+/** Alle Issues eines Projekts (Cursor-Pagination, inkrementell über `since`). */
+async function fetchProjectIssues(
+  client: GqlClient,
+  project: ProjectRef,
+  since?: Date,
+): Promise<GitLabIssue[]> {
+  const issues: GitLabIssue[] = [];
+  let after: string | null = null;
+
+  while (true) {
+    const data = (await client.gqlRequest(PROJECT_ISSUES_QUERY, {
+      fullPath: project.fullPath,
+      after,
+      since: since ? since.toISOString() : null,
+    })) as ProjectIssuesResponse;
+
+    if (!data.project) break; // Projekt nicht (mehr) erreichbar → überspringen
+    for (const node of data.project.issues.nodes) issues.push(mapNode(node, project.id));
+
+    const pageInfo = data.project.issues.pageInfo;
+    if (!pageInfo.hasNextPage) break;
+    after = pageInfo.endCursor;
+  }
+
+  return issues;
+}
+
+/**
+ * Projektübergreifender Sync: ermittelt zuerst alle Mitglieds-Projekte und holt
+ * dann projektweise (nach und nach, über den gemeinsamen Rate-Limiter gedrosselt)
+ * alle Issues. Jedes Issue trägt die project_id seines Projekts.
+ */
+export async function fetchIssues(client: GqlClient, since?: Date): Promise<GitLabIssue[]> {
+  const projects = await fetchProjects(client);
+  log.info(`Sync über ${projects.length} Projekt(e)`, { since: since?.toISOString() ?? null });
+
+  const all: GitLabIssue[] = [];
+  for (const project of projects) {
+    const issues = await fetchProjectIssues(client, project, since);
+    if (issues.length > 0) {
+      log.info(`Projekt ${project.fullPath}`, { projectId: project.id, issues: issues.length });
+    }
+    for (const issue of issues) all.push(issue);
+  }
+
+  log.info("fetchIssues fertig", { projects: projects.length, issues: all.length });
   return all;
 }
