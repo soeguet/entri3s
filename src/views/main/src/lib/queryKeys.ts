@@ -9,6 +9,8 @@ export const keys = {
   bookings: (entryId?: number) =>
     (entryId === undefined ? ["bookings"] : ["bookings", entryId]) as readonly unknown[],
   tickets: (filter?: TicketFilter) => ["tickets", filter] as const,
+  recentTickets: () => ["recentTickets"] as const,
+  projects: () => ["projects"] as const,
   tags: () => ["tags"] as const,
   templates: () => ["templates"] as const,
   deadEvents: () => ["deadEvents"] as const,

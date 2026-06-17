@@ -2,7 +2,15 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Entry } from "../../../../../shared/types";
-import { createEntry, updateEntry, getTags, getTickets, getTemplates } from "../../api";
+import {
+  createEntry,
+  updateEntry,
+  getTags,
+  getTickets,
+  getTemplates,
+  getProjects,
+  getRecentTickets,
+} from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { parsePayload } from "../../lib/templatePayload";
@@ -12,6 +20,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Select } from "../../components/ui/select";
+import { TicketCombobox } from "./TicketCombobox";
 import {
   entrySchema,
   emptyFormValues,
@@ -37,6 +46,14 @@ export function EntryForm(props: EntryFormProps) {
   const tickets = useQuery({
     queryKey: keys.tickets({ status: "active" }),
     queryFn: async () => unwrap(await getTickets({ status: "active" })),
+  });
+  const projects = useQuery({
+    queryKey: keys.projects(),
+    queryFn: async () => unwrap(await getProjects()),
+  });
+  const recentTickets = useQuery({
+    queryKey: keys.recentTickets(),
+    queryFn: async () => unwrap(await getRecentTickets(8)),
   });
   const templates = useQuery({
     queryKey: keys.templates(),
@@ -130,20 +147,13 @@ export function EntryForm(props: EntryFormProps) {
 
         <div>
           <Label htmlFor="ticket">Ticket</Label>
-          <Select
-            id="ticket"
-            value={ticketId === null ? "" : String(ticketId)}
-            onChange={(e) =>
-              form.setValue("ticketId", e.target.value === "" ? null : Number(e.target.value))
-            }
-          >
-            <option value="">– kein Ticket –</option>
-            {(tickets.data ?? []).map((t) => (
-              <option key={t.id} value={t.id}>
-                #{t.gitlabIid} {t.title}
-              </option>
-            ))}
-          </Select>
+          <TicketCombobox
+            tickets={tickets.data ?? []}
+            projects={projects.data ?? []}
+            recent={recentTickets.data ?? []}
+            value={ticketId}
+            onChange={(id) => form.setValue("ticketId", id)}
+          />
         </div>
 
         <div>

@@ -13,6 +13,13 @@ export interface GitLabIssue {
   };
 }
 
+/** Rohe GitLab-Projekt-Form (Teilmenge). `fullPath` kodiert die Gruppenhierarchie. */
+export interface GitLabProject {
+  id: number; // numerische Projekt-ID (aus der GID)
+  fullPath: string; // z.B. "acme/backend/api-service"
+  name: string; // Anzeigename des Projekts
+}
+
 /**
  * Identifiziert das Issue, auf das gebucht wird. `issueGlobalId` ist die globale
  * GitLab-ID (für die GraphQL-GID bei timelogCreate); `projectId`/`issueIid`
@@ -28,6 +35,8 @@ export interface GitLabClient {
   /** Projektübergreifend: alle für den Token erreichbaren Issues. */
   fetchIssues(since?: Date): Promise<GitLabIssue[]>;
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
+  /** Alle Projekte, in denen der Token-User Mitglied ist (für Metadaten/Hierarchie). */
+  fetchProjects(): Promise<GitLabProject[]>;
   /** Legt einen Timelog (mit Summary, ohne Kommentar) an; gibt die Timelog-ID zurück. */
   createTimelog(
     target: TimelogTarget,
@@ -65,6 +74,7 @@ export class FakeGitLabClient implements GitLabClient {
     timelogId: number;
   }> = [];
   issuesToReturn: GitLabIssue[] = [];
+  projectsToReturn: GitLabProject[] = [];
   createShouldThrow: Error | null = null;
   deleteShouldThrow: Error | null = null;
   nextTimelogId = 500;
@@ -75,6 +85,10 @@ export class FakeGitLabClient implements GitLabClient {
 
   async fetchIssue(): Promise<GitLabIssue | null> {
     return this.issuesToReturn[0] ?? null;
+  }
+
+  async fetchProjects(): Promise<GitLabProject[]> {
+    return this.projectsToReturn;
   }
 
   async createTimelog(

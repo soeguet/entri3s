@@ -30,6 +30,19 @@ function issue(iid: number, state: string): GitLabIssue {
   };
 }
 
+test("syncIssues persists project metadata from GitLab", async () => {
+  gl.projectsToReturn = [
+    { id: 42, fullPath: "acme/backend/api", name: "API" },
+    { id: 43, fullPath: "acme/frontend/web", name: "Web" },
+  ];
+  gl.issuesToReturn = [issue(1, "opened")];
+  await svc.syncIssues();
+
+  const projects = repo.projects.list();
+  expect(projects).toHaveLength(2);
+  expect(repo.projects.getById(42)?.fullPath).toBe("acme/backend/api");
+});
+
 test("syncIssues upserts tickets and marks closed ones orphaned", async () => {
   gl.issuesToReturn = [issue(1, "opened"), issue(2, "closed")];
   const result = await svc.syncIssues();

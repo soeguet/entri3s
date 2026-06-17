@@ -94,6 +94,26 @@ export function createTicketRepository(db: Database) {
         .map(toTicket);
     },
 
+    /**
+     * Aktive Tickets, sortiert nach jüngster Verwendung in Entries (zuletzt
+     * gebuchte/bearbeitete zuerst). Speist die „zuletzt verwendet"-Sektion der
+     * Ticket-Auswahl im EntryForm.
+     */
+    listRecent(limit: number): Ticket[] {
+      return db
+        .query<TicketRow, [number]>(
+          `SELECT t.* FROM tickets t
+           JOIN entry_tickets et ON et.ticket_id = t.id
+           JOIN entries e ON e.id = et.entry_id
+           WHERE t.status = 'active'
+           GROUP BY t.id
+           ORDER BY MAX(e.updated_at) DESC
+           LIMIT ?`,
+        )
+        .all(limit)
+        .map(toTicket);
+    },
+
     upsert(input: TicketUpsert): void {
       const now = new Date().toISOString();
       db.run(

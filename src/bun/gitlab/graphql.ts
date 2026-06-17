@@ -1,5 +1,5 @@
 import type { GqlClient } from "./client";
-import type { GitLabIssue } from "./types";
+import type { GitLabIssue, GitLabProject } from "./types";
 import { createLogger } from "../lib/logger";
 
 const log = createLogger("gitlab");
@@ -16,11 +16,12 @@ interface GqlIssueNode {
   totalTimeSpent: number | null;
 }
 
-/** Referenz auf ein Projekt, in dem der User Mitglied ist. */
-interface ProjectRef {
-  id: number; // numerische Projekt-ID (aus der GID)
-  fullPath: string; // Pfad für die project(fullPath:)-Query
-}
+/**
+ * Referenz auf ein Projekt, in dem der User Mitglied ist. Deckungsgleich mit
+ * GitLabProject (id, fullPath, name) — wird sowohl zum Iterieren der Issues als
+ * auch zum Persistieren der Projekt-Metadaten genutzt.
+ */
+type ProjectRef = GitLabProject;
 
 /**
  * Projekte, in denen der Token-User Mitglied ist (= "freigegeben"). Die
@@ -31,14 +32,14 @@ interface ProjectRef {
  */
 const PROJECTS_QUERY = `query($after: String) {
   projects(membership: true, first: 100, after: $after) {
-    nodes { id fullPath }
+    nodes { id fullPath name }
     pageInfo { hasNextPage endCursor }
   }
 }`;
 
 interface ProjectsResponse {
   projects: {
-    nodes: Array<{ id: string; fullPath: string }>;
+    nodes: Array<{ id: string; fullPath: string; name: string }>;
     pageInfo: { hasNextPage: boolean; endCursor: string | null };
   };
 }
@@ -90,14 +91,14 @@ function mapNode(node: GqlIssueNode, projectId: number): GitLabIssue {
 }
 
 /** Alle Projekte, in denen der User Mitglied ist (Cursor-Pagination, nie ohne!). */
-async function fetchProjects(client: GqlClient): Promise<ProjectRef[]> {
+export async function fetchProjects(client: GqlClient): Promise<GitLabProject[]> {
   const projects: ProjectRef[] = [];
   let after: string | null = null;
 
   while (true) {
     const data = (await client.gqlRequest(PROJECTS_QUERY, { after })) as ProjectsResponse;
     for (const node of data.projects.nodes) {
-      projects.push({ id: parseGid(node.id), fullPath: node.fullPath });
+      projects.push({ id: parseGid(node.id), fullPath: node.fullPath, name: node.name });
     }
     const pageInfo = data.projects.pageInfo;
     if (!pageInfo.hasNextPage) break;
