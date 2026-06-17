@@ -39,7 +39,13 @@ export interface EntryFilter {
   dateFrom?: string;
   dateTo?: string;
   status?: EntryStatus;
+  // Mehrfachauswahl, jeweils ODER-Match innerhalb der Kategorie.
   tagIds?: number[];
+  // Projekt- und Ticket-Auswahl stammen aus EINEM Hierarchie-Picker und werden
+  // untereinander mit ODER verknüpft (Projekt A ODER Ticket #5). Tags, Status und
+  // Datum hingegen mit UND.
+  projectIds?: number[];
+  ticketIds?: number[];
 }
 
 // ── Tickets (aus GitLab gesynct, read-only im UI) ────────────────────────────

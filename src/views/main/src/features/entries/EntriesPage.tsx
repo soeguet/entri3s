@@ -2,29 +2,20 @@ import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fromZonedTime } from "date-fns-tz";
 import type { Entry, EntryFilter, EntryStatus } from "../../../../../shared/types";
-import { getEntries, getTickets, deleteEntry, bookEntry } from "../../api";
+import { getEntries, getTickets, getProjects, getTags, deleteEntry, bookEntry } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { formatDuration, rangeForPreset, type RangePreset } from "../../lib/dates";
+import { buildFilterTree, resolveSelection } from "../../lib/filterTree";
 import { PageHeader } from "../../components/PageHeader";
 import { ErrorNote } from "../../components/ErrorNote";
 import { Button } from "../../components/ui/button";
-import { Select } from "../../components/ui/select";
-import { Input } from "../../components/ui/input";
-import { Label } from "../../components/ui/label";
 import { EntryList } from "./EntryList";
 import { EntryForm } from "./EntryForm";
+import { EntriesFilters } from "./EntriesFilters";
 import { GapBanner } from "./GapBanner";
 
 const TZ = "Europe/Berlin";
-
-const PRESETS: { key: RangePreset; label: string }[] = [
-  { key: "today", label: "Heute" },
-  { key: "thisWeek", label: "Diese Woche" },
-  { key: "lastWeek", label: "Letzte Woche" },
-  { key: "thisMonth", label: "Dieser Monat" },
-  { key: "lastMonth", label: "Letzter Monat" },
-];
 
 function dayStart(date: string): string {
   return fromZonedTime(`${date}T00:00:00`, TZ).toISOString();
@@ -39,6 +30,8 @@ export function EntriesPage() {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [activePreset, setActivePreset] = useState<RangePreset | null>(null);
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
+  const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | undefined>(undefined);
 
@@ -53,22 +46,38 @@ export function EntriesPage() {
     setTo("");
     setActivePreset(null);
   }
+  function toggleTag(id: number) {
+    setSelectedTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  }
+
+  const tickets = useQuery({
+    queryKey: keys.tickets(),
+    queryFn: async () => unwrap(await getTickets({})),
+  });
+  const projects = useQuery({
+    queryKey: keys.projects(),
+    queryFn: async () => unwrap(await getProjects()),
+  });
+  const tags = useQuery({ queryKey: keys.tags(), queryFn: async () => unwrap(await getTags()) });
+
+  const tree = buildFilterTree(projects.data ?? [], tickets.data ?? []);
+  const { projectIds, ticketIds } = resolveSelection(tree, selectedNodes);
 
   const filter: EntryFilter = {};
   if (status) filter.status = status;
   if (from) filter.dateFrom = dayStart(from);
   if (to) filter.dateTo = dayEnd(to);
+  if (selectedTagIds.length) filter.tagIds = selectedTagIds;
+  if (projectIds.length) filter.projectIds = projectIds;
+  if (ticketIds.length) filter.ticketIds = ticketIds;
 
   const entries = useQuery({
     queryKey: keys.entries(filter),
     queryFn: async () => unwrap(await getEntries(filter)),
   });
-  const tickets = useQuery({
-    queryKey: keys.tickets(),
-    queryFn: async () => unwrap(await getTickets({})),
-  });
 
   const ticketsById = new Map((tickets.data ?? []).map((t) => [t.id, t]));
+  const tagsById = new Map((tags.data ?? []).map((t) => [t.id, t]));
   // Der laufende Entry wird im globalen Timer-Widget gezeigt, nicht in der Tabelle.
   const visible = (entries.data ?? []).filter((e) => e.status !== "running");
   const totalMinutes = visible.reduce((sum, e) => sum + e.durationMinutes, 0);
@@ -104,91 +113,61 @@ export function EntriesPage() {
         actions={<Button onClick={openCreate}>Neuer Entry</Button>}
       />
 
-      <div className="mb-3 flex flex-wrap gap-2">
-        {PRESETS.map((preset) => (
-          <Button
-            key={preset.key}
-            size="sm"
-            variant={activePreset === preset.key ? "default" : "outline"}
-            onClick={() => applyPreset(preset.key)}
-          >
-            {preset.label}
-          </Button>
-        ))}
-        {from || to ? (
-          <Button size="sm" variant="ghost" onClick={clearRange}>
-            Zurücksetzen
-          </Button>
-        ) : null}
-      </div>
+      <div className="flex gap-6">
+        <EntriesFilters
+          status={status}
+          onStatus={setStatus}
+          from={from}
+          to={to}
+          activePreset={activePreset}
+          onPreset={applyPreset}
+          onFrom={(v) => {
+            setFrom(v);
+            setActivePreset(null);
+          }}
+          onTo={(v) => {
+            setTo(v);
+            setActivePreset(null);
+          }}
+          onClearRange={clearRange}
+          selectedTagIds={selectedTagIds}
+          onToggleTag={toggleTag}
+          tree={tree}
+          selectedNodes={selectedNodes}
+          onNodes={setSelectedNodes}
+        />
 
-      <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div>
-          <Label htmlFor="f-status">Status</Label>
-          <Select
-            id="f-status"
-            value={status}
-            onChange={(e) => setStatus(e.target.value as EntryStatus | "")}
-          >
-            <option value="">Alle</option>
-            <option value="draft">Entwurf</option>
-            <option value="pending_booking">Buchung läuft</option>
-            <option value="booked">Gebucht</option>
-            <option value="booking_failed">Buchung fehlgeschlagen</option>
-            <option value="orphaned">Verwaist</option>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="f-from">Von</Label>
-          <Input
-            id="f-from"
-            type="date"
-            value={from}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setActivePreset(null);
-            }}
-          />
-        </div>
-        <div>
-          <Label htmlFor="f-to">Bis</Label>
-          <Input
-            id="f-to"
-            type="date"
-            value={to}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setActivePreset(null);
-            }}
-          />
+        <div className="min-w-0 flex-1">
+          <GapBanner />
+
+          {book.isError ? <ErrorNote error={book.error} className="mb-3" /> : null}
+          {remove.isError ? <ErrorNote error={remove.error} className="mb-3" /> : null}
+          {entries.isError ? <ErrorNote error={entries.error} className="mb-3" /> : null}
+
+          {entries.isLoading ? (
+            <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>
+          ) : (
+            <>
+              {visible.length > 0 ? (
+                <p className="mb-2 text-sm text-muted-foreground">
+                  {visible.length} {visible.length === 1 ? "Eintrag" : "Einträge"} · Summe{" "}
+                  <span className="font-medium text-foreground">
+                    {formatDuration(totalMinutes)}
+                  </span>
+                </p>
+              ) : null}
+              <EntryList
+                entries={visible}
+                ticketsById={ticketsById}
+                tagsById={tagsById}
+                onEdit={openEdit}
+                onDelete={confirmDelete}
+                onBook={(entry) => book.mutate(entry.id)}
+              />
+            </>
+          )}
         </div>
       </div>
-
-      <GapBanner />
-
-      {book.isError ? <ErrorNote error={book.error} className="mb-3" /> : null}
-      {remove.isError ? <ErrorNote error={remove.error} className="mb-3" /> : null}
-      {entries.isError ? <ErrorNote error={entries.error} className="mb-3" /> : null}
-
-      {entries.isLoading ? (
-        <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>
-      ) : (
-        <>
-          {visible.length > 0 ? (
-            <p className="mb-2 text-sm text-muted-foreground">
-              {visible.length} {visible.length === 1 ? "Eintrag" : "Einträge"} · Summe{" "}
-              <span className="font-medium text-foreground">{formatDuration(totalMinutes)}</span>
-            </p>
-          ) : null}
-          <EntryList
-            entries={visible}
-            ticketsById={ticketsById}
-            onEdit={openEdit}
-            onDelete={confirmDelete}
-            onBook={(entry) => book.mutate(entry.id)}
-          />
-        </>
-      )}
 
       {formOpen ? (
         <EntryForm open={formOpen} onClose={() => setFormOpen(false)} entry={editing} />

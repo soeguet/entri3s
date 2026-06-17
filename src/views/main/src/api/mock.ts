@@ -50,6 +50,25 @@ export const getEntries = (filter: EntryFilter) => {
   if (filter.tagIds?.length) {
     result = result.filter((e) => e.tagIds.some((t) => filter.tagIds!.includes(t)));
   }
+  // Projekt- und Ticket-Auswahl stammen aus EINEM Picker: untereinander ODER,
+  // aber als gemeinsamer UND-Block gegenüber Status/Datum/Tags.
+  const hasProjectFilter = Boolean(filter.projectIds?.length);
+  const hasTicketFilter = Boolean(filter.ticketIds?.length);
+  if (hasProjectFilter || hasTicketFilter) {
+    const ticketProjectId = new Map(store.tickets.map((t) => [t.id, t.projectId]));
+    result = result.filter((e) => {
+      const byTicket = hasTicketFilter
+        ? e.ticketIds.some((id) => filter.ticketIds!.includes(id))
+        : false;
+      const byProject = hasProjectFilter
+        ? e.ticketIds.some((id) => {
+            const pid = ticketProjectId.get(id);
+            return pid !== undefined && filter.projectIds!.includes(pid);
+          })
+        : false;
+      return byTicket || byProject;
+    });
+  }
   return ok([...result].sort((a, b) => b.date.localeCompare(a.date)));
 };
 

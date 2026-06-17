@@ -7,18 +7,19 @@ import {
   useReactTable,
   type SortingState,
 } from "@tanstack/react-table";
-import type { Entry, Ticket } from "../../../../../shared/types";
+import type { Entry, Tag, Ticket } from "../../../../../shared/types";
 import { formatDate, formatEndTime, formatTime, formatDuration } from "../../lib/dates";
 import { Button } from "../../components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 import { EntryStatusBadge } from "./entryStatus";
 import { BookingHistory } from "../booking/BookingHistory";
 
-const COLUMN_COUNT = 6;
+const COLUMN_COUNT = 7;
 
 interface EntryListProps {
   entries: Entry[];
   ticketsById: Map<number, Ticket>;
+  tagsById: Map<number, Tag>;
   onEdit: (entry: Entry) => void;
   onDelete: (entry: Entry) => void;
   onBook: (entry: Entry) => void;
@@ -65,6 +66,33 @@ export function EntryList(props: EntryListProps) {
           .filter((t): t is Ticket => Boolean(t))
           .map((t) => `#${t.gitlabIid}`);
         return iids.length > 0 ? iids.join(", ") : <span className="text-muted-foreground">–</span>;
+      },
+    }),
+    helper.display({
+      id: "tags",
+      header: "Tags",
+      enableSorting: false,
+      cell: (c) => {
+        const tags = c.row.original.tagIds
+          .map((id) => props.tagsById.get(id))
+          .filter((t): t is Tag => Boolean(t));
+        if (tags.length === 0) return <span className="text-muted-foreground">–</span>;
+        return (
+          <div className="flex flex-wrap gap-1">
+            {tags.map((tag) => (
+              <span
+                key={tag.id}
+                style={tag.color ? { backgroundColor: tag.color, color: "#fff" } : undefined}
+                className={
+                  "rounded-full px-2 py-0.5 text-xs font-medium " +
+                  (tag.color ? "" : "bg-muted text-foreground")
+                }
+              >
+                {tag.name}
+              </span>
+            ))}
+          </div>
+        );
       },
     }),
     helper.accessor("status", {
