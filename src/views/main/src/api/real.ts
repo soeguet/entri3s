@@ -48,6 +48,9 @@ const rpc = Electroview.defineRPC<AppRPCType>({
       orphanDetected: () => {
         queryClient.invalidateQueries({ queryKey: keys.tickets() });
       },
+      runningEntryChanged: () => {
+        queryClient.invalidateQueries({ queryKey: keys.runningEntry() });
+      },
     },
   },
 });

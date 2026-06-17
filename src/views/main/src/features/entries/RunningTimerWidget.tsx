@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, Square, Tags, X } from "lucide-react";
 import type { Entry } from "../../../../../shared/types";
+import { formatElapsed } from "../../../../../shared/time";
 import {
   getRunningEntry,
   startEntry,
@@ -21,13 +22,6 @@ import { unwrap } from "../../lib/errors";
 import { Dialog } from "../../components/ui/dialog";
 import { TicketPicker } from "./TicketPicker";
 import { TagPicker } from "./TagPicker";
-
-/** Millisekunden → "HH:MM:SS". */
-function formatElapsed(ms: number): string {
-  const total = Math.max(0, Math.floor(ms / 1000));
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
-}
 
 /** Tickt jede Sekunde, solange `active` true ist — für die Live-Anzeige. */
 function useTick(active: boolean): number {

@@ -8,6 +8,7 @@ export interface AppEmitter {
   syncCompleted(): void;
   syncFailed(error: string): void;
   orphanDetected(count: number): void;
+  runningEntryChanged(): void;
 }
 
 export const noopEmitter: AppEmitter = {
@@ -16,4 +17,5 @@ export const noopEmitter: AppEmitter = {
   syncCompleted() {},
   syncFailed() {},
   orphanDetected() {},
+  runningEntryChanged() {},
 };

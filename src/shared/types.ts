@@ -200,6 +200,7 @@ export interface AppRPCType {
       bookingCompleted: Record<string, never>;
       bookingFailed: { error: string };
       orphanDetected: { count: number };
+      runningEntryChanged: Record<string, never>;
     };
   };
 }
