@@ -1,12 +1,20 @@
 import type { Settings } from "../../shared/types";
 import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
-import { fetchIssues, fetchIssue } from "./fetch";
+import { fetchIssue } from "./fetch";
+import { fetchIssues as gqlFetchIssues } from "./graphql";
 import { bookTime, findBookingNote } from "./push";
 
-/** Schmale Sicht auf den HTTP-Client, die fetch.ts / push.ts brauchen. */
+/** Schmale Sicht auf den HTTP-Client (REST), die fetch.ts / push.ts brauchen. */
 export interface ApiClient {
   apiRequest(path: string, options?: RequestInit): Promise<Response>;
+}
+
+/** Schmale Sicht auf den GraphQL-Client, die graphql.ts braucht. */
+export interface GqlClient {
+  // `any` bewusst: GraphQL-Responses sind je Query verschieden geformt;
+  // graphql.ts castet das Ergebnis auf die jeweilige Response-Form.
+  gqlRequest(query: string, variables: Record<string, unknown>): Promise<any>;
 }
 
 function createRateLimiter(reqPerSec: number) {
@@ -29,12 +37,13 @@ function createRateLimiter(reqPerSec: number) {
 }
 
 /**
- * Baut die absolute API-URL und validiert die konfigurierte gitlabUrl. fetch()
- * verlangt eine absolute URL — ist gitlabUrl leer oder ohne http(s)-Schema,
- * scheitert fetch() sonst mit "URL is invalid". Hier stattdessen ein klarer
- * AppError, der im UI verständlich angezeigt wird.
+ * Validiert die konfigurierte gitlabUrl und liefert die normalisierte Basis-URL
+ * (ohne trailing Slash). fetch() verlangt eine absolute URL — ist gitlabUrl leer
+ * oder ohne http(s)-Schema, scheitert fetch() sonst mit "URL is invalid". Hier
+ * stattdessen ein klarer AppError, der im UI verständlich angezeigt wird.
+ * Geteilt von REST (`/api/v4`) und GraphQL (`/api/graphql`).
  */
-function buildApiUrl(gitlabUrl: string, path: string): string {
+function validatedBase(gitlabUrl: string): string {
   const base = gitlabUrl.trim().replace(/\/+$/, "");
   if (!/^https?:\/\//i.test(base)) {
     throw new AppErrorError({
@@ -43,7 +52,12 @@ function buildApiUrl(gitlabUrl: string, path: string): string {
       retry: false,
     });
   }
-  return `${base}/api/v4${path}`;
+  return base;
+}
+
+/** Baut die absolute REST-API-URL (`/api/v4`). */
+function buildApiUrl(gitlabUrl: string, path: string): string {
+  return `${validatedBase(gitlabUrl)}/api/v4${path}`;
 }
 
 function toApiError(status: number, body: string): AppErrorError {
@@ -82,10 +96,40 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     return res;
   }
 
+  /**
+   * GraphQL-Request gegen `/api/graphql`. Anders als REST:
+   * - Auth über `Authorization: Bearer <token>` (nicht PRIVATE-TOKEN).
+   * - GraphQL liefert HTTP 200 auch bei Fehlern → `errors[]` im Body prüfen.
+   * Teilt den Rate-Limiter mit dem REST-Pfad (gleiche 5 req/s Instanz).
+   */
+  async function gqlRequest(query: string, variables: Record<string, unknown>): Promise<any> {
+    await limiter.throttle();
+    const url = `${validatedBase(getSettings().gitlabUrl)}/api/graphql`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ query, variables }),
+    });
+    if (!res.ok) throw toApiError(res.status, await res.text());
+    const json = (await res.json()) as { data?: unknown; errors?: Array<{ message: string }> };
+    if (Array.isArray(json.errors) && json.errors.length > 0) {
+      throw new AppErrorError({
+        code: "GITLAB_ERROR",
+        message: json.errors.map((e) => e.message).join("; "),
+        retry: false,
+      });
+    }
+    return json.data;
+  }
+
   const client: ApiClient = { apiRequest };
+  const gqlClient: GqlClient = { gqlRequest };
 
   return {
-    fetchIssues: (since) => fetchIssues(client, since),
+    fetchIssues: (since) => gqlFetchIssues(gqlClient, since),
     fetchIssue: (projectId, issueIid) => fetchIssue(client, projectId, issueIid),
     bookTime: (projectId, issueIid, durationMinutes, spentAt, note, marker) =>
       bookTime(client, projectId, issueIid, durationMinutes, spentAt, note, marker),

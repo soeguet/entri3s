@@ -1,6 +1,7 @@
 # Evaluierung: GitLab REST → GraphQL
 
-Status: ⬜ Vorschlag / Entscheidung offen
+Status: ✅ Hybrid umgesetzt (Sync=GraphQL, Buchungen=REST). Offen: GraphQL-Verfügbarkeit
+auf der Self-hosted-Instanz mit echtem Token verifizieren.
 Kontext: Wunsch, von der REST-Integration (`src/bun/gitlab/`) auf GraphQL zu wechseln,
 weil GraphQL persönlich vertrauter ist und ggf. besser für den projektübergreifenden
 Sync passt.
