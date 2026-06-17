@@ -26,6 +26,15 @@ export function formatDuration(minutes: number): string {
   return `${h}h ${m}m`;
 }
 
+/**
+ * Rundet eine Dauer auf das nächste volle 15-Minuten-Raster auf – spiegelt die
+ * Buchungslogik (roundUpToQuarterHour) wider, damit das Form vorab zeigen kann,
+ * was später wirklich gebucht würde.
+ */
+export function roundUpToQuarterHour(minutes: number): number {
+  return Math.ceil(minutes / 15) * 15;
+}
+
 // ── Komfort-Datumsbereiche für Filter ────────────────────────────────────────
 
 export type RangePreset = "today" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth";
