@@ -48,6 +48,12 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
       const since = schedule?.lastRun ? new Date(schedule.lastRun) : ninetyDaysAgo();
       log.info("Sync gestartet", { since: since.toISOString(), incremental: !!schedule?.lastRun });
 
+      // Projekt-Metadaten zuerst persistieren — daraus leitet das Frontend den
+      // Gruppenbaum (fullPath) ab und zeigt Projektnamen statt nur project_id.
+      const projects = await gl.fetchProjects();
+      for (const project of projects) repo.projects.upsert(project);
+      log.info("Projekte gesynct", { count: projects.length });
+
       const issues = await gl.fetchIssues(since);
       let orphaned = 0;
       for (const issue of issues) {

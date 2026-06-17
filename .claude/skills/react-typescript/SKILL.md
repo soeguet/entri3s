@@ -125,7 +125,9 @@ mise run doctor   # vor jedem Commit
 ## Layout
 
 - Sidebar links, fixed, kein Scrollen
-- Content rechts, scrollbar, `max-w-4xl`, zentriert, genug Padding
+- Content rechts, scrollbar, **volle Breite, linksbündig** (`w-full px-8 py-8`,
+  kein `max-w-*`, kein `mx-auto`) — sonst wird bei breiten Tabellen die Hälfte
+  abgeschnitten / seitlich gescrollt
 - Page-Title im Content-Bereich (nie in der Sidebar)
 - Kein Top-Nav
 

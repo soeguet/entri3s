@@ -1,8 +1,18 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronsUpDown } from "lucide-react";
 import type { Entry } from "../../../../../shared/types";
-import { createEntry, updateEntry, getTags, getTickets, getTemplates } from "../../api";
+import {
+  createEntry,
+  updateEntry,
+  getTags,
+  getTickets,
+  getTemplates,
+  getProjects,
+  getRecentTickets,
+} from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { parsePayload } from "../../lib/templatePayload";
@@ -12,6 +22,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Select } from "../../components/ui/select";
+import { TicketPicker } from "./TicketPicker";
 import {
   entrySchema,
   emptyFormValues,
@@ -37,6 +48,14 @@ export function EntryForm(props: EntryFormProps) {
   const tickets = useQuery({
     queryKey: keys.tickets({ status: "active" }),
     queryFn: async () => unwrap(await getTickets({ status: "active" })),
+  });
+  const projects = useQuery({
+    queryKey: keys.projects(),
+    queryFn: async () => unwrap(await getProjects()),
+  });
+  const recentTickets = useQuery({
+    queryKey: keys.recentTickets(),
+    queryFn: async () => unwrap(await getRecentTickets(8)),
   });
   const templates = useQuery({
     queryKey: keys.templates(),
@@ -75,8 +94,15 @@ export function EntryForm(props: EntryFormProps) {
     },
   });
 
+  const [picking, setPicking] = useState(false);
   const selectedTags = form.watch("tagIds");
   const ticketId = form.watch("ticketId");
+
+  const selectedTicket =
+    ticketId === null ? null : ((tickets.data ?? []).find((t) => t.id === ticketId) ?? null);
+  function projectName(id: number): string {
+    return (projects.data ?? []).find((p) => p.id === id)?.name ?? `Projekt ${id}`;
+  }
 
   function toggleTag(id: number) {
     const next = selectedTags.includes(id)
@@ -89,93 +115,109 @@ export function EntryForm(props: EntryFormProps) {
     <Dialog
       open={props.open}
       onClose={props.onClose}
-      title={props.entry ? "Entry bearbeiten" : "Neuer Entry"}
+      size="lg"
+      title={picking ? undefined : props.entry ? "Entry bearbeiten" : "Neuer Entry"}
     >
-      <form className="space-y-4" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
-        {!props.entry && (templates.data ?? []).length > 0 ? (
-          <div>
-            <Label htmlFor="template">Template anwenden</Label>
-            <Select id="template" defaultValue="" onChange={(e) => applyTemplate(e.target.value)}>
-              <option value="">– kein Template –</option>
-              {(templates.data ?? []).map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        ) : null}
+      {picking ? (
+        <TicketPicker
+          tickets={tickets.data ?? []}
+          projects={projects.data ?? []}
+          recent={recentTickets.data ?? []}
+          value={ticketId}
+          onSelect={(id) => {
+            form.setValue("ticketId", id);
+            setPicking(false);
+          }}
+          onCancel={() => setPicking(false)}
+        />
+      ) : (
+        <form className="space-y-4" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+          {!props.entry && (templates.data ?? []).length > 0 ? (
+            <div>
+              <Label htmlFor="template">Template anwenden</Label>
+              <Select id="template" defaultValue="" onChange={(e) => applyTemplate(e.target.value)}>
+                <option value="">– kein Template –</option>
+                {(templates.data ?? []).map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </Select>
+            </div>
+          ) : null}
 
-        <div className="grid grid-cols-3 gap-3">
-          <div>
-            <Label htmlFor="date">Datum</Label>
-            <Input id="date" type="date" {...form.register("date")} />
+          <div className="grid grid-cols-3 gap-3">
+            <div>
+              <Label htmlFor="date">Datum</Label>
+              <Input id="date" type="date" {...form.register("date")} />
+            </div>
+            <div>
+              <Label htmlFor="startTime">Start</Label>
+              <Input id="startTime" type="time" {...form.register("startTime")} />
+            </div>
+            <div>
+              <Label htmlFor="endTime">Ende</Label>
+              <Input id="endTime" type="time" {...form.register("endTime")} />
+            </div>
           </div>
+          <FieldError message={form.formState.errors.endTime?.message} />
+          <FieldError message={form.formState.errors.startTime?.message} />
+
           <div>
-            <Label htmlFor="startTime">Start</Label>
-            <Input id="startTime" type="time" {...form.register("startTime")} />
+            <Label htmlFor="notes">Notizen</Label>
+            <Textarea id="notes" {...form.register("notes")} />
           </div>
+
           <div>
-            <Label htmlFor="endTime">Ende</Label>
-            <Input id="endTime" type="time" {...form.register("endTime")} />
-          </div>
-        </div>
-        <FieldError message={form.formState.errors.endTime?.message} />
-        <FieldError message={form.formState.errors.startTime?.message} />
-
-        <div>
-          <Label htmlFor="notes">Notizen</Label>
-          <Textarea id="notes" {...form.register("notes")} />
-        </div>
-
-        <div>
-          <Label htmlFor="ticket">Ticket</Label>
-          <Select
-            id="ticket"
-            value={ticketId === null ? "" : String(ticketId)}
-            onChange={(e) =>
-              form.setValue("ticketId", e.target.value === "" ? null : Number(e.target.value))
-            }
-          >
-            <option value="">– kein Ticket –</option>
-            {(tickets.data ?? []).map((t) => (
-              <option key={t.id} value={t.id}>
-                #{t.gitlabIid} {t.title}
-              </option>
-            ))}
-          </Select>
-        </div>
-
-        <div>
-          <Label>Tags</Label>
-          <div className="mt-1 flex flex-wrap gap-2">
-            {(tags.data ?? []).map((tag) => (
-              <button
-                key={tag.id}
-                type="button"
-                onClick={() => toggleTag(tag.id)}
-                className={
-                  "rounded-full border px-3 py-1 text-xs font-medium " +
-                  (selectedTags.includes(tag.id)
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 text-slate-600")
-                }
+            <Label htmlFor="ticket">Ticket</Label>
+            <button
+              id="ticket"
+              type="button"
+              onClick={() => setPicking(true)}
+              className="flex h-9 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            >
+              <span
+                className={selectedTicket ? "truncate text-slate-900" : "truncate text-slate-400"}
               >
-                {tag.name}
-              </button>
-            ))}
+                {selectedTicket
+                  ? `#${selectedTicket.gitlabIid} ${selectedTicket.title} · ${projectName(selectedTicket.projectId)}`
+                  : "– kein Ticket –"}
+              </span>
+              <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
+            </button>
           </div>
-        </div>
 
-        <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="outline" onClick={props.onClose}>
-            Abbrechen
-          </Button>
-          <Button type="submit" disabled={mutation.isPending}>
-            {props.entry ? "Speichern" : "Erstellen"}
-          </Button>
-        </div>
-      </form>
+          <div>
+            <Label>Tags</Label>
+            <div className="mt-1 flex flex-wrap gap-2">
+              {(tags.data ?? []).map((tag) => (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleTag(tag.id)}
+                  className={
+                    "rounded-full border px-3 py-1 text-xs font-medium " +
+                    (selectedTags.includes(tag.id)
+                      ? "border-slate-900 bg-slate-900 text-white"
+                      : "border-slate-300 text-slate-600")
+                  }
+                >
+                  {tag.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={props.onClose}>
+              Abbrechen
+            </Button>
+            <Button type="submit" disabled={mutation.isPending}>
+              {props.entry ? "Speichern" : "Erstellen"}
+            </Button>
+          </div>
+        </form>
+      )}
     </Dialog>
   );
 }

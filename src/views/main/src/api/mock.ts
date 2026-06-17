@@ -5,6 +5,7 @@ import type {
   EntryCreate,
   EntryFilter,
   RpcResponse,
+  Project,
   Settings,
   Tag,
   Template,
@@ -13,6 +14,7 @@ import type {
 } from "../../../../shared/types";
 import { entryFixtures } from "../fixtures/entries";
 import { ticketFixtures } from "../fixtures/tickets";
+import { projectFixtures } from "../fixtures/projects";
 import { tagFixtures } from "../fixtures/tags";
 import { templateFixtures } from "../fixtures/templates";
 import { bookingFixtures } from "../fixtures/bookings";
@@ -21,6 +23,7 @@ import { bookingFixtures } from "../fixtures/bookings";
 const store = {
   entries: structuredClone(entryFixtures) as Entry[],
   tickets: structuredClone(ticketFixtures) as Ticket[],
+  projects: structuredClone(projectFixtures) as Project[],
   tags: structuredClone(tagFixtures) as Tag[],
   templates: structuredClone(templateFixtures) as Template[],
   bookings: structuredClone(bookingFixtures) as Booking[],
@@ -90,6 +93,11 @@ export const getTickets = (filter: TicketFilter) => {
   if (filter.state) result = result.filter((t) => t.state === filter.state);
   return ok([...result]);
 };
+
+export const getRecentTickets = (limit: number) =>
+  ok(store.tickets.filter((t) => t.status === "active").slice(0, limit));
+
+export const getProjects = () => ok([...store.projects]);
 
 export const bookEntry = (entryId: number) => {
   const entry = store.entries.find((e) => e.id === entryId);

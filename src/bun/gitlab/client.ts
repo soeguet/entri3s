@@ -3,7 +3,7 @@ import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
 import { createLogger } from "../lib/logger";
 import { fetchIssue } from "./fetch";
-import { fetchIssues as gqlFetchIssues } from "./graphql";
+import { fetchIssues as gqlFetchIssues, fetchProjects as gqlFetchProjects } from "./graphql";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
 
 const log = createLogger("gitlab");
@@ -184,6 +184,7 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
 
   return {
     fetchIssues: (since) => gqlFetchIssues(gqlClient, since),
+    fetchProjects: () => gqlFetchProjects(gqlClient),
     fetchIssue: (projectId, issueIid) => fetchIssue(client, projectId, issueIid),
     createTimelog: (target, durationMinutes, spentAt, summary) =>
       createTimelog(gqlClient, target, durationMinutes, spentAt, summary),

@@ -1,6 +1,6 @@
 import { test, expect } from "bun:test";
 import type { GqlClient } from "./client";
-import { fetchIssues } from "./graphql";
+import { fetchIssues, fetchProjects } from "./graphql";
 
 interface Captured {
   query: string;
@@ -124,6 +124,24 @@ test("defaults null time fields to 0 in time_stats", async () => {
   });
   const issues = await fetchIssues(client);
   expect(issues[0].time_stats).toEqual({ time_estimate: 0, total_time_spent: 0 });
+});
+
+test("fetchProjects maps id from GID, fullPath and name", async () => {
+  const client: GqlClient = {
+    async gqlRequest() {
+      return {
+        projects: page([
+          { id: "gid://gitlab/Project/123", fullPath: "acme/backend/api", name: "API" },
+          { id: "gid://gitlab/Project/456", fullPath: "acme/frontend/web", name: "Web" },
+        ]),
+      };
+    },
+  };
+  const projects = await fetchProjects(client);
+  expect(projects).toEqual([
+    { id: 123, fullPath: "acme/backend/api", name: "API" },
+    { id: 456, fullPath: "acme/frontend/web", name: "Web" },
+  ]);
 });
 
 test("tolerates an inaccessible project (project === null)", async () => {

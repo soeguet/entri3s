@@ -53,6 +53,15 @@ export interface TicketFilter {
   state?: TicketState;
 }
 
+// ── Projects (aus GitLab gesynct; fullPath kodiert die Gruppenhierarchie) ──────
+
+export interface Project {
+  id: number; // GitLab numerische Projekt-ID (= Ticket.projectId)
+  fullPath: string; // z.B. "acme/backend/api-service"
+  name: string; // Anzeigename des Projektblatts
+  syncedAt: string | null;
+}
+
 // ── Bookings (Zeitbuchungen gegen GitLab, eine Zeile pro erfolgreichem Timelog) ──
 
 export interface Booking {
@@ -132,6 +141,8 @@ export interface AppRPCType {
       updateEntry: { params: Entry; response: RpcResponse<void> };
       deleteEntry: { params: { id: number }; response: RpcResponse<void> };
       getTickets: { params: TicketFilter; response: RpcResponse<Ticket[]> };
+      getRecentTickets: { params: { limit: number }; response: RpcResponse<Ticket[]> };
+      getProjects: { params: Record<string, never>; response: RpcResponse<Project[]> };
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       removeTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       bookEntry: { params: { entryId: number }; response: RpcResponse<void> };

@@ -16,6 +16,7 @@
 | 10  | Feature: Settings          | ✅ fertig | `specs/05-11-features.md`         |
 | 11  | Testing & Hardening        | ✅ fertig | `specs/05-11-features.md`         |
 | 13  | Buchungs-Korrekturen       | ✅ fertig | `specs/13-booking-corrections.md` |
+| 14  | Ticket-Gruppierung/Filter  | ✅ fertig | `specs/14-ticket-grouping.md`      |
 
 Status: ⬜ offen · 🔄 in Arbeit · ✅ abgeschlossen
 

@@ -6,6 +6,11 @@ export function createTicketService(repo: Repository) {
     getAll(filter: TicketFilter = {}): Ticket[] {
       return repo.tickets.list(filter);
     },
+
+    /** Aktive Tickets, sortiert nach jüngster Verwendung (für die Schnellauswahl). */
+    getRecent(limit: number): Ticket[] {
+      return repo.tickets.listRecent(limit);
+    },
   };
 }
 
