@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { cn } from "../../lib/utils";
 
 interface DialogProps {
@@ -17,6 +17,18 @@ const SIZE_CLASS: Record<NonNullable<DialogProps["size"]>, string> = {
 
 /** Schlichter, kontrollierter Modal-Dialog (Overlay + Box). */
 export function Dialog(props: DialogProps) {
+  const onClose = props.onClose;
+  // Esc schliesst den Dialog – fokus-unabhängig (global), damit das Wegklicken
+  // auch funktioniert, wenn der Fokus nicht in einem Eingabefeld liegt.
+  useEffect(() => {
+    if (!props.open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [props.open, onClose]);
+
   if (!props.open) return null;
   return (
     <div
