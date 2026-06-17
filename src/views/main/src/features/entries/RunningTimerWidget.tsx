@@ -94,17 +94,21 @@ export function RunningTimerWidget() {
       setDraftTicketId(null);
       invalidate();
     },
+    meta: { successToast: "Timer gestartet" },
   });
   const stop = useMutation({
     mutationFn: async (id: number) => unwrap(await stopEntry(id)),
     onSuccess: invalidate,
+    meta: { successToast: "Gestoppt — als Entwurf gespeichert" },
   });
   // Notiz-Autosave: rührt nur das Notizfeld an; invalidiert nur den laufenden
-  // Entry (nicht die Tabelle), damit das Tippen flüssig bleibt.
+  // Entry (nicht die Tabelle), damit das Tippen flüssig bleibt. Kein Toast (zu
+  // häufig); auch Fehler bleiben still, um nicht bei jedem Tastendruck zu nerven.
   const saveNotes = useMutation({
     mutationFn: async (args: { id: number; notes: string | null }) =>
       unwrap(await setEntryNotes(args.id, args.notes)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.runningEntry() }),
+    meta: { silentError: true },
   });
 
   // Beim Tippen 600ms debounced speichern; onBlur und Stop flushen sofort.

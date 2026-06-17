@@ -76,10 +76,12 @@ export function EntriesPage() {
   const remove = useMutation({
     mutationFn: async (id: number) => unwrap(await deleteEntry(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.entries() }),
+    meta: { successToast: "Entry gelöscht" },
   });
   const book = useMutation({
     mutationFn: async (id: number) => unwrap(await bookEntry(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.entries() }),
+    meta: { successToast: "Zur Buchung eingereiht" },
   });
 
   function openCreate() {

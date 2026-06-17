@@ -49,6 +49,7 @@ export function GapBanner() {
       qc.invalidateQueries({ queryKey: keys.runningEntry() });
       qc.invalidateQueries({ queryKey: keys.entries() });
     },
+    meta: { successToast: "Lücke gefüllt" },
   });
 
   const settled = (entries.data ?? []).filter((e) => e.status !== "running");

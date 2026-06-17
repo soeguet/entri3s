@@ -44,6 +44,7 @@ export function TemplateForm(props: TemplateFormProps) {
       qc.invalidateQueries({ queryKey: keys.templates() });
       props.onClose();
     },
+    meta: { successToast: props.template ? "Template gespeichert" : "Template angelegt" },
   });
 
   function toggleTag(id: number) {

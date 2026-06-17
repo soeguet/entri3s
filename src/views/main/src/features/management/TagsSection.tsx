@@ -24,10 +24,12 @@ export function TagsSection() {
       setName("");
       qc.invalidateQueries({ queryKey: keys.tags() });
     },
+    meta: { successToast: "Tag angelegt" },
   });
   const remove = useMutation({
     mutationFn: async (id: number) => unwrap(await deleteTag(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tags() }),
+    meta: { successToast: "Tag gelöscht" },
   });
 
   return (

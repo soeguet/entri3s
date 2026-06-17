@@ -22,6 +22,7 @@ export function TemplatesSection() {
   const remove = useMutation({
     mutationFn: async (id: number) => unwrap(await deleteTemplate(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.templates() }),
+    meta: { successToast: "Template gelöscht" },
   });
 
   function openCreate() {

@@ -17,6 +17,8 @@ export function BookingStatus() {
   const retry = useMutation({
     mutationFn: async (id: number) => unwrap(await retryDeadEvent(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.deadEvents() }),
+    // Fehler wird inline (ErrorNote) angezeigt → kein doppelter Toast.
+    meta: { silentError: true, successToast: "Erneut eingereiht" },
   });
 
   if (events.isLoading) {
