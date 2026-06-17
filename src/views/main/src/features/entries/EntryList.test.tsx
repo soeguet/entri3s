@@ -7,7 +7,7 @@ import { EntryList } from "./EntryList";
 
 const ticketsById = new Map(ticketFixtures.map((t) => [t.id, t]));
 
-function noop() {}
+function noop() { }
 
 test("rendert Entries mit Notiz und Status", () => {
   renderWithClient(
@@ -19,6 +19,9 @@ test("rendert Entries mit Notiz und Status", () => {
       onBook={noop}
     />,
   );
+  expect(
+    screen.getByText(/15\.01\.2024\s*·\s*10:00\s*[-]\s*11:30/),
+  ).toBeInTheDocument();
   expect(screen.getByText("OAuth-Redirect gefixt")).toBeInTheDocument();
   expect(screen.getByText("Gebucht")).toBeInTheDocument();
 });

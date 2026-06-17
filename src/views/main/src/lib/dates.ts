@@ -17,6 +17,11 @@ export function formatTime(iso: string): string {
   return formatInTimeZone(new Date(iso), TZ, "HH:mm");
 }
 
+export function formatEndTime(iso: string, durationMinutes: number): string {
+  const end = new Date(new Date(iso).getTime() + durationMinutes * 60_000);
+  return formatInTimeZone(end, TZ, "HH:mm");
+}
+
 /** Minuten → "1h 30m" / "2h" / "45m". */
 export function formatDuration(minutes: number): string {
   const h = Math.floor(minutes / 60);

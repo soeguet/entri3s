@@ -8,7 +8,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import type { Entry, Ticket } from "../../../../../shared/types";
-import { formatDate, formatTime, formatDuration } from "../../lib/dates";
+import { formatDate, formatEndTime, formatTime, formatDuration } from "../../lib/dates";
 import { Button } from "../../components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 import { EntryStatusBadge } from "./entryStatus";
@@ -37,11 +37,15 @@ export function EntryList(props: EntryListProps) {
   const columns = [
     helper.accessor("date", {
       header: "Datum",
-      cell: (c) => (
-        <span className="whitespace-nowrap">
-          {formatDate(c.getValue())} · {formatTime(c.getValue())}
-        </span>
-      ),
+      cell: (c) => {
+        const date = c.getValue();
+        const durationMinutes = c.row.original.durationMinutes;
+        return (
+          <span className="whitespace-nowrap">
+            {formatDate(date)} · {formatTime(date)} - {formatEndTime(date, durationMinutes)}
+          </span>
+        );
+      },
     }),
     helper.accessor("notes", {
       header: "Notiz",
