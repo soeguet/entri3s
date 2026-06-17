@@ -11,17 +11,36 @@ interface EntryFilterTreeProps {
   onChange: (next: Set<string>) => void;
 }
 
+/** Pfade aller Knoten mit Kindern (Gruppen/Projekte) — für „alle aus-/einklappen". */
+function expandablePaths(nodes: FilterTreeNode[], acc: string[] = []): string[] {
+  for (const node of nodes) {
+    if (node.children.length > 0) {
+      acc.push(node.path);
+      expandablePaths(node.children, acc);
+    }
+  }
+  return acc;
+}
+
 /** Multi-Select Hierarchie-Filter (Gruppe/Projekt/Ticket) mit Checkboxen. */
 export function EntryFilterTree(props: EntryFilterTreeProps) {
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Standard: alles eingeklappt. `expanded` hält die offenen Knoten-Pfade.
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
 
-  function toggleCollapse(path: string) {
-    setCollapsed((prev) => {
+  function toggleExpand(path: string) {
+    setExpanded((prev) => {
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);
       else next.add(path);
       return next;
     });
+  }
+
+  const allPaths = expandablePaths(props.nodes);
+  const allExpanded = allPaths.length > 0 && allPaths.every((p) => expanded.has(p));
+
+  function toggleAll() {
+    setExpanded(allExpanded ? new Set() : new Set(allPaths));
   }
 
   function isChecked(path: string): boolean {
@@ -50,7 +69,7 @@ export function EntryFilterTree(props: EntryFilterTreeProps) {
 
   function renderNode(node: FilterTreeNode, depth: number) {
     const hasChildren = node.children.length > 0;
-    const isOpen = !collapsed.has(node.path);
+    const isOpen = expanded.has(node.path);
     const checked = isChecked(node.path);
     return (
       <div key={node.path}>
@@ -61,7 +80,7 @@ export function EntryFilterTree(props: EntryFilterTreeProps) {
           {hasChildren ? (
             <button
               type="button"
-              onClick={() => toggleCollapse(node.path)}
+              onClick={() => toggleExpand(node.path)}
               className="shrink-0 rounded p-0.5 hover:bg-black/10"
               aria-label={isOpen ? "Einklappen" : "Ausklappen"}
             >
@@ -100,19 +119,30 @@ export function EntryFilterTree(props: EntryFilterTreeProps) {
 
   return (
     <div className="space-y-0.5">
-      <button
-        type="button"
-        onClick={() => props.onChange(new Set())}
-        className={cn(
-          "flex w-full items-center gap-2 rounded px-2 py-1 text-sm font-medium",
-          props.selected.size === 0
-            ? "bg-primary text-primary-foreground"
-            : "text-foreground hover:bg-muted",
-        )}
-      >
-        <FolderTree className="h-4 w-4 shrink-0" />
-        Alle (Filter zurücksetzen)
-      </button>
+      <div className="flex items-center justify-between gap-2">
+        <button
+          type="button"
+          onClick={() => props.onChange(new Set())}
+          className={cn(
+            "flex flex-1 items-center gap-2 rounded px-2 py-1 text-sm font-medium",
+            props.selected.size === 0
+              ? "bg-primary text-primary-foreground"
+              : "text-foreground hover:bg-muted",
+          )}
+        >
+          <FolderTree className="h-4 w-4 shrink-0" />
+          Alle (Filter zurücksetzen)
+        </button>
+        {allPaths.length > 0 ? (
+          <button
+            type="button"
+            onClick={toggleAll}
+            className="shrink-0 rounded px-2 py-1 text-xs text-muted-foreground hover:bg-muted"
+          >
+            {allExpanded ? "Alle einklappen" : "Alle ausklappen"}
+          </button>
+        ) : null}
+      </div>
       {props.nodes.map((n) => renderNode(n, 0))}
     </div>
   );

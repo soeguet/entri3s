@@ -59,8 +59,22 @@ export function EntriesPage() {
     queryFn: async () => unwrap(await getProjects()),
   });
   const tags = useQuery({ queryKey: keys.tags(), queryFn: async () => unwrap(await getTags()) });
+  // Ungefiltertes Universum aller Entries — nur daraus leiten wir ab, welche
+  // Tickets überhaupt zugewiesen sind. (Unabhängig vom aktiven Filter, damit der
+  // Picker beim Filtern nicht schrumpft.)
+  const allEntries = useQuery({
+    queryKey: keys.entries({}),
+    queryFn: async () => unwrap(await getEntries({})),
+  });
 
-  const tree = buildFilterTree(projects.data ?? [], tickets.data ?? []);
+  // Baum nur aus Tickets bauen, die tatsächlich an Entries hängen — plus deren
+  // Projekte/Gruppen. So zeigt der Filter nur, wonach es etwas zu filtern gibt.
+  const usedTicketIds = new Set((allEntries.data ?? []).flatMap((e) => e.ticketIds));
+  const usedTickets = (tickets.data ?? []).filter((t) => usedTicketIds.has(t.id));
+  const usedProjectIds = new Set(usedTickets.map((t) => t.projectId));
+  const usedProjects = (projects.data ?? []).filter((p) => usedProjectIds.has(p.id));
+
+  const tree = buildFilterTree(usedProjects, usedTickets);
   const { projectIds, ticketIds } = resolveSelection(tree, selectedNodes);
 
   const filter: EntryFilter = {};
