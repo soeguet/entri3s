@@ -16,10 +16,10 @@ const ICON_IDLE = "views://main/tray-icons/timer-idle.png";
  */
 export function trayView(entry: Entry | null, now: number): { image: string; title: string } {
   if (entry === null) {
-    return { image: ICON_IDLE, title: "entries – kein Timer läuft" };
+    return { image: ICON_IDLE, title: "entries - kein Timer" };
   }
   const elapsed = formatElapsed(now - Date.parse(entry.date));
-  return { image: ICON_RUNNING, title: `entries – ${elapsed}` };
+  return { image: ICON_RUNNING, title: `entries - ${elapsed}` };
 }
 
 /** Minimales Tray-Interface, damit Tests einen Fake ohne FFI injizieren können. */
@@ -75,7 +75,7 @@ export function createTrayController(deps: TrayDeps): TrayController {
       lastImage = view.image;
     }
     tray.setMenu([
-      { type: "normal", label: "entries öffnen", action: "open" },
+      { type: "normal", label: "Fenster zeigen", action: "open" },
       { type: "divider" },
       { type: "normal", label: "Timer stoppen", action: "stop", enabled: entry !== null },
     ]);
