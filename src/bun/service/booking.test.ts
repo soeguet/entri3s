@@ -7,7 +7,9 @@ let repo: Repository;
 
 const PROJECT_ID = 7;
 
-function seedEntry(over: { notes?: string | null; date?: string } = {}): number {
+function seedEntry(
+  over: { notes?: string | null; date?: string; durationMinutes?: number } = {},
+): number {
   repo.tickets.upsert({
     gitlabIid: 100,
     gitlabGlobalId: 9100,
@@ -21,7 +23,7 @@ function seedEntry(over: { notes?: string | null; date?: string } = {}): number 
   const ticketId = repo.tickets.getByGitLabIid(100, PROJECT_ID)!.id;
   return repo.entries.create({
     notes: over.notes ?? null,
-    durationMinutes: 90,
+    durationMinutes: over.durationMinutes ?? 90,
     date: over.date ?? "2024-01-15T22:00:00.000Z",
     status: "draft",
     tagIds: [],
@@ -55,6 +57,14 @@ test("spentAt uses the Europe/Berlin calendar day, not the UTC day", () => {
   const entryId = seedEntry({ date: "2024-01-15T23:30:00.000Z" });
   createBookingService(repo).bookEntry(entryId);
   expect(enqueuedPayload().spentAt).toBe("2024-01-16");
+});
+
+test("rounds the booked duration up to the next full 15 minutes", () => {
+  const entryId = seedEntry({ durationMinutes: 70 }); // 70 → 75
+  createBookingService(repo).bookEntry(entryId);
+  expect(enqueuedPayload().durationMinutes).toBe(75);
+  // Der Entry selbst behält seine echte Dauer.
+  expect(repo.entries.getById(entryId)?.durationMinutes).toBe(70);
 });
 
 test("note is empty when the entry has no notes", () => {

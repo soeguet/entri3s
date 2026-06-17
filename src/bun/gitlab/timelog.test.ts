@@ -31,10 +31,11 @@ test("createTimelog calls timelogCreate with the issue GID, duration and summary
   const id = await createTimelog(gql, TARGET, 90, "2024-06-17", "Login-Flow");
 
   expect(id).toBe(42);
+  // spentAt wird auf 12:00 UTC gesetzt, damit GitLab den Tag nicht auf den Vortag schiebt.
   expect(captured[0].variables).toEqual({
     issuableId: "gid://gitlab/Issue/9100",
     timeSpent: "1h 30m",
-    spentAt: "2024-06-17",
+    spentAt: "2024-06-17T12:00:00Z",
     summary: "Login-Flow",
   });
   // Keine Notes-/Kommentar-API: die Mutation heisst timelogCreate.

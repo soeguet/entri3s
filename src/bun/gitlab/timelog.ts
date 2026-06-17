@@ -37,6 +37,17 @@ function truncate(summary: string): string {
   return summary.trim().slice(0, MAX_SUMMARY_LENGTH);
 }
 
+/**
+ * Bucht auf 12:00 UTC des gewählten Kalendertags statt auf den nackten
+ * Datums-String. GitLab interpretiert ein reines Datum als Mitternacht und
+ * verschob die Buchung über die Zeitzonen-Umrechnung sonst auf den Vortag
+ * (z.B. 2026-06-15 → 2026-06-14 22:00 UTC). Mittags-UTC liegt in jeder
+ * relevanten Zeitzone sicher auf demselben Tag — entscheidend ist der Tag.
+ */
+function toNoonUtc(spentAt: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(spentAt) ? `${spentAt}T12:00:00Z` : spentAt;
+}
+
 export async function createTimelog(
   client: GqlClient,
   target: TimelogTarget,
@@ -47,7 +58,7 @@ export async function createTimelog(
   const data = (await client.gqlRequest(CREATE_MUTATION, {
     issuableId: `gid://gitlab/Issue/${target.issueGlobalId}`,
     timeSpent: formatDuration(durationMinutes),
-    spentAt,
+    spentAt: toNoonUtc(spentAt),
     summary: truncate(summary),
   })) as TimelogCreateResponse;
 

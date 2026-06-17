@@ -2,6 +2,7 @@ import { formatInTimeZone } from "date-fns-tz";
 import type { Repository } from "../repository";
 import type { Booking } from "../../shared/types";
 import { appError } from "../lib/app-error";
+import { roundUpToQuarterHour } from "../gitlab/format";
 
 // Buchungen sollen auf dem Kalendertag landen, an dem der User gearbeitet hat
 // (Europe/Berlin) — nicht auf dem UTC-Tag. Ein Entry um 00:30 Berlin liegt sonst
@@ -54,7 +55,9 @@ export function createBookingService(repo: Repository) {
         projectId: ticket.projectId,
         ticketIid: ticket.gitlabIid,
         issueGlobalId: ticket.gitlabGlobalId,
-        durationMinutes: entry.durationMinutes,
+        // Gebucht wird immer auf die nächste volle Viertelstunde aufgerundet; der
+        // Entry selbst behält seine echte Dauer.
+        durationMinutes: roundUpToQuarterHour(entry.durationMinutes),
         spentAt: formatInTimeZone(entry.date, BOOKING_TZ, "yyyy-MM-dd"), // Berliner Kalendertag
         note: bookingNote(entry.notes),
       };
