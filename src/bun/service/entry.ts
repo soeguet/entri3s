@@ -56,6 +56,15 @@ export function createEntryService(repo: Repository) {
       repo.entries.update({ ...entry, durationMinutes, status: "draft" });
     },
 
+    // Schreibt nur die Notiz (für laufendes Autosave) — rührt Dauer, Datum und
+    // Relationen bewusst nicht an.
+    setNotes(id: number, notes: string | null): void {
+      if (!repo.entries.getById(id)) {
+        throw appError("NOT_FOUND", `Entry ${id} nicht gefunden`, false);
+      }
+      repo.entries.updateNotes(id, notes);
+    },
+
     update(entry: Entry): void {
       if (!repo.entries.getById(entry.id)) {
         throw appError("NOT_FOUND", `Entry ${entry.id} nicht gefunden`, false);

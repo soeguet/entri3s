@@ -39,6 +39,19 @@ test("startet einen Timer mit eingegebener Notiz", async () => {
   );
 });
 
+test("speichert die Notiz beim Verlassen des Feldes (Autosave)", async () => {
+  vi.mocked(api.getRunningEntry).mockResolvedValue({ data: runningEntry(), error: null });
+  const user = userEvent.setup();
+  renderWithClient(<RunningTimerWidget />);
+
+  const field = await screen.findByPlaceholderText("Notiz…");
+  await user.clear(field);
+  await user.type(field, "Refactoring");
+  await user.tab(); // löst onBlur aus
+
+  await vi.waitFor(() => expect(api.setEntryNotes).toHaveBeenCalledWith(7, "Refactoring"));
+});
+
 test("zeigt die Live-Dauer und stoppt den laufenden Timer", async () => {
   vi.mocked(api.getRunningEntry).mockResolvedValue({ data: runningEntry(), error: null });
   const user = userEvent.setup();

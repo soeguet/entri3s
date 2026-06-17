@@ -90,6 +90,14 @@ export const stopEntry = (id: number) => {
   return ok(undefined as void);
 };
 
+export const setEntryNotes = (id: number, notes: string | null) => {
+  const entry = store.entries.find((e) => e.id === id);
+  if (!entry) return fail<void>("NOT_FOUND", `Entry ${id} nicht gefunden`);
+  entry.notes = notes;
+  entry.updatedAt = now();
+  return ok(undefined as void);
+};
+
 export const createEntry = (input: EntryCreate) => {
   const id = store.nextId++;
   store.entries.push({ ...input, id, createdAt: now(), updatedAt: now() });

@@ -114,6 +114,14 @@ export function createEntryRepository(db: Database) {
       replaceRelations(entry.id, entry.tagIds, entry.ticketIds);
     },
 
+    updateNotes(id: number, notes: string | null): void {
+      db.run("UPDATE entries SET notes = ?, updated_at = ? WHERE id = ?", [
+        notes,
+        new Date().toISOString(),
+        id,
+      ]);
+    },
+
     updateStatus(id: number, status: EntryStatus): void {
       db.run("UPDATE entries SET status = ?, updated_at = ? WHERE id = ?", [
         status,

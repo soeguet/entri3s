@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, Square } from "lucide-react";
 import type { Entry } from "../../../../../shared/types";
@@ -6,6 +6,7 @@ import {
   getRunningEntry,
   startEntry,
   stopEntry,
+  setEntryNotes,
   getTickets,
   getProjects,
   getRecentTickets,
@@ -65,6 +66,21 @@ export function RunningTimerWidget() {
   const [note, setNote] = useState("");
   const [draftTicketId, setDraftTicketId] = useState<number | null>(null);
   const [picking, setPicking] = useState(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  const norm = (s: string | null) => (s ?? "").trim();
+
+  // Notizfeld mit der Notiz des laufenden Entries seeden — nur wenn sich der
+  // Entry wechselt (nicht bei jedem Sekunden-Tick), sonst überschreibt es Tippen.
+  const seededId = useRef<number | null>(null);
+  useEffect(() => {
+    const id = entry?.id ?? null;
+    if (seededId.current !== id) {
+      seededId.current = id;
+      setNote(entry?.notes ?? "");
+    }
+  }, [entry]);
+  useEffect(() => () => clearTimeout(saveTimer.current), []);
 
   function invalidate() {
     qc.invalidateQueries({ queryKey: keys.runningEntry() });
@@ -75,7 +91,6 @@ export function RunningTimerWidget() {
     mutationFn: async () =>
       unwrap(await startEntry({ ticketId: draftTicketId, notes: note.trim() || null })),
     onSuccess: () => {
-      setNote("");
       setDraftTicketId(null);
       invalidate();
     },
@@ -84,6 +99,40 @@ export function RunningTimerWidget() {
     mutationFn: async (id: number) => unwrap(await stopEntry(id)),
     onSuccess: invalidate,
   });
+  // Notiz-Autosave: rührt nur das Notizfeld an; invalidiert nur den laufenden
+  // Entry (nicht die Tabelle), damit das Tippen flüssig bleibt.
+  const saveNotes = useMutation({
+    mutationFn: async (args: { id: number; notes: string | null }) =>
+      unwrap(await setEntryNotes(args.id, args.notes)),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.runningEntry() }),
+  });
+
+  // Beim Tippen 600ms debounced speichern; onBlur und Stop flushen sofort.
+  function onNoteChange(value: string) {
+    setNote(value);
+    if (!entry) return;
+    clearTimeout(saveTimer.current);
+    const id = entry.id;
+    saveTimer.current = setTimeout(
+      () => saveNotes.mutate({ id, notes: value.trim() || null }),
+      600,
+    );
+  }
+  function flushNotes() {
+    if (!entry) return;
+    clearTimeout(saveTimer.current);
+    if (norm(note) !== norm(entry.notes)) {
+      saveNotes.mutate({ id: entry.id, notes: note.trim() || null });
+    }
+  }
+  async function handleStop() {
+    if (!entry) return;
+    clearTimeout(saveTimer.current);
+    if (norm(note) !== norm(entry.notes)) {
+      await saveNotes.mutateAsync({ id: entry.id, notes: note.trim() || null });
+    }
+    stop.mutate(entry.id);
+  }
   const setTicket = useMutation({
     mutationFn: async (args: { entry: Entry; ticketId: number | null }) => {
       for (const tid of args.entry.ticketIds) unwrap(await removeTicket(args.entry.id, tid));
@@ -112,7 +161,14 @@ export function RunningTimerWidget() {
               {formatElapsed(nowMs - new Date(entry.date).getTime())}
             </span>
           </div>
-          <p className="truncate text-xs text-slate-500">{entry.notes ?? "ohne Notiz"}</p>
+          <textarea
+            value={note}
+            onChange={(e) => onNoteChange(e.target.value)}
+            onBlur={flushNotes}
+            rows={2}
+            placeholder="Notiz…"
+            className="w-full resize-none rounded-md border border-slate-300 px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+          />
           <button
             type="button"
             onClick={() => setPicking(true)}
@@ -122,7 +178,7 @@ export function RunningTimerWidget() {
           </button>
           <button
             type="button"
-            onClick={() => stop.mutate(entry.id)}
+            onClick={handleStop}
             disabled={stop.isPending}
             className="flex w-full items-center justify-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
           >

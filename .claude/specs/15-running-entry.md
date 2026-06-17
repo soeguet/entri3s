@@ -42,6 +42,8 @@ Entry, dessen Ende noch nicht feststeht:
 
 - [x] `RunningTimerWidget` unten in der Sidebar (`__root.tsx`), auf jeder Route
       sichtbar, lokaler 1s-Tick, Notiz + Ticket setzbar, Start/Stop
+- [x] Notiz fortlaufend editierbar: debounced Autosave (600ms) + Flush onBlur +
+      garantierter Save beim Stop, via schlankem `setEntryNotes`-RPC
 - [x] `running`-Badge (`entryStatus.tsx`)
 - [x] Laufender Entry erscheint nicht doppelt in der Entry-Tabelle
 - [x] Lücken-Banner auf der Entries-Seite: ungebuchte Zeit seit letztem

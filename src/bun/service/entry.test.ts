@@ -96,6 +96,19 @@ test("stop of a non-running entry throws", () => {
   expect(() => svc.stop(id)).toThrow("läuft nicht");
 });
 
+test("setNotes updates only the notes and keeps the entry running", () => {
+  const id = svc.start({ ticketId: null, notes: "alt" });
+  svc.setNotes(id, "neu");
+  const entry = repo.entries.getById(id)!;
+  expect(entry.notes).toBe("neu");
+  expect(entry.status).toBe("running");
+  expect(entry.durationMinutes).toBe(0);
+});
+
+test("setNotes on a missing entry throws NOT_FOUND", () => {
+  expect(() => svc.setNotes(999, "x")).toThrow("nicht gefunden");
+});
+
 test("after stopping, a new timer can be started (gapless)", () => {
   const first = svc.start({ ticketId: null, notes: null });
   svc.stop(first);

@@ -13,6 +13,7 @@ export const getEntry = vi.fn((id: number) =>
 export const getRunningEntry = vi.fn(() => okResp(null));
 export const startEntry = vi.fn(() => okResp(99));
 export const stopEntry = vi.fn(voidResp);
+export const setEntryNotes = vi.fn(voidResp);
 export const createEntry = vi.fn(() => okResp(1));
 export const updateEntry = vi.fn(voidResp);
 export const deleteEntry = vi.fn(voidResp);
