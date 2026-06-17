@@ -78,7 +78,12 @@ export function EntryList(props: EntryListProps) {
               </Button>
             ) : null}
             {entry.status === "booked" ? (
-              <Button size="sm" variant="outline" onClick={() => toggleExpanded(entry.id)}>
+              <Button
+                size="sm"
+                variant="outline"
+                aria-expanded={expandedId === entry.id}
+                onClick={() => toggleExpanded(entry.id)}
+              >
                 {expandedId === entry.id ? "Buchungen ▲" : "Buchungen ▼"}
               </Button>
             ) : null}

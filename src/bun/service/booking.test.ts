@@ -49,6 +49,13 @@ test("derives spentAt as a plain ISO date from the entry date", () => {
   expect(payload.ticketId).toBeGreaterThan(0);
 });
 
+test("spentAt uses the Europe/Berlin calendar day, not the UTC day", () => {
+  // 23:30Z am 15. ist in Berlin (UTC+1) bereits der 16. um 00:30 → muss auf den 16.
+  const entryId = seedEntry({ date: "2024-01-15T23:30:00.000Z" });
+  createBookingService(repo).bookEntry(entryId);
+  expect(enqueuedPayload().spentAt).toBe("2024-01-16");
+});
+
 test("note is the title alone when the entry has no notes", () => {
   const entryId = seedEntry({ notes: null });
   createBookingService(repo).bookEntry(entryId);

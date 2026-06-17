@@ -25,6 +25,10 @@ export function BookingHistory(props: BookingHistoryProps) {
     return <p className="text-xs text-slate-400">Lädt Buchungen…</p>;
   }
 
+  if (bookings.isError) {
+    return <p className="text-xs text-red-600">Buchungen konnten nicht geladen werden.</p>;
+  }
+
   const list = bookings.data ?? [];
   if (list.length === 0) {
     return <p className="text-xs text-slate-400">Gebucht vor Tracking – keine Note verlinkt.</p>;

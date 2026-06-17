@@ -1,6 +1,12 @@
+import { formatInTimeZone } from "date-fns-tz";
 import type { Repository } from "../repository";
 import type { Booking } from "../../shared/types";
 import { appError } from "../lib/app-error";
+
+// Buchungen sollen auf dem Kalendertag landen, an dem der User gearbeitet hat
+// (Europe/Berlin) — nicht auf dem UTC-Tag. Ein Entry um 00:30 Berlin liegt sonst
+// als 23:30Z auf dem Vortag und würde in GitLab falsch gebucht.
+const BOOKING_TZ = "Europe/Berlin";
 
 export interface BookingPayload {
   entryId: number;
@@ -35,7 +41,7 @@ export function createBookingService(repo: Repository) {
         projectId: ticket.projectId,
         ticketIid: ticket.gitlabIid,
         durationMinutes: entry.durationMinutes,
-        spentAt: entry.date.slice(0, 10), // Entry-Datum (UTC) → reines ISO-Date
+        spentAt: formatInTimeZone(entry.date, BOOKING_TZ, "yyyy-MM-dd"), // Berliner Kalendertag
         note: bookingNote(entry.title, entry.notes),
       };
       repo.eventQueue.enqueue("booking", payload);

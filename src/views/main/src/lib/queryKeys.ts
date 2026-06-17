@@ -4,7 +4,10 @@ import type { EntryFilter, TicketFilter } from "../../../../shared/types";
 export const keys = {
   entries: (filter?: EntryFilter) => ["entries", filter] as const,
   entry: (id: number) => ["entry", id] as const,
-  bookings: (entryId?: number) => ["bookings", entryId] as const,
+  // Ohne entryId der reine Prefix, damit invalidateQueries die per-Entry-Queries
+  // (["bookings", id]) tatsächlich trifft — ["bookings", undefined] täte das nicht.
+  bookings: (entryId?: number) =>
+    (entryId === undefined ? ["bookings"] : ["bookings", entryId]) as readonly unknown[],
   tickets: (filter?: TicketFilter) => ["tickets", filter] as const,
   tags: () => ["tags"] as const,
   templates: () => ["templates"] as const,
