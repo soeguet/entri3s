@@ -1,11 +1,19 @@
 import type { ReactNode } from "react";
+import { cn } from "../../lib/utils";
 
 interface DialogProps {
   open: boolean;
   onClose: () => void;
   title?: string;
+  size?: "md" | "lg" | "xl"; // md = Standard (max-w-lg)
   children: ReactNode;
 }
+
+const SIZE_CLASS: Record<NonNullable<DialogProps["size"]>, string> = {
+  md: "max-w-lg",
+  lg: "max-w-2xl",
+  xl: "max-w-3xl",
+};
 
 /** Schlichter, kontrollierter Modal-Dialog (Overlay + Box). */
 export function Dialog(props: DialogProps) {
@@ -16,7 +24,10 @@ export function Dialog(props: DialogProps) {
       onClick={props.onClose}
     >
       <div
-        className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg bg-white p-6 shadow-xl"
+        className={cn(
+          "max-h-[90vh] w-full overflow-y-auto rounded-lg bg-white p-6 shadow-xl",
+          SIZE_CLASS[props.size ?? "md"],
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {props.title ? <h2 className="mb-4 text-lg font-semibold">{props.title}</h2> : null}
