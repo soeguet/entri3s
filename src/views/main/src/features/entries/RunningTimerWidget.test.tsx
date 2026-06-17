@@ -35,8 +35,53 @@ test("startet einen Timer mit eingegebener Notiz", async () => {
   await user.click(screen.getByRole("button", { name: /Start/ }));
 
   await vi.waitFor(() =>
-    expect(api.startEntry).toHaveBeenCalledWith({ ticketId: null, notes: "Neue Aufgabe" }),
+    expect(api.startEntry).toHaveBeenCalledWith({
+      ticketId: null,
+      notes: "Neue Aufgabe",
+      tagIds: [],
+    }),
   );
+});
+
+test("startet einen Timer mit vorab gewähltem Tag", async () => {
+  vi.mocked(api.getRunningEntry).mockResolvedValue({ data: null, error: null });
+  vi.mocked(api.getTags).mockResolvedValue({
+    data: [{ id: 3, name: "Meeting", color: null }],
+    error: null,
+  });
+  const user = userEvent.setup();
+  renderWithClient(<RunningTimerWidget />);
+
+  await user.click(await screen.findByRole("button", { name: /Tags wählen/ }));
+  await user.click(await screen.findByRole("button", { name: "Meeting" }));
+  await user.click(screen.getByRole("button", { name: "Fertig" }));
+  await user.click(screen.getByRole("button", { name: /^Start/ }));
+
+  await vi.waitFor(() =>
+    expect(api.startEntry).toHaveBeenCalledWith({ ticketId: null, notes: null, tagIds: [3] }),
+  );
+});
+
+test("setzt Tags am laufenden Timer per setEntryTags", async () => {
+  vi.mocked(api.getRunningEntry).mockResolvedValue({ data: runningEntry(), error: null });
+  vi.mocked(api.getTags).mockResolvedValue({
+    data: [{ id: 3, name: "Meeting", color: null }],
+    error: null,
+  });
+  // vitests Automock lässt bei `export *`-Re-Exports vereinzelt einen Namen aus
+  // (hier setEntryTags) — Spy daher explizit setzen.
+  const setTagsSpy = vi.fn().mockResolvedValue({ data: null, error: null });
+  (api as unknown as { setEntryTags: typeof setTagsSpy }).setEntryTags = setTagsSpy;
+  const user = userEvent.setup();
+  renderWithClient(<RunningTimerWidget />);
+
+  // Erst den laufenden Zweig abwarten, sonst trifft der Klick noch den
+  // „nicht-laufend"-Zweig, der beim Laden des Entries unmountet.
+  await screen.findByRole("button", { name: /Stop/ });
+  await user.click(screen.getByRole("button", { name: /Tags wählen/ }));
+  await user.click(await screen.findByRole("button", { name: "Meeting" }));
+
+  await vi.waitFor(() => expect(setTagsSpy).toHaveBeenCalledWith(7, [3]));
 });
 
 test("speichert die Notiz beim Verlassen des Feldes (Autosave)", async () => {

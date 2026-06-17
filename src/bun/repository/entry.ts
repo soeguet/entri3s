@@ -134,6 +134,13 @@ export function createEntryRepository(db: Database) {
       db.run("DELETE FROM entries WHERE id = ?", [id]);
     },
 
+    setTags(entryId: number, tagIds: number[]): void {
+      db.run("DELETE FROM entry_tags WHERE entry_id = ?", [entryId]);
+      for (const tagId of tagIds) {
+        db.run("INSERT INTO entry_tags (entry_id, tag_id) VALUES (?, ?)", [entryId, tagId]);
+      }
+    },
+
     assignTicket(entryId: number, ticketId: number): void {
       db.run("INSERT OR IGNORE INTO entry_tickets (entry_id, ticket_id) VALUES (?, ?)", [
         entryId,

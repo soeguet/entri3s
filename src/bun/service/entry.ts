@@ -38,7 +38,7 @@ export function createEntryService(repo: Repository) {
         durationMinutes: 0,
         date: input.startAt ?? new Date().toISOString(),
         status: "running",
-        tagIds: [],
+        tagIds: input.tagIds ?? [],
         ticketIds: input.ticketId === null ? [] : [input.ticketId],
       });
     },
@@ -63,6 +63,16 @@ export function createEntryService(repo: Repository) {
         throw appError("NOT_FOUND", `Entry ${id} nicht gefunden`, false);
       }
       repo.entries.updateNotes(id, notes);
+    },
+
+    // Ersetzt die Tag-Zuordnung eines Entries (Set-Semantik) — rührt Notiz,
+    // Dauer, Datum und Ticket-Relation bewusst nicht an. Pendant zu setNotes
+    // für das laufende Timer-Widget.
+    setTags(id: number, tagIds: number[]): void {
+      if (!repo.entries.getById(id)) {
+        throw appError("NOT_FOUND", `Entry ${id} nicht gefunden`, false);
+      }
+      repo.entries.setTags(id, tagIds);
     },
 
     update(entry: Entry): void {
