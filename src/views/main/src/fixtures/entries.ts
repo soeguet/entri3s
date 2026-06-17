@@ -3,7 +3,6 @@ import type { Entry } from "../../../../shared/types";
 export const entryFixtures: Entry[] = [
   {
     id: 1,
-    title: "Login-Flow implementiert",
     notes: "OAuth-Redirect gefixt",
     durationMinutes: 90,
     date: "2024-01-15T09:00:00.000Z",
@@ -15,7 +14,6 @@ export const entryFixtures: Entry[] = [
   },
   {
     id: 2,
-    title: "Daily Standup",
     notes: null,
     durationMinutes: 15,
     date: "2024-01-15T08:30:00.000Z",
@@ -27,7 +25,6 @@ export const entryFixtures: Entry[] = [
   },
   {
     id: 3,
-    title: "Dashboard-Profiling",
     notes: "Flamegraph aufgenommen",
     durationMinutes: 120,
     date: "2024-01-16T13:00:00.000Z",
@@ -39,7 +36,6 @@ export const entryFixtures: Entry[] = [
   },
   {
     id: 4,
-    title: "Reporting-Export gebaut",
     notes: "GitLab war nicht erreichbar",
     durationMinutes: 45,
     date: "2024-01-17T11:00:00.000Z",

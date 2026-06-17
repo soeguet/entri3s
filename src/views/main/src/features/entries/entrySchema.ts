@@ -6,7 +6,6 @@ const TZ = "Europe/Berlin";
 
 export const entrySchema = z
   .object({
-    title: z.string().min(1, "Titel ist erforderlich"),
     date: z.string().min(1, "Datum ist erforderlich"),
     startTime: z.string().regex(/^\d{2}:\d{2}$/, "Startzeit fehlt"),
     endTime: z.string().regex(/^\d{2}:\d{2}$/, "Endzeit fehlt"),
@@ -37,7 +36,6 @@ export function toEntryCreate(values: EntryFormValues): EntryCreate {
   const start = fromZonedTime(`${values.date}T${values.startTime}:00`, TZ);
   const durationMinutes = toMinutes(values.endTime) - toMinutes(values.startTime);
   return {
-    title: values.title.trim(),
     notes: values.notes.trim() === "" ? null : values.notes.trim(),
     durationMinutes,
     date: start.toISOString(),
@@ -51,7 +49,6 @@ export function toEntryCreate(values: EntryFormValues): EntryCreate {
 export function toFormValues(entry: Entry): EntryFormValues {
   const startMinutes = toMinutes(formatInTimeZone(entry.date, TZ, "HH:mm"));
   return {
-    title: entry.title,
     date: formatInTimeZone(entry.date, TZ, "yyyy-MM-dd"),
     startTime: formatInTimeZone(entry.date, TZ, "HH:mm"),
     endTime: minutesToTime(startMinutes + entry.durationMinutes),
@@ -62,7 +59,6 @@ export function toFormValues(entry: Entry): EntryFormValues {
 }
 
 export const emptyFormValues: EntryFormValues = {
-  title: "",
   date: formatInTimeZone(new Date(), TZ, "yyyy-MM-dd"),
   startTime: "09:00",
   endTime: "10:00",

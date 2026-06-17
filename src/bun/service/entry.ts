@@ -21,7 +21,7 @@ export function createEntryService(repo: Repository) {
     for (const e of existing) {
       if (e.id === ignoreId) continue;
       if (overlaps(e, date, durationMinutes)) {
-        throw appError("OVERLAP", `Überschneidung mit Entry "${e.title}"`, false);
+        throw appError("OVERLAP", `Überschneidung mit bestehendem Entry (#${e.id})`, false);
       }
     }
   }

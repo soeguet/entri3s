@@ -10,7 +10,6 @@ beforeEach(() => {
 
 function input(overrides: Partial<EntryInput> = {}): EntryInput {
   return {
-    title: "Test",
     notes: null,
     durationMinutes: 60,
     date: "2024-01-15T10:00:00.000Z",
@@ -27,9 +26,9 @@ test("create returns a new id", () => {
 });
 
 test("getById returns the created entry", () => {
-  const id = repo.create(input({ title: "Meeting" }));
+  const id = repo.create(input({ notes: "Meeting" }));
   const entry = repo.getById(id);
-  expect(entry?.title).toBe("Meeting");
+  expect(entry?.notes).toBe("Meeting");
   expect(entry?.durationMinutes).toBe(60);
   expect(entry?.status).toBe("draft");
 });
@@ -56,9 +55,9 @@ test("list filters by date range", () => {
 test("update persists changes", () => {
   const id = repo.create(input());
   const entry = repo.getById(id)!;
-  repo.update({ ...entry, title: "Updated", durationMinutes: 30 });
+  repo.update({ ...entry, notes: "Updated", durationMinutes: 30 });
   const after = repo.getById(id);
-  expect(after?.title).toBe("Updated");
+  expect(after?.notes).toBe("Updated");
   expect(after?.durationMinutes).toBe(30);
 });
 

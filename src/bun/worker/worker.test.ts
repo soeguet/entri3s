@@ -36,7 +36,6 @@ function seedBooking(): number {
   });
   const ticket = repo.tickets.getByGitLabIid(100, PROJECT_ID)!;
   const entryId = repo.entries.create({
-    title: "Work",
     notes: null,
     durationMinutes: 90,
     date: "2024-01-15T10:00:00.000Z",
@@ -72,7 +71,7 @@ test("booking event books time and marks entry booked", async () => {
     issueIid: 100,
     durationMinutes: 90,
     spentAt: "2024-01-15", // aus Entry-Datum abgeleitet, ohne Uhrzeit
-    note: "Work",
+    note: "",
   });
   expect(repo.entries.getById(entryId)?.status).toBe("booked");
   expect(events).toContain("bookingCompleted");
@@ -94,7 +93,7 @@ test("successful booking writes a booking record with the gitlab note id", async
     gitlabNoteId: 777,
     durationMinutes: 90,
     spentAt: "2024-01-15",
-    note: "Work",
+    note: "",
   });
 });
 

@@ -52,7 +52,6 @@ export function EntryForm(props: EntryFormProps) {
     if (!/^\d{2}:\d{2}$/.test(start)) return;
     const [sh, sm] = start.split(":").map(Number);
     const end = sh * 60 + sm + payload.durationMinutes;
-    form.setValue("title", payload.title);
     form.setValue("notes", payload.notes ?? "");
     form.setValue("tagIds", payload.tagIds);
     form.setValue(
@@ -111,12 +110,6 @@ export function EntryForm(props: EntryFormProps) {
             </Select>
           </div>
         ) : null}
-
-        <div>
-          <Label htmlFor="title">Titel</Label>
-          <Input id="title" {...form.register("title")} />
-          <FieldError message={form.formState.errors.title?.message} />
-        </div>
 
         <div className="grid grid-cols-3 gap-3">
           <div>

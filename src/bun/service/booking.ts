@@ -18,9 +18,9 @@ export interface BookingPayload {
   note: string; // Entry-Text, der als Notiz in der Buchung erscheint
 }
 
-/** Entry-Titel + optionale Notizen zu einem Buchungstext zusammenfassen. */
-function bookingNote(title: string, notes: string | null): string {
-  return notes && notes.trim() ? `${title}\n${notes.trim()}` : title;
+/** Buchungstext = Entry-Notiz (optional, ggf. leer — dann reine /spend-Note). */
+function bookingNote(notes: string | null): string {
+  return notes?.trim() ?? "";
 }
 
 export function createBookingService(repo: Repository) {
@@ -42,7 +42,7 @@ export function createBookingService(repo: Repository) {
         ticketIid: ticket.gitlabIid,
         durationMinutes: entry.durationMinutes,
         spentAt: formatInTimeZone(entry.date, BOOKING_TZ, "yyyy-MM-dd"), // Berliner Kalendertag
-        note: bookingNote(entry.title, entry.notes),
+        note: bookingNote(entry.notes),
       };
       repo.eventQueue.enqueue("booking", payload);
       repo.entries.updateStatus(entryId, "pending_booking");
