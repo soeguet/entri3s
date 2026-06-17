@@ -55,6 +55,17 @@ test("syncIssues updates last_run", async () => {
   expect(repo.schedules.get("gitlab_sync")?.lastRun).not.toBeNull();
 });
 
+test("syncIssues reactivates a re-opened ticket that was orphaned", async () => {
+  gl.issuesToReturn = [issue(1, "closed")];
+  await svc.syncIssues(PROJECT_ID);
+  expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.status).toBe("orphaned");
+
+  // Issue wird wieder geöffnet → Ticket muss wieder 'active' werden.
+  gl.issuesToReturn = [issue(1, "opened")];
+  await svc.syncIssues(PROJECT_ID);
+  expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.status).toBe("active");
+});
+
 test("checkOrphans marks tickets GitLab no longer returns", async () => {
   gl.issuesToReturn = [issue(1, "opened"), issue(2, "opened")];
   await svc.syncIssues(PROJECT_ID);

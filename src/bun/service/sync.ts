@@ -38,6 +38,9 @@ export function createSyncService(repo: Repository, gl: GitLabClient) {
       if (isOrphanState(issue.state)) {
         repo.tickets.markOrphaned(issue.iid, projectId);
         orphaned++;
+      } else {
+        // Wieder geöffnete Issues, die zuvor orphaned waren, reaktivieren.
+        repo.tickets.markActive(issue.iid, projectId);
       }
     }
 

@@ -22,11 +22,12 @@ async function runSchedule(
       const orphaned = await svc.sync.checkOrphans(projectId);
       if (orphaned > 0) emit.orphanDetected(orphaned);
     }
+    // last_run nur bei Erfolg vorrücken — sonst würde das inkrementelle
+    // updated_after-Fenster das fehlgeschlagene Intervall überspringen.
+    repo.schedules.updateLastRun(name);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     if (name === "gitlab_sync") emit.syncFailed(message);
-  } finally {
-    repo.schedules.updateLastRun(name);
   }
 }
 
