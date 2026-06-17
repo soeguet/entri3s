@@ -109,6 +109,29 @@ test("setNotes on a missing entry throws NOT_FOUND", () => {
   expect(() => svc.setNotes(999, "x")).toThrow("nicht gefunden");
 });
 
+test("start carries the preselected tags", () => {
+  const t1 = repo.tags.create({ name: "Meeting", color: null });
+  const t2 = repo.tags.create({ name: "Review", color: null });
+  const id = svc.start({ ticketId: null, notes: null, tagIds: [t1, t2] });
+  expect(repo.entries.getById(id)!.tagIds.sort()).toEqual([t1, t2].sort());
+});
+
+test("setTags replaces the tag set without touching duration or status", () => {
+  const t1 = repo.tags.create({ name: "Meeting", color: null });
+  const t2 = repo.tags.create({ name: "Review", color: null });
+  const id = svc.start({ ticketId: null, notes: "x", tagIds: [t1] });
+  svc.setTags(id, [t2]);
+  const entry = repo.entries.getById(id)!;
+  expect(entry.tagIds).toEqual([t2]);
+  expect(entry.status).toBe("running");
+  expect(entry.durationMinutes).toBe(0);
+  expect(entry.notes).toBe("x");
+});
+
+test("setTags on a missing entry throws NOT_FOUND", () => {
+  expect(() => svc.setTags(999, [])).toThrow("nicht gefunden");
+});
+
 test("after stopping, a new timer can be started (gapless)", () => {
   const first = svc.start({ ticketId: null, notes: null });
   svc.stop(first);

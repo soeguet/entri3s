@@ -61,6 +61,7 @@ export const getRunningEntry = () => r.getRunningEntry({});
 export const startEntry = (input: EntryStart) => r.startEntry(input);
 export const stopEntry = (id: number) => r.stopEntry({ id });
 export const setEntryNotes = (id: number, notes: string | null) => r.setEntryNotes({ id, notes });
+export const setEntryTags = (id: number, tagIds: number[]) => r.setEntryTags({ id, tagIds });
 export const createEntry = (entry: EntryCreate) => r.createEntry(entry);
 export const updateEntry = (entry: Entry) => r.updateEntry(entry);
 export const deleteEntry = (id: number) => r.deleteEntry({ id });

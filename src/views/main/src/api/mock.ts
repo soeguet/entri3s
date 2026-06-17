@@ -71,7 +71,7 @@ export const startEntry = (input: EntryStart) => {
     durationMinutes: 0,
     date: input.startAt ?? now(),
     status: "running",
-    tagIds: [],
+    tagIds: input.tagIds ?? [],
     ticketIds: input.ticketId === null ? [] : [input.ticketId],
     createdAt: now(),
     updatedAt: now(),
@@ -94,6 +94,14 @@ export const setEntryNotes = (id: number, notes: string | null) => {
   const entry = store.entries.find((e) => e.id === id);
   if (!entry) return fail<void>("NOT_FOUND", `Entry ${id} nicht gefunden`);
   entry.notes = notes;
+  entry.updatedAt = now();
+  return ok(undefined as void);
+};
+
+export const setEntryTags = (id: number, tagIds: number[]) => {
+  const entry = store.entries.find((e) => e.id === id);
+  if (!entry) return fail<void>("NOT_FOUND", `Entry ${id} nicht gefunden`);
+  entry.tagIds = [...tagIds];
   entry.updatedAt = now();
   return ok(undefined as void);
 };

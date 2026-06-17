@@ -42,6 +42,8 @@ Entry, dessen Ende noch nicht feststeht:
 
 - [x] `RunningTimerWidget` unten in der Sidebar (`__root.tsx`), auf jeder Route
       sichtbar, lokaler 1s-Tick, Notiz + Ticket setzbar, Start/Stop
+- [x] Tags setzbar (vor Start via `EntryStart.tagIds`, während des Laufens via
+      `setEntryTags`-RPC mit Set-Semantik); Auswahl über `TagPicker`-Dialog
 - [x] Notiz fortlaufend editierbar: debounced Autosave (600ms) + Flush onBlur +
       garantierter Save beim Stop, via schlankem `setEntryNotes`-RPC
 - [x] `running`-Badge (`entryStatus.tsx`)

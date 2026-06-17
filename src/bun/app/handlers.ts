@@ -28,6 +28,7 @@ export function createRpc(svc: Services) {
         startEntry: (p) => wrap(() => svc.entry.start(p)),
         stopEntry: (p) => wrap(() => svc.entry.stop(p.id)),
         setEntryNotes: (p) => wrap(() => svc.entry.setNotes(p.id, p.notes)),
+        setEntryTags: (p) => wrap(() => svc.entry.setTags(p.id, p.tagIds)),
         createEntry: (entry) => wrap(() => svc.entry.create(entry)),
         updateEntry: (entry) => wrap(() => svc.entry.update(entry)),
         deleteEntry: (p) => wrap(() => svc.entry.delete(p.id)),

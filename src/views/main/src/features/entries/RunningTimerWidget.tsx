@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Play, Square, X } from "lucide-react";
+import { Play, Square, Tags, X } from "lucide-react";
 import type { Entry } from "../../../../../shared/types";
 import {
   getRunningEntry,
   startEntry,
   stopEntry,
   setEntryNotes,
+  setEntryTags,
   deleteEntry,
   getTickets,
   getProjects,
   getRecentTickets,
+  getTags,
   assignTicket,
   removeTicket,
 } from "../../api";
@@ -18,6 +20,7 @@ import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { Dialog } from "../../components/ui/dialog";
 import { TicketPicker } from "./TicketPicker";
+import { TagPicker } from "./TagPicker";
 
 /** Millisekunden → "HH:MM:SS". */
 function formatElapsed(ms: number): string {
@@ -63,10 +66,16 @@ export function RunningTimerWidget() {
     queryKey: keys.recentTickets(),
     queryFn: async () => unwrap(await getRecentTickets(8)),
   });
+  const tags = useQuery({
+    queryKey: keys.tags(),
+    queryFn: async () => unwrap(await getTags()),
+  });
 
   const [note, setNote] = useState("");
   const [draftTicketId, setDraftTicketId] = useState<number | null>(null);
+  const [draftTagIds, setDraftTagIds] = useState<number[]>([]);
   const [picking, setPicking] = useState(false);
+  const [pickingTags, setPickingTags] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const norm = (s: string | null) => (s ?? "").trim();
@@ -90,9 +99,16 @@ export function RunningTimerWidget() {
 
   const start = useMutation({
     mutationFn: async () =>
-      unwrap(await startEntry({ ticketId: draftTicketId, notes: note.trim() || null })),
+      unwrap(
+        await startEntry({
+          ticketId: draftTicketId,
+          notes: note.trim() || null,
+          tagIds: draftTagIds,
+        }),
+      ),
     onSuccess: () => {
       setDraftTicketId(null);
+      setDraftTagIds([]);
       invalidate();
     },
     meta: { successToast: "Timer gestartet" },
@@ -159,14 +175,33 @@ export function RunningTimerWidget() {
     onSuccess: invalidate,
   });
 
+  // Tags ersetzen das ganze Set in einem RPC (Set-Semantik) — passt zur
+  // Mehrfachauswahl besser als ein assign/remove-Paar wie beim Ticket.
+  const setTags = useMutation({
+    mutationFn: async (args: { id: number; tagIds: number[] }) =>
+      unwrap(await setEntryTags(args.id, args.tagIds)),
+    onSuccess: invalidate,
+  });
+
   const activeTicketId = entry ? (entry.ticketIds[0] ?? null) : draftTicketId;
   const ticket = (tickets.data ?? []).find((t) => t.id === activeTicketId) ?? null;
   const ticketLabel = ticket ? `#${ticket.gitlabIid} ${ticket.title}` : "Ticket wählen";
+
+  const activeTagIds = entry ? entry.tagIds : draftTagIds;
+  const tagLabel = activeTagIds.length > 0 ? `Tags (${activeTagIds.length})` : "Tags wählen";
 
   function onPick(id: number | null) {
     if (entry) setTicket.mutate({ entry, ticketId: id });
     else setDraftTicketId(id);
     setPicking(false);
+  }
+
+  function onToggleTag(id: number) {
+    const next = activeTagIds.includes(id)
+      ? activeTagIds.filter((t) => t !== id)
+      : [...activeTagIds, id];
+    if (entry) setTags.mutate({ id: entry.id, tagIds: next });
+    else setDraftTagIds(next);
   }
 
   return (
@@ -206,6 +241,13 @@ export function RunningTimerWidget() {
           </button>
           <button
             type="button"
+            onClick={() => setPickingTags(true)}
+            className="flex w-full items-center gap-1.5 truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+          >
+            <Tags className="h-3.5 w-3.5 shrink-0 text-slate-400" /> {tagLabel}
+          </button>
+          <button
+            type="button"
             onClick={handleStop}
             disabled={stop.isPending}
             className="flex w-full items-center justify-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
@@ -233,6 +275,13 @@ export function RunningTimerWidget() {
           </button>
           <button
             type="button"
+            onClick={() => setPickingTags(true)}
+            className="flex w-full items-center gap-1.5 truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+          >
+            <Tags className="h-3.5 w-3.5 shrink-0 text-slate-400" /> {tagLabel}
+          </button>
+          <button
+            type="button"
             onClick={() => start.mutate()}
             disabled={start.isPending}
             className="flex w-full items-center justify-center gap-1.5 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
@@ -250,6 +299,15 @@ export function RunningTimerWidget() {
           value={activeTicketId}
           onSelect={onPick}
           onCancel={() => setPicking(false)}
+        />
+      </Dialog>
+
+      <Dialog open={pickingTags} onClose={() => setPickingTags(false)} size="lg">
+        <TagPicker
+          tags={tags.data ?? []}
+          value={activeTagIds}
+          onToggle={onToggleTag}
+          onDone={() => setPickingTags(false)}
         />
       </Dialog>
     </div>
