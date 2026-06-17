@@ -17,7 +17,7 @@ Kein extra npm-Paket für GitLab nötig.
 import type { Settings } from "../../shared/types";
 
 export interface GitLabClient {
-  fetchIssues(projectId: number, since?: Date): Promise<GitLabIssue[]>;
+  fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
   bookTime(
     projectId: number,
@@ -34,12 +34,15 @@ export interface GitLabClient {
   ): Promise<GitLabBookingResult | null>;
 }
 
-export function createGitLabClient(token: string, settings: Settings): GitLabClient {
+// getSettings wird pro Request frisch ausgewertet → geänderte gitlabUrl wirkt
+// ohne App-Neustart. buildApiUrl validiert das http(s)-Schema (sonst AppError
+// NO_GITLAB_URL statt "fetch() URL is invalid").
+export function createGitLabClient(token: string, getSettings: () => Settings): GitLabClient {
   const limiter = createRateLimiter(5); // 5 req/s
 
   async function apiRequest(path: string, options?: RequestInit) {
     await limiter.throttle();
-    const res = await fetch(`${settings.gitlabUrl}/api/v4${path}`, {
+    const res = await fetch(buildApiUrl(getSettings().gitlabUrl, path), {
       ...options,
       headers: {
         "PRIVATE-TOKEN": token,
@@ -86,7 +89,7 @@ function createRateLimiter(reqPerSec: number) {
 ```typescript
 // src/bun/gitlab/types.ts
 export interface GitLabClient {
-  fetchIssues(projectId: number, since?: Date): Promise<GitLabIssue[]>;
+  fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
   bookTime(
     projectId: number,
@@ -134,13 +137,21 @@ export class FakeGitLabClient implements GitLabClient {
 }
 ```
 
+## Projektübergreifend – globaler /issues-Endpoint
+
+Wir syncen NICHT pro Projekt (`/projects/:id/issues`), sondern projektübergreifend
+über den globalen Endpoint `GET /api/v4/issues?scope=all` — er liefert alle Issues,
+auf die der Token Zugriff hat. Jedes Issue trägt seine `project_id`, über die der
+Sync die Tickets weiterhin pro Projekt zuordnet. Es gibt KEINE Projekt-ID in den
+Settings. Buchungen (`bookTime`/`findBookingNote`) bleiben per-Projekt, weil die
+Notes-API projektgebunden ist — die `projectId` stammt dann aus dem Ticket-Row.
+
 ## Pagination – Pflicht
 
 ```typescript
 // src/bun/gitlab/fetch.ts
 export async function fetchIssues(
   client: { apiRequest: Function },
-  projectId: number,
   since?: Date,
 ): Promise<GitLabIssue[]> {
   const all: GitLabIssue[] = [];
@@ -148,11 +159,12 @@ export async function fetchIssues(
 
   while (true) {
     const params = new URLSearchParams({
+      scope: "all",
       per_page: "100",
       page: String(page),
       ...(since ? { updated_after: since.toISOString() } : {}),
     });
-    const res = await client.apiRequest(`/projects/${projectId}/issues?${params}`);
+    const res = await client.apiRequest(`/issues?${params}`);
     const issues: GitLabIssue[] = await res.json();
     all.push(...issues);
 
@@ -177,16 +189,16 @@ Nie einen List-Endpoint ohne Pagination aufrufen. Stille Datenverluste sonst.
 
 ```typescript
 // src/bun/service/sync.ts
-export async function syncIssues(repo: Repository, gl: GitLabClient, projectId: number) {
+export async function syncIssues(repo: Repository, gl: GitLabClient) {
   const schedule = repo.schedules.get("gitlab_sync");
   const since = schedule.lastRun ? new Date(schedule.lastRun) : ninetyDaysAgo();
 
-  const issues = await gl.fetchIssues(projectId, since);
+  const issues = await gl.fetchIssues(since); // projektübergreifend
 
   for (const issue of issues) {
-    repo.tickets.upsert(issue);
+    repo.tickets.upsert(issue); // projectId kommt aus issue.project_id
     if (issue.state === "closed" || issue.state === "locked") {
-      repo.tickets.markOrphaned(issue.iid, projectId);
+      repo.tickets.markOrphaned(issue.iid, issue.project_id);
     }
   }
 

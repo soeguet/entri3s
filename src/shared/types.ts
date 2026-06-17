@@ -100,7 +100,6 @@ export interface AppEvent {
 
 export interface Settings {
   gitlabUrl: string;
-  projectId: number;
   syncIntervalSec: number;
 }
 

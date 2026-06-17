@@ -2,6 +2,7 @@ import { test, expect, beforeEach } from "bun:test";
 import { createTestDb } from "../repository/test-helper";
 import { createRepository, type Repository } from "../repository";
 import { createSyncService } from "./sync";
+import { noopEmitter } from "../app/emitter";
 import { FakeGitLabClient, type GitLabIssue } from "../gitlab/types";
 
 let repo: Repository;
@@ -13,12 +14,13 @@ const PROJECT_ID = 42;
 beforeEach(() => {
   repo = createRepository(createTestDb());
   gl = new FakeGitLabClient();
-  svc = createSyncService(repo, gl);
+  svc = createSyncService(repo, gl, noopEmitter);
 });
 
 function issue(iid: number, state: string): GitLabIssue {
   return {
     iid,
+    project_id: PROJECT_ID,
     title: `Issue ${iid}`,
     state,
     web_url: `https://gl/issues/${iid}`,
@@ -29,7 +31,7 @@ function issue(iid: number, state: string): GitLabIssue {
 
 test("syncIssues upserts tickets and marks closed ones orphaned", async () => {
   gl.issuesToReturn = [issue(1, "opened"), issue(2, "closed")];
-  const result = await svc.syncIssues(PROJECT_ID);
+  const result = await svc.syncIssues();
 
   expect(result.synced).toBe(2);
   expect(result.orphaned).toBe(1);
@@ -42,7 +44,7 @@ test("syncIssues upserts tickets and marks closed ones orphaned", async () => {
 
 test("syncIssues maps time stats", async () => {
   gl.issuesToReturn = [issue(1, "opened")];
-  await svc.syncIssues(PROJECT_ID);
+  await svc.syncIssues();
   const ticket = repo.tickets.getByGitLabIid(1, PROJECT_ID);
   expect(ticket?.timeEstimate).toBe(3600);
   expect(ticket?.timeSpent).toBe(1800);
@@ -51,28 +53,28 @@ test("syncIssues maps time stats", async () => {
 test("syncIssues updates last_run", async () => {
   expect(repo.schedules.get("gitlab_sync")?.lastRun).toBeNull();
   gl.issuesToReturn = [issue(1, "opened")];
-  await svc.syncIssues(PROJECT_ID);
+  await svc.syncIssues();
   expect(repo.schedules.get("gitlab_sync")?.lastRun).not.toBeNull();
 });
 
 test("syncIssues reactivates a re-opened ticket that was orphaned", async () => {
   gl.issuesToReturn = [issue(1, "closed")];
-  await svc.syncIssues(PROJECT_ID);
+  await svc.syncIssues();
   expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.status).toBe("orphaned");
 
   // Issue wird wieder geöffnet → Ticket muss wieder 'active' werden.
   gl.issuesToReturn = [issue(1, "opened")];
-  await svc.syncIssues(PROJECT_ID);
+  await svc.syncIssues();
   expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.status).toBe("active");
 });
 
 test("checkOrphans marks tickets GitLab no longer returns", async () => {
   gl.issuesToReturn = [issue(1, "opened"), issue(2, "opened")];
-  await svc.syncIssues(PROJECT_ID);
+  await svc.syncIssues();
 
   // GitLab returns only issue 1 now → issue 2 becomes orphaned
   gl.issuesToReturn = [issue(1, "opened")];
-  const orphaned = await svc.checkOrphans(PROJECT_ID);
+  const orphaned = await svc.checkOrphans();
 
   expect(orphaned).toBe(1);
   expect(repo.tickets.getByGitLabIid(2, PROJECT_ID)?.status).toBe("orphaned");

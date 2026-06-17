@@ -10,16 +10,16 @@ async function runSchedule(
   svc: Services,
   emit: AppEmitter,
 ): Promise<void> {
-  const projectId = repo.settings.getAll().projectId;
-  if (!projectId) return; // ohne konfiguriertes Projekt nichts zu tun
+  const gitlabUrl = repo.settings.getAll().gitlabUrl.trim();
+  if (!gitlabUrl) return; // ohne konfigurierte GitLab-URL nichts zu tun
 
   try {
     if (name === "gitlab_sync") {
-      const result = await svc.sync.syncIssues(projectId);
+      const result = await svc.sync.syncIssues();
       emit.syncCompleted();
       if (result.orphaned > 0) emit.orphanDetected(result.orphaned);
     } else if (name === "orphan_check") {
-      const orphaned = await svc.sync.checkOrphans(projectId);
+      const orphaned = await svc.sync.checkOrphans();
       if (orphaned > 0) emit.orphanDetected(orphaned);
     }
     // last_run nur bei Erfolg vorrücken — sonst würde das inkrementelle

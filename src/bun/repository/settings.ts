@@ -35,14 +35,12 @@ export function createSettingsRepository(db: Database) {
     getAll(): Settings {
       return {
         gitlabUrl: get("gitlabUrl") ?? "",
-        projectId: Number(get("projectId") ?? "0"),
         syncIntervalSec: syncIntervalSec(),
       };
     },
 
     save(settings: Settings): void {
       set("gitlabUrl", settings.gitlabUrl);
-      set("projectId", String(settings.projectId));
       db.run("UPDATE schedules SET interval_sec = ? WHERE name = ?", [
         settings.syncIntervalSec,
         SYNC_SCHEDULE,

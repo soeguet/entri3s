@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import type { Repository } from "../repository";
 import type { GitLabClient } from "../gitlab/types";
+import type { AppEmitter } from "../app/emitter";
 import { createEntryService } from "./entry";
 import { createSyncService } from "./sync";
 import { createBookingService } from "./booking";
@@ -10,10 +11,10 @@ import { createTicketService } from "./ticket";
 import { createEventService } from "./events";
 import { createSettingsService } from "./settings";
 
-export function createService(repo: Repository, gl: GitLabClient, db: Database) {
+export function createService(repo: Repository, gl: GitLabClient, db: Database, emit: AppEmitter) {
   return {
     entry: createEntryService(repo),
-    sync: createSyncService(repo, gl),
+    sync: createSyncService(repo, gl, emit),
     booking: createBookingService(repo),
     tag: createTagService(repo),
     template: createTemplateService(repo),

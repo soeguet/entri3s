@@ -27,7 +27,6 @@ const store = {
   deadEvents: [] as AppEvent[],
   settings: {
     gitlabUrl: "https://gitlab.example.com",
-    projectId: 42,
     syncIntervalSec: 300,
   } as Settings,
   nextId: 1000,

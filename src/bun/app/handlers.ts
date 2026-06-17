@@ -50,11 +50,9 @@ export function createRpc(svc: Services) {
         updateTemplate: (t) => wrap(() => svc.template.update(t)),
         deleteTemplate: (p) => wrap(() => svc.template.delete(p.id)),
 
-        // Sync
-        triggerSync: () =>
-          wrap(async () => {
-            await svc.sync.triggerSync();
-          }),
+        // Sync: stösst den Hintergrund-Sync an und kehrt sofort zurück
+        // (Ergebnis kommt über syncCompleted/syncFailed-Events).
+        triggerSync: () => wrap(() => svc.sync.triggerSync()),
 
         // Settings
         getSettings: () => wrap(() => svc.settings.get()),
