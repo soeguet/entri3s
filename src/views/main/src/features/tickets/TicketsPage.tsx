@@ -127,7 +127,7 @@ export function TicketsPage() {
 
       <div className="flex gap-6">
         <aside className="w-60 shrink-0">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Projekte & Gruppen
           </p>
           <TicketTree nodes={tree} selectedPath={selectedPath} onSelect={setSelectedPath} />
@@ -138,13 +138,13 @@ export function TicketsPage() {
             <div className="min-w-48 flex-1">
               <Label htmlFor="t-search">Suche</Label>
               <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+                <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <input
                   id="t-search"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="#IID, Titel oder Projekt…"
-                  className="h-9 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+                  className="h-9 w-full rounded-md border border-input bg-card pl-8 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 />
               </div>
             </div>
@@ -176,9 +176,9 @@ export function TicketsPage() {
           </div>
 
           {tickets.isLoading ? (
-            <p className="py-10 text-center text-sm text-slate-400">Lädt…</p>
+            <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>
           ) : visible.length === 0 ? (
-            <p className="py-10 text-center text-sm text-slate-400">
+            <p className="py-10 text-center text-sm text-muted-foreground">
               {allTickets.length === 0 ? "Keine Tickets. Sync ausführen." : "Kein Treffer."}
             </p>
           ) : (
@@ -210,10 +210,10 @@ export function TicketsPage() {
 function ProjectGroup(props: { group: Group }) {
   return (
     <>
-      <TR className="bg-slate-50">
+      <TR className="bg-muted">
         <TD colSpan={7} className="py-1.5">
-          <span className="font-medium text-slate-700">{props.group.name}</span>
-          <span className="ml-2 font-mono text-xs text-slate-400">{props.group.path}</span>
+          <span className="font-medium text-foreground">{props.group.name}</span>
+          <span className="ml-2 font-mono text-xs text-muted-foreground">{props.group.path}</span>
         </TD>
       </TR>
       {props.group.tickets.map((ticket) => (
@@ -236,7 +236,7 @@ function ProjectGroup(props: { group: Group }) {
                 href={ticket.webUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1 text-slate-600 hover:text-slate-900"
+                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
               >
                 <ExternalLink className="h-4 w-4" />
               </a>

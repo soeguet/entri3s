@@ -86,8 +86,8 @@ export function TemplateForm(props: TemplateFormProps) {
                 className={
                   "rounded-full border px-3 py-1 text-xs font-medium " +
                   (tagIds.includes(tag.id)
-                    ? "border-slate-900 bg-slate-900 text-white"
-                    : "border-slate-300 text-slate-600")
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-input text-muted-foreground")
                 }
               >
                 {tag.name}

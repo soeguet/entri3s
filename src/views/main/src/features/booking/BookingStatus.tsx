@@ -22,7 +22,7 @@ export function BookingStatus() {
   });
 
   if (events.isLoading) {
-    return <p className="py-10 text-center text-sm text-slate-400">Lädt…</p>;
+    return <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>;
   }
 
   if (events.isError) {
@@ -31,7 +31,9 @@ export function BookingStatus() {
 
   if ((events.data ?? []).length === 0) {
     return (
-      <p className="py-10 text-center text-sm text-slate-400">Keine fehlgeschlagenen Buchungen.</p>
+      <p className="py-10 text-center text-sm text-muted-foreground">
+        Keine fehlgeschlagenen Buchungen.
+      </p>
     );
   }
 
@@ -41,14 +43,16 @@ export function BookingStatus() {
       {(events.data ?? []).map((event) => (
         <li
           key={event.id}
-          className="flex items-center justify-between rounded-lg border border-slate-200 bg-white p-4"
+          className="flex items-center justify-between rounded-lg border border-border bg-card p-4"
         >
           <div>
             <div className="flex items-center gap-2">
               <Badge variant="destructive">{event.type}</Badge>
-              <span className="text-xs text-slate-400">{formatDateTime(event.createdAt)}</span>
+              <span className="text-xs text-muted-foreground">
+                {formatDateTime(event.createdAt)}
+              </span>
             </div>
-            <p className="mt-1 text-sm text-slate-700">{event.error ?? "Unbekannter Fehler"}</p>
+            <p className="mt-1 text-sm text-foreground">{event.error ?? "Unbekannter Fehler"}</p>
           </div>
           <Button size="sm" disabled={retry.isPending} onClick={() => retry.mutate(event.id)}>
             Erneut versuchen

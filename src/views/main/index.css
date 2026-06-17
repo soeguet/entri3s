@@ -1,3 +1,118 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/*
+ * Semantische Farb-Tokens als CSS-Variablen. Komponenten nutzen ausschliesslich
+ * die abgeleiteten Tailwind-Utilities (bg-background, text-foreground, …), nie
+ * rohe slate-/white-Klassen — so reagiert alles automatisch auf Hell/Dunkel.
+ *
+ * Kontraste sind auf WCAG AAA ausgelegt: Fliesstext ≥ 7:1, gedämpfter Text
+ * (muted-foreground) ebenfalls ≥ 7:1 gegen seine Fläche.
+ */
+@layer base {
+  :root {
+    --background: #f8fafc; /* slate-50 */
+    --foreground: #0f172a; /* slate-900  → 17:1 auf background */
+    --card: #ffffff;
+    --muted: #f1f5f9; /* slate-100, Hover-/Sekundärflächen */
+    --muted-foreground: #475569; /* slate-600 → 7,4:1 auf weiss, 7,0:1 auf slate-50 */
+    --border: #e2e8f0; /* slate-200 */
+    --input: #cbd5e1; /* slate-300, Eingabe-Rahmen */
+    /* Akzent (Default = neutral); pro [data-accent] überschrieben. */
+    --primary: #0f172a;
+    --primary-foreground: #f8fafc;
+    --ring: #475569;
+  }
+
+  .dark {
+    --background: #0f172a; /* slate-900 */
+    --foreground: #f1f5f9; /* slate-100 → ~16:1 */
+    --card: #1e293b; /* slate-800 */
+    --muted: #334155; /* slate-700 */
+    --muted-foreground: #cbd5e1; /* slate-300 → ~10:1 auf bg, ~8:1 auf card */
+    --border: #334155; /* slate-700 */
+    --input: #475569; /* slate-600 */
+    --primary: #e2e8f0; /* heller, neutraler Button auf dunkel */
+    --primary-foreground: #0f172a;
+    --ring: #94a3b8;
+  }
+
+  /* ── Akzent-Presets (hell): dunkle Fläche, weisser Text ≥ 7:1 ─────────────── */
+  [data-accent="slate"] {
+    --primary: #0f172a;
+    --primary-foreground: #ffffff;
+    --ring: #475569;
+  }
+  [data-accent="blue"] {
+    --primary: #1e40af; /* blue-800, weiss ~8,6:1 */
+    --primary-foreground: #ffffff;
+    --ring: #1e40af;
+  }
+  [data-accent="indigo"] {
+    --primary: #3730a3; /* indigo-800 */
+    --primary-foreground: #ffffff;
+    --ring: #3730a3;
+  }
+  [data-accent="violet"] {
+    --primary: #5b21b6; /* violet-800 */
+    --primary-foreground: #ffffff;
+    --ring: #5b21b6;
+  }
+  [data-accent="teal"] {
+    --primary: #115e59; /* teal-800 */
+    --primary-foreground: #ffffff;
+    --ring: #115e59;
+  }
+  [data-accent="emerald"] {
+    --primary: #065f46; /* emerald-800 */
+    --primary-foreground: #ffffff;
+    --ring: #065f46;
+  }
+  [data-accent="rose"] {
+    --primary: #9f1239; /* rose-800 */
+    --primary-foreground: #ffffff;
+    --ring: #9f1239;
+  }
+
+  /* ── Akzent-Presets (dunkel): helle Fläche, dunkler Text ≥ 7:1 ───────────── */
+  .dark[data-accent="slate"] {
+    --primary: #e2e8f0;
+    --primary-foreground: #0f172a;
+    --ring: #94a3b8;
+  }
+  .dark[data-accent="blue"] {
+    --primary: #60a5fa; /* blue-400, slate-950 ~9:1 */
+    --primary-foreground: #020617;
+    --ring: #60a5fa;
+  }
+  .dark[data-accent="indigo"] {
+    --primary: #818cf8; /* indigo-400 */
+    --primary-foreground: #020617;
+    --ring: #818cf8;
+  }
+  .dark[data-accent="violet"] {
+    --primary: #a78bfa; /* violet-400 */
+    --primary-foreground: #020617;
+    --ring: #a78bfa;
+  }
+  .dark[data-accent="teal"] {
+    --primary: #2dd4bf; /* teal-400 */
+    --primary-foreground: #020617;
+    --ring: #2dd4bf;
+  }
+  .dark[data-accent="emerald"] {
+    --primary: #34d399; /* emerald-400 */
+    --primary-foreground: #020617;
+    --ring: #34d399;
+  }
+  .dark[data-accent="rose"] {
+    --primary: #fb7185; /* rose-400 */
+    --primary-foreground: #020617;
+    --ring: #fb7185;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}

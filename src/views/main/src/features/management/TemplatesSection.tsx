@@ -35,7 +35,7 @@ export function TemplatesSection() {
   }
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5">
+    <section className="rounded-lg border border-border bg-card p-5">
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-lg font-semibold">Templates</h2>
         <Button size="sm" onClick={openCreate}>
@@ -43,18 +43,18 @@ export function TemplatesSection() {
         </Button>
       </div>
 
-      <p className="mb-3 text-xs text-slate-400">
+      <p className="mb-3 text-xs text-muted-foreground">
         Templates lassen sich beim Anlegen eines Entries auswählen und vorbefüllen.
       </p>
 
-      <ul className="divide-y divide-slate-100">
+      <ul className="divide-y divide-border">
         {(templates.data ?? []).map((template) => {
           const payload = parsePayload(template.payload);
           return (
             <li key={template.id} className="flex items-center justify-between py-2">
               <div>
                 <p className="font-medium">{template.name}</p>
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-muted-foreground">
                   {payload.notes || "(ohne Notiz)"} · {formatDuration(payload.durationMinutes)}
                 </p>
               </div>
@@ -77,7 +77,7 @@ export function TemplatesSection() {
           );
         })}
         {(templates.data ?? []).length === 0 ? (
-          <li className="py-4 text-sm text-slate-400">Keine Templates.</li>
+          <li className="py-4 text-sm text-muted-foreground">Keine Templates.</li>
         ) : null}
       </ul>
 

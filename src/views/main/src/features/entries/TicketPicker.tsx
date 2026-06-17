@@ -94,8 +94,8 @@ export function TicketPicker(props: TicketPickerProps) {
         onClick={() => props.onSelect(id)}
         className={cn(
           "flex w-full items-center justify-between gap-2 rounded px-3 py-2 text-left text-sm",
-          active ? "bg-slate-100" : "",
-          isSelected ? "font-medium text-slate-900" : "text-slate-700",
+          active ? "bg-muted" : "",
+          isSelected ? "font-medium text-foreground" : "text-foreground",
         )}
       >
         {content}
@@ -109,7 +109,7 @@ export function TicketPicker(props: TicketPickerProps) {
         <button
           type="button"
           onClick={props.onCancel}
-          className="rounded p-1 text-slate-500 hover:bg-slate-100"
+          className="rounded p-1 text-muted-foreground hover:bg-muted"
           aria-label="Zurück"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -118,7 +118,7 @@ export function TicketPicker(props: TicketPickerProps) {
       </div>
 
       <div className="relative mb-2">
-        <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-slate-400" />
+        <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
         <input
           autoFocus
           value={query}
@@ -128,21 +128,21 @@ export function TicketPicker(props: TicketPickerProps) {
           }}
           onKeyDown={onKeyDown}
           placeholder="Suchen: #IID, Titel oder Projekt…"
-          className="h-9 w-full rounded-md border border-slate-300 bg-white pl-8 pr-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+          className="h-9 w-full rounded-md border border-input bg-card pl-8 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       </div>
 
       <div className="max-h-[55vh] overflow-y-auto">
         {row(
           null,
-          <span className="flex items-center gap-1 text-slate-500">
+          <span className="flex items-center gap-1 text-muted-foreground">
             <X className="h-3.5 w-3.5" /> kein Ticket
           </span>,
         )}
         {sections.map((s) => (
           <div key={s.key}>
             {s.label ? (
-              <p className="px-3 pb-0.5 pt-2 font-mono text-[11px] uppercase tracking-wide text-slate-400">
+              <p className="px-3 pb-0.5 pt-2 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
                 {s.label}
               </p>
             ) : null}
@@ -150,14 +150,14 @@ export function TicketPicker(props: TicketPickerProps) {
               row(
                 t.id,
                 <span className="truncate">
-                  <span className="font-mono text-slate-400">#{t.gitlabIid}</span> {t.title}
+                  <span className="font-mono text-muted-foreground">#{t.gitlabIid}</span> {t.title}
                 </span>,
               ),
             )}
           </div>
         ))}
         {flat.length === 1 ? (
-          <p className="px-3 py-6 text-center text-sm text-slate-400">Kein Treffer.</p>
+          <p className="px-3 py-6 text-center text-sm text-muted-foreground">Kein Treffer.</p>
         ) : null}
       </div>
     </div>

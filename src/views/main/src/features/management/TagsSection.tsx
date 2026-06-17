@@ -33,7 +33,7 @@ export function TagsSection() {
   });
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5">
+    <section className="rounded-lg border border-border bg-card p-5">
       <h2 className="mb-4 text-lg font-semibold">Tags</h2>
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
@@ -60,7 +60,7 @@ export function TagsSection() {
         {(tags.data ?? []).map((tag) => (
           <li
             key={tag.id}
-            className="flex items-center gap-2 rounded-full border border-slate-200 px-3 py-1 text-sm"
+            className="flex items-center gap-2 rounded-full border border-border px-3 py-1 text-sm"
           >
             <span
               className="h-3 w-3 rounded-full"
@@ -71,7 +71,7 @@ export function TagsSection() {
               onClick={() => {
                 if (window.confirm(`Tag "${tag.name}" löschen?`)) remove.mutate(tag.id);
               }}
-              className="text-slate-400 hover:text-red-600"
+              className="text-muted-foreground hover:text-red-700 dark:hover:text-red-400"
               aria-label={`Tag ${tag.name} löschen`}
             >
               <Trash2 className="h-3.5 w-3.5" />

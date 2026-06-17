@@ -46,7 +46,7 @@ export function EntryList(props: EntryListProps) {
     helper.accessor("notes", {
       header: "Notiz",
       enableSorting: false,
-      cell: (c) => c.getValue() ?? <span className="text-slate-400">–</span>,
+      cell: (c) => c.getValue() ?? <span className="text-muted-foreground">–</span>,
     }),
     helper.accessor("durationMinutes", {
       header: "Dauer",
@@ -60,7 +60,7 @@ export function EntryList(props: EntryListProps) {
           .map((id) => props.ticketsById.get(id))
           .filter((t): t is Ticket => Boolean(t))
           .map((t) => `#${t.gitlabIid}`);
-        return iids.length > 0 ? iids.join(", ") : <span className="text-slate-400">–</span>;
+        return iids.length > 0 ? iids.join(", ") : <span className="text-muted-foreground">–</span>;
       },
     }),
     helper.accessor("status", {
@@ -113,7 +113,7 @@ export function EntryList(props: EntryListProps) {
   });
 
   if (props.entries.length === 0) {
-    return <p className="py-10 text-center text-sm text-slate-400">Keine Entries.</p>;
+    return <p className="py-10 text-center text-sm text-muted-foreground">Keine Entries.</p>;
   }
 
   return (
@@ -147,7 +147,7 @@ export function EntryList(props: EntryListProps) {
             </TR>
             {expandedId === row.original.id ? (
               <TR>
-                <TD colSpan={COLUMN_COUNT} className="bg-slate-50">
+                <TD colSpan={COLUMN_COUNT} className="bg-muted">
                   <BookingHistory entryId={row.original.id} ticketsById={props.ticketsById} />
                 </TD>
               </TR>
