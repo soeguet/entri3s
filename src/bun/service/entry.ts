@@ -3,29 +3,11 @@ import type { Repository } from "../repository";
 import type { EntryInput } from "../repository/entry";
 import { appError } from "../lib/app-error";
 
-function startEnd(date: string, durationMinutes: number): [number, number] {
-  const start = new Date(date).getTime();
-  return [start, start + durationMinutes * 60_000];
-}
-
-/** Überschneidung: startA < endB && endA > startB (Berührung an den Rändern ist ok). */
-function overlaps(a: Entry, bDate: string, bDuration: number): boolean {
-  const [startA, endA] = startEnd(a.date, a.durationMinutes);
-  const [startB, endB] = startEnd(bDate, bDuration);
-  return startA < endB && endA > startB;
-}
+// Zeitliche Überschneidungen zwischen Entries sind bewusst erlaubt: parallele
+// Tätigkeiten (z.B. Meeting während eines laufenden Tasks) sollen nicht blockiert
+// werden. Daher gibt es hier keine Overlap-Prüfung mehr.
 
 export function createEntryService(repo: Repository) {
-  function assertNoOverlap(date: string, durationMinutes: number, ignoreId?: number): void {
-    const existing = repo.entries.list();
-    for (const e of existing) {
-      if (e.id === ignoreId) continue;
-      if (overlaps(e, date, durationMinutes)) {
-        throw appError("OVERLAP", `Überschneidung mit bestehendem Entry (#${e.id})`, false);
-      }
-    }
-  }
-
   return {
     getAll(filter: EntryFilter = {}): Entry[] {
       return repo.entries.list(filter);
@@ -38,7 +20,6 @@ export function createEntryService(repo: Repository) {
     },
 
     create(input: EntryInput): number {
-      assertNoOverlap(input.date, input.durationMinutes);
       return repo.entries.create(input);
     },
 
@@ -46,7 +27,6 @@ export function createEntryService(repo: Repository) {
       if (!repo.entries.getById(entry.id)) {
         throw appError("NOT_FOUND", `Entry ${entry.id} nicht gefunden`, false);
       }
-      assertNoOverlap(entry.date, entry.durationMinutes, entry.id);
       repo.entries.update(entry);
     },
 

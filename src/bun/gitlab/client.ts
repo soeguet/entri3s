@@ -3,7 +3,7 @@ import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
 import { fetchIssue } from "./fetch";
 import { fetchIssues as gqlFetchIssues } from "./graphql";
-import { bookTime, findBookingNote } from "./push";
+import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
 
 /** Schmale Sicht auf den HTTP-Client (REST), die fetch.ts / push.ts brauchen. */
 export interface ApiClient {
@@ -131,9 +131,10 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
   return {
     fetchIssues: (since) => gqlFetchIssues(gqlClient, since),
     fetchIssue: (projectId, issueIid) => fetchIssue(client, projectId, issueIid),
-    bookTime: (projectId, issueIid, durationMinutes, spentAt, note, marker) =>
-      bookTime(client, projectId, issueIid, durationMinutes, spentAt, note, marker),
-    findBookingNote: (projectId, issueIid, marker) =>
-      findBookingNote(client, projectId, issueIid, marker),
+    createTimelog: (target, durationMinutes, spentAt, summary) =>
+      createTimelog(gqlClient, target, durationMinutes, spentAt, summary),
+    findTimelog: (target, durationMinutes, spentAt, summary) =>
+      findTimelog(gqlClient, target, durationMinutes, spentAt, summary),
+    deleteTimelog: (timelogId) => deleteTimelog(gqlClient, timelogId),
   };
 }

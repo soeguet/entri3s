@@ -5,7 +5,7 @@ export const bookingFixtures: Booking[] = [
     id: 1,
     entryId: 2,
     ticketId: 1,
-    gitlabNoteId: 302,
+    gitlabTimelogId: 302,
     projectId: 42,
     issueIid: 101,
     durationMinutes: 15,

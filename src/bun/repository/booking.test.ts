@@ -12,6 +12,7 @@ const PROJECT_ID = 7;
 function seedEntryAndTicket(): { entryId: number; ticketId: number } {
   repo.tickets.upsert({
     gitlabIid: 100,
+    gitlabGlobalId: 9100,
     projectId: PROJECT_ID,
     title: "Ticket",
     state: "opened",
@@ -36,7 +37,7 @@ function makeInsert(over: Partial<BookingInsert> = {}): BookingInsert {
   return {
     entryId,
     ticketId,
-    gitlabNoteId: 500,
+    gitlabTimelogId: 500,
     projectId: PROJECT_ID,
     issueIid: 100,
     durationMinutes: 90,
@@ -61,7 +62,7 @@ test("create persists a booking and returns its id", () => {
   expect(stored[0]).toMatchObject({
     id,
     entryId: insert.entryId,
-    gitlabNoteId: 500,
+    gitlabTimelogId: 500,
     note: "Work",
     spentAt: "2024-01-15",
   });
@@ -71,7 +72,7 @@ test("create persists a booking and returns its id", () => {
 test("listByEntry returns only the given entry's bookings", () => {
   const insert = makeInsert();
   repo.bookings.create(insert);
-  const other = makeInsert({ gitlabNoteId: 501 });
+  const other = makeInsert({ gitlabTimelogId: 501 });
   repo.bookings.create(other);
 
   expect(repo.bookings.listByEntry(insert.entryId)).toHaveLength(1);
@@ -80,20 +81,28 @@ test("listByEntry returns only the given entry's bookings", () => {
 
 test("listByDateRange filters on spent_at", () => {
   repo.bookings.create(makeInsert({ spentAt: "2024-01-15" }));
-  repo.bookings.create(makeInsert({ gitlabNoteId: 501, spentAt: "2024-02-20" }));
+  repo.bookings.create(makeInsert({ gitlabTimelogId: 501, spentAt: "2024-02-20" }));
 
   const jan = repo.bookings.listByDateRange("2024-01-01", "2024-01-31");
   expect(jan).toHaveLength(1);
   expect(jan[0].spentAt).toBe("2024-01-15");
 });
 
-test("getByNoteId finds a booking for the duplicate check", () => {
-  repo.bookings.create(makeInsert({ gitlabNoteId: 999 }));
-  expect(repo.bookings.getByNoteId(999, PROJECT_ID)?.gitlabNoteId).toBe(999);
-  expect(repo.bookings.getByNoteId(123, PROJECT_ID)).toBeNull();
+test("getByTimelogId finds a booking for the duplicate check", () => {
+  repo.bookings.create(makeInsert({ gitlabTimelogId: 999 }));
+  expect(repo.bookings.getByTimelogId(999, PROJECT_ID)?.gitlabTimelogId).toBe(999);
+  expect(repo.bookings.getByTimelogId(123, PROJECT_ID)).toBeNull();
 });
 
-test("UNIQUE(gitlab_note_id, project_id) rejects duplicates", () => {
-  repo.bookings.create(makeInsert({ gitlabNoteId: 42 }));
-  expect(() => repo.bookings.create(makeInsert({ gitlabNoteId: 42 }))).toThrow();
+test("getById and delete round-trip", () => {
+  const id = repo.bookings.create(makeInsert({ gitlabTimelogId: 321 }));
+  expect(repo.bookings.getById(id)?.gitlabTimelogId).toBe(321);
+
+  repo.bookings.delete(id);
+  expect(repo.bookings.getById(id)).toBeNull();
+});
+
+test("UNIQUE(gitlab_timelog_id, project_id) rejects duplicates", () => {
+  repo.bookings.create(makeInsert({ gitlabTimelogId: 42 }));
+  expect(() => repo.bookings.create(makeInsert({ gitlabTimelogId: 42 }))).toThrow();
 });

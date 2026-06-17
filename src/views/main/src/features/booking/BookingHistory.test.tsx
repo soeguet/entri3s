@@ -1,5 +1,6 @@
 import { test, expect, vi, beforeEach } from "vitest";
 import { screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import type { Booking, Ticket } from "../../../../../shared/types";
 import { renderWithClient } from "../../lib/test-utils";
 import { ticketFixtures } from "../../fixtures/tickets";
@@ -14,7 +15,7 @@ const booking: Booking = {
   id: 1,
   entryId: 2,
   ticketId: 1,
-  gitlabNoteId: 302,
+  gitlabTimelogId: 302,
   projectId: 42,
   issueIid: 101,
   durationMinutes: 15,
@@ -27,18 +28,26 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-test("rendert Buchung mit Note-Text und Link zur GitLab-Note", async () => {
+test("rendert Buchung mit Summary-Text und Link zum Issue", async () => {
   vi.mocked(api.getBookingsForEntry).mockResolvedValue({ data: [booking], error: null });
 
   renderWithClient(<BookingHistory entryId={2} ticketsById={ticketsById} />);
 
   expect(await screen.findByText("Daily Standup")).toBeInTheDocument();
-  const link = screen.getByRole("link", { name: /Note #302/ });
-  expect(link).toHaveAttribute(
-    "href",
-    "https://gitlab.example.com/group/proj/-/issues/101#note_302",
-  );
+  const link = screen.getByRole("link", { name: /Timelog #302/ });
+  expect(link).toHaveAttribute("href", "https://gitlab.example.com/group/proj/-/issues/101");
   expect(link).toHaveAttribute("target", "_blank");
+});
+
+test("löscht eine Buchung über den Löschen-Button", async () => {
+  vi.mocked(api.getBookingsForEntry).mockResolvedValue({ data: [booking], error: null });
+  vi.mocked(api.deleteBooking).mockResolvedValue({ data: undefined, error: null });
+  const user = userEvent.setup();
+
+  renderWithClient(<BookingHistory entryId={2} ticketsById={ticketsById} />);
+
+  await user.click(await screen.findByRole("button", { name: "Löschen" }));
+  await vi.waitFor(() => expect(api.deleteBooking).toHaveBeenCalledWith(1));
 });
 
 test("zeigt Hinweis ohne Buchungen", async () => {
@@ -47,15 +56,15 @@ test("zeigt Hinweis ohne Buchungen", async () => {
   renderWithClient(<BookingHistory entryId={2} ticketsById={ticketsById} />);
 
   expect(
-    await screen.findByText("Gebucht vor Tracking – keine Note verlinkt."),
+    await screen.findByText("Gebucht vor Tracking – kein Timelog verlinkt."),
   ).toBeInTheDocument();
 });
 
-test("ohne Ticket-web_url kein Link, nur Note-Nummer", async () => {
+test("ohne Ticket-web_url kein Link, nur Timelog-Nummer", async () => {
   vi.mocked(api.getBookingsForEntry).mockResolvedValue({ data: [booking], error: null });
 
   renderWithClient(<BookingHistory entryId={2} ticketsById={new Map()} />);
 
-  expect(await screen.findByText("Note #302")).toBeInTheDocument();
+  expect(await screen.findByText("Timelog #302")).toBeInTheDocument();
   expect(screen.queryByRole("link")).not.toBeInTheDocument();
 });

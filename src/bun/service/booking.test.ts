@@ -10,6 +10,7 @@ const PROJECT_ID = 7;
 function seedEntry(over: { notes?: string | null; date?: string } = {}): number {
   repo.tickets.upsert({
     gitlabIid: 100,
+    gitlabGlobalId: 9100,
     projectId: PROJECT_ID,
     title: "Ticket",
     state: "opened",
@@ -46,6 +47,7 @@ test("derives spentAt as a plain ISO date from the entry date", () => {
   expect(payload.entryId).toBe(entryId);
   expect(payload.ticketIid).toBe(100);
   expect(payload.ticketId).toBeGreaterThan(0);
+  expect(payload.issueGlobalId).toBe(9100);
 });
 
 test("spentAt uses the Europe/Berlin calendar day, not the UTC day", () => {
@@ -71,4 +73,54 @@ test("bookEntry sets the entry to pending_booking", () => {
   const entryId = seedEntry();
   createBookingService(repo).bookEntry(entryId);
   expect(repo.entries.getById(entryId)?.status).toBe("pending_booking");
+});
+
+test("bookEntry rejects a ticket without a global GitLab id (needs sync)", () => {
+  repo.tickets.upsert({
+    gitlabIid: 200,
+    gitlabGlobalId: null,
+    projectId: PROJECT_ID,
+    title: "Ungesynct",
+    state: "opened",
+    timeEstimate: null,
+    timeSpent: null,
+    webUrl: null,
+  });
+  const ticketId = repo.tickets.getByGitLabIid(200, PROJECT_ID)!.id;
+  const entryId = repo.entries.create({
+    notes: null,
+    durationMinutes: 30,
+    date: "2024-01-15T10:00:00.000Z",
+    status: "draft",
+    tagIds: [],
+    ticketIds: [ticketId],
+  });
+  expect(() => createBookingService(repo).bookEntry(entryId)).toThrow("synchronisiert");
+});
+
+test("deleteBooking enqueues a booking_delete event", () => {
+  const { entryId, ticketId } = (() => {
+    const id = seedEntry();
+    return { entryId: id, ticketId: repo.tickets.getByGitLabIid(100, PROJECT_ID)!.id };
+  })();
+  const bookingId = repo.bookings.create({
+    entryId,
+    ticketId,
+    gitlabTimelogId: 500,
+    projectId: PROJECT_ID,
+    issueIid: 100,
+    durationMinutes: 90,
+    note: "",
+    spentAt: "2024-01-15",
+  });
+
+  createBookingService(repo).deleteBooking(bookingId);
+
+  const event = repo.eventQueue.claimNext()!;
+  expect(event.type).toBe("booking_delete");
+  expect(JSON.parse(event.payload)).toEqual({ bookingId });
+});
+
+test("deleteBooking throws for an unknown booking", () => {
+  expect(() => createBookingService(repo).deleteBooking(999)).toThrow("nicht gefunden");
 });

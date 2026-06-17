@@ -4,6 +4,7 @@ export const ticketFixtures: Ticket[] = [
   {
     id: 1,
     gitlabIid: 101,
+    gitlabGlobalId: 5101,
     projectId: 42,
     title: "Login-Flow überarbeiten",
     state: "opened",
@@ -18,6 +19,7 @@ export const ticketFixtures: Ticket[] = [
   {
     id: 2,
     gitlabIid: 102,
+    gitlabGlobalId: 5102,
     projectId: 42,
     title: "Performance-Regression im Dashboard",
     state: "opened",
@@ -32,6 +34,7 @@ export const ticketFixtures: Ticket[] = [
   {
     id: 3,
     gitlabIid: 99,
+    gitlabGlobalId: 5099,
     projectId: 42,
     title: "Alte Migration entfernen",
     state: "closed",

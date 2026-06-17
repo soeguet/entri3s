@@ -3,6 +3,7 @@ import type { GitLabIssue } from "./types";
 
 /** GraphQL-Form eines Issue-Knotens (Teilmenge des GitLab-Schemas). */
 interface GqlIssueNode {
+  id: string; // GID des Issues selbst, z.B. "gid://gitlab/Issue/456"
   iid: string; // GraphQL liefert iid als String
   title: string;
   state: string; // IssueState-Enum, bereits lowercase: opened/closed/locked
@@ -27,7 +28,7 @@ interface IssuesResponse {
  */
 const ISSUES_QUERY = `query($after: String, $since: Time) {
   issues(first: 100, after: $after, updatedAfter: $since) {
-    nodes { iid title state webUrl updatedAt timeEstimate totalTimeSpent project { id } }
+    nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent project { id } }
     pageInfo { hasNextPage endCursor }
   }
 }`;
@@ -45,6 +46,7 @@ function parseGid(gid: string): number {
 function mapNode(node: GqlIssueNode): GitLabIssue {
   return {
     iid: Number(node.iid),
+    globalId: parseGid(node.id),
     project_id: parseGid(node.project.id),
     title: node.title,
     state: node.state,

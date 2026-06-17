@@ -15,8 +15,13 @@
 | 09  | Feature: Management        | ✅ fertig | `specs/05-11-features.md`         |
 | 10  | Feature: Settings          | ✅ fertig | `specs/05-11-features.md`         |
 | 11  | Testing & Hardening        | ✅ fertig | `specs/05-11-features.md`         |
+| 13  | Buchungs-Korrekturen       | ✅ fertig | `specs/13-booking-corrections.md` |
 
 Status: ⬜ offen · 🔄 in Arbeit · ✅ abgeschlossen
+
+Hinweis: Buchungen laufen seit Phase 13 über GitLab-**Timelogs** (GraphQL
+`timelogCreate`), nicht mehr über `/spend`-Kommentare. Siehe
+`specs/13-booking-corrections.md` (ergänzt/korrigiert `specs/booking-v2.md`).
 
 ## Abhängigkeiten
 

@@ -5,7 +5,7 @@ interface BookingRow {
   id: number;
   entry_id: number;
   ticket_id: number;
-  gitlab_note_id: number;
+  gitlab_timelog_id: number;
   project_id: number;
   issue_iid: number;
   duration_minutes: number;
@@ -19,7 +19,7 @@ function toBooking(row: BookingRow): Booking {
     id: row.id,
     entryId: row.entry_id,
     ticketId: row.ticket_id,
-    gitlabNoteId: row.gitlab_note_id,
+    gitlabTimelogId: row.gitlab_timelog_id,
     projectId: row.project_id,
     issueIid: row.issue_iid,
     durationMinutes: row.duration_minutes,
@@ -35,13 +35,13 @@ export function createBookingRepository(db: Database) {
       const row = db
         .query<{ id: number }, [number, number, number, number, number, number, string, string]>(
           `INSERT INTO bookings
-             (entry_id, ticket_id, gitlab_note_id, project_id, issue_iid, duration_minutes, note, spent_at)
+             (entry_id, ticket_id, gitlab_timelog_id, project_id, issue_iid, duration_minutes, note, spent_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING id`,
         )
         .get(
           input.entryId,
           input.ticketId,
-          input.gitlabNoteId,
+          input.gitlabTimelogId,
           input.projectId,
           input.issueIid,
           input.durationMinutes,
@@ -49,6 +49,15 @@ export function createBookingRepository(db: Database) {
           input.spentAt,
         )!;
       return row.id;
+    },
+
+    getById(id: number): Booking | null {
+      const row = db.query<BookingRow, [number]>("SELECT * FROM bookings WHERE id = ?").get(id);
+      return row ? toBooking(row) : null;
+    },
+
+    delete(id: number): void {
+      db.run("DELETE FROM bookings WHERE id = ?", [id]);
     },
 
     listByEntry(entryId: number): Booking[] {
@@ -69,12 +78,12 @@ export function createBookingRepository(db: Database) {
         .map(toBooking);
     },
 
-    getByNoteId(noteId: number, projectId: number): Booking | null {
+    getByTimelogId(timelogId: number, projectId: number): Booking | null {
       const row = db
         .query<BookingRow, [number, number]>(
-          "SELECT * FROM bookings WHERE gitlab_note_id = ? AND project_id = ?",
+          "SELECT * FROM bookings WHERE gitlab_timelog_id = ? AND project_id = ?",
         )
-        .get(noteId, projectId);
+        .get(timelogId, projectId);
       return row ? toBooking(row) : null;
     },
   };

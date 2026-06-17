@@ -36,20 +36,6 @@ const ok = <T>(data: T): Promise<RpcResponse<T>> => Promise.resolve({ data, erro
 const fail = <T>(code: string, message: string): Promise<RpcResponse<T>> =>
   Promise.resolve({ data: null, error: { code, message, retry: false } });
 
-function startEnd(date: string, duration: number): [number, number] {
-  const start = new Date(date).getTime();
-  return [start, start + duration * 60_000];
-}
-
-function hasOverlap(date: string, duration: number, ignoreId?: number): boolean {
-  const [s, e] = startEnd(date, duration);
-  return store.entries.some((x) => {
-    if (x.id === ignoreId) return false;
-    const [xs, xe] = startEnd(x.date, x.durationMinutes);
-    return xs < e && xe > s;
-  });
-}
-
 const now = () => new Date().toISOString();
 
 export const getEntries = (filter: EntryFilter) => {
@@ -69,18 +55,12 @@ export const getEntry = (id: number) => {
 };
 
 export const createEntry = (input: EntryCreate) => {
-  if (hasOverlap(input.date, input.durationMinutes)) {
-    return fail<number>("OVERLAP", "Überschneidung mit bestehendem Entry");
-  }
   const id = store.nextId++;
   store.entries.push({ ...input, id, createdAt: now(), updatedAt: now() });
   return ok(id);
 };
 
 export const updateEntry = (entry: Entry) => {
-  if (hasOverlap(entry.date, entry.durationMinutes, entry.id)) {
-    return fail<void>("OVERLAP", "Überschneidung mit bestehendem Entry");
-  }
   store.entries = store.entries.map((e) =>
     e.id === entry.id ? { ...entry, updatedAt: now() } : e,
   );
@@ -123,7 +103,7 @@ export const bookEntry = (entryId: number) => {
       id: store.nextId++,
       entryId,
       ticketId: ticket.id,
-      gitlabNoteId: store.nextId++,
+      gitlabTimelogId: store.nextId++,
       projectId: ticket.projectId,
       issueIid: ticket.gitlabIid,
       durationMinutes: entry.durationMinutes,
@@ -133,6 +113,18 @@ export const bookEntry = (entryId: number) => {
     });
   }
   entry.status = "booked";
+  return ok(undefined as void);
+};
+
+export const deleteBooking = (bookingId: number) => {
+  const booking = store.bookings.find((b) => b.id === bookingId);
+  if (!booking) return fail<void>("NOT_FOUND", `Buchung ${bookingId} nicht gefunden`);
+  store.bookings = store.bookings.filter((b) => b.id !== bookingId);
+  // Entry wieder buchbar machen, sofern keine weitere Buchung mehr existiert.
+  if (!store.bookings.some((b) => b.entryId === booking.entryId)) {
+    const entry = store.entries.find((e) => e.id === booking.entryId);
+    if (entry) entry.status = "draft";
+  }
   return ok(undefined as void);
 };
 

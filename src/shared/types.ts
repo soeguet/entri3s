@@ -35,6 +35,7 @@ export type TicketStatus = "active" | "orphaned";
 export interface Ticket {
   id: number;
   gitlabIid: number;
+  gitlabGlobalId: number | null; // globale GitLab-Issue-ID (für GraphQL-GID bei Buchungen)
   projectId: number;
   title: string;
   state: TicketState;
@@ -52,17 +53,17 @@ export interface TicketFilter {
   state?: TicketState;
 }
 
-// ── Bookings (Zeitbuchungen gegen GitLab, eine Zeile pro erfolgreichem Spend) ──
+// ── Bookings (Zeitbuchungen gegen GitLab, eine Zeile pro erfolgreichem Timelog) ──
 
 export interface Booking {
   id: number;
   entryId: number;
   ticketId: number;
-  gitlabNoteId: number;
+  gitlabTimelogId: number; // ID des GitLab-Timelogs (GraphQL), Rückreferenz + für timelogDelete
   projectId: number;
   issueIid: number;
   durationMinutes: number;
-  note: string; // an GitLab gesendeter Buchungstext (max. 255 Zeichen)
+  note: string; // an GitLab gesendete Timelog-Summary (max. 255 Zeichen)
   spentAt: string; // ISO-Date (YYYY-MM-DD), an GitLab gesendetes Buchungsdatum
   bookedAt: string; // ISO-UTC, Zeitpunkt der tatsächlichen Buchung
 }
@@ -134,6 +135,7 @@ export interface AppRPCType {
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       removeTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       bookEntry: { params: { entryId: number }; response: RpcResponse<void> };
+      deleteBooking: { params: { bookingId: number }; response: RpcResponse<void> };
       getBookingsForEntry: { params: { entryId: number }; response: RpcResponse<Booking[]> };
       getDeadEvents: { params: Record<string, never>; response: RpcResponse<AppEvent[]> };
       retryDeadEvent: { params: { eventId: number }; response: RpcResponse<void> };

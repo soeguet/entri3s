@@ -52,6 +52,7 @@ export const removeTicket = (entryId: number, ticketId: number) =>
   r.removeTicket({ entryId, ticketId });
 export const getTickets = (filter: TicketFilter) => r.getTickets(filter);
 export const bookEntry = (entryId: number) => r.bookEntry({ entryId });
+export const deleteBooking = (bookingId: number) => r.deleteBooking({ bookingId });
 export const getBookingsForEntry = (entryId: number) => r.getBookingsForEntry({ entryId });
 export const getDeadEvents = () => r.getDeadEvents({});
 export const retryDeadEvent = (eventId: number) => r.retryDeadEvent({ eventId });

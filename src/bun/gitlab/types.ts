@@ -1,6 +1,7 @@
-/** Rohe GitLab-Issue-Form (Teilmenge der REST-API v4). */
+/** Rohe GitLab-Issue-Form (Teilmenge der REST-API v4 / GraphQL). */
 export interface GitLabIssue {
   iid: number;
+  globalId: number; // globale Issue-ID (aus der GraphQL-GID), für timelogCreate
   project_id: number; // Pflichtfeld am globalen /issues-Endpoint (projektübergreifend)
   title: string;
   state: string; // "opened" | "closed"
@@ -12,52 +13,61 @@ export interface GitLabIssue {
   };
 }
 
-/** Rückreferenz auf die in GitLab erzeugte Note (für die bookings-Tabelle). */
-export interface GitLabBookingResult {
-  noteId: number;
-  createdAt: string; // ISO timestamp von GitLab
+/**
+ * Identifiziert das Issue, auf das gebucht wird. `issueGlobalId` ist die globale
+ * GitLab-ID (für die GraphQL-GID bei timelogCreate); `projectId`/`issueIid`
+ * dienen dem Idempotenz-Lookup über die projektweite timelogs-Query.
+ */
+export interface TimelogTarget {
+  projectId: number;
+  issueIid: number;
+  issueGlobalId: number;
 }
 
 export interface GitLabClient {
-  /** Projektübergreifend: alle für den Token erreichbaren Issues (globaler /issues-Endpoint). */
+  /** Projektübergreifend: alle für den Token erreichbaren Issues. */
   fetchIssues(since?: Date): Promise<GitLabIssue[]>;
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
-  bookTime(
-    projectId: number,
-    issueIid: number,
+  /** Legt einen Timelog (mit Summary, ohne Kommentar) an; gibt die Timelog-ID zurück. */
+  createTimelog(
+    target: TimelogTarget,
     durationMinutes: number,
     spentAt: string,
-    note: string,
-    marker: string,
-  ): Promise<GitLabBookingResult>;
-  findBookingNote(
-    projectId: number,
-    issueIid: number,
-    marker: string,
-  ): Promise<GitLabBookingResult | null>;
+    summary: string,
+  ): Promise<number>;
+  /** Sucht einen bereits existierenden, identischen Timelog (Doppelbuchungs-Schutz). */
+  findTimelog(
+    target: TimelogTarget,
+    durationMinutes: number,
+    spentAt: string,
+    summary: string,
+  ): Promise<number | null>;
+  /** Entfernt einen Timelog wieder (für Korrektur-Buchungen). */
+  deleteTimelog(timelogId: number): Promise<void>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
 export class FakeGitLabClient implements GitLabClient {
-  bookedCalls: Array<{
+  createCalls: Array<{
+    target: TimelogTarget;
+    durationMinutes: number;
+    spentAt: string;
+    summary: string;
+  }> = [];
+  deleteCalls: number[] = [];
+  /** In GitLab "gespeicherte" Timelogs — Grundlage für findTimelog. */
+  timelogs: Array<{
     projectId: number;
     issueIid: number;
     durationMinutes: number;
     spentAt: string;
-    note: string;
-    marker: string;
-  }> = [];
-  /** In GitLab "gespeicherte" Notes — Grundlage für findBookingNote. */
-  notes: Array<{
-    projectId: number;
-    issueIid: number;
-    marker: string;
-    noteId: number;
-    createdAt: string;
+    summary: string;
+    timelogId: number;
   }> = [];
   issuesToReturn: GitLabIssue[] = [];
-  bookShouldThrow: Error | null = null;
-  nextNoteId = 500;
+  createShouldThrow: Error | null = null;
+  deleteShouldThrow: Error | null = null;
+  nextTimelogId = 500;
 
   async fetchIssues(): Promise<GitLabIssue[]> {
     return this.issuesToReturn;
@@ -67,30 +77,46 @@ export class FakeGitLabClient implements GitLabClient {
     return this.issuesToReturn[0] ?? null;
   }
 
-  async bookTime(
-    projectId: number,
-    issueIid: number,
+  async createTimelog(
+    target: TimelogTarget,
     durationMinutes: number,
     spentAt: string,
-    note: string,
-    marker: string,
-  ): Promise<GitLabBookingResult> {
-    if (this.bookShouldThrow) throw this.bookShouldThrow;
-    const noteId = this.nextNoteId++;
-    const createdAt = "2024-01-15T10:00:00.000Z";
-    this.bookedCalls.push({ projectId, issueIid, durationMinutes, spentAt, note, marker });
-    this.notes.push({ projectId, issueIid, marker, noteId, createdAt });
-    return { noteId, createdAt };
+    summary: string,
+  ): Promise<number> {
+    if (this.createShouldThrow) throw this.createShouldThrow;
+    const timelogId = this.nextTimelogId++;
+    this.createCalls.push({ target, durationMinutes, spentAt, summary });
+    this.timelogs.push({
+      projectId: target.projectId,
+      issueIid: target.issueIid,
+      durationMinutes,
+      spentAt,
+      summary,
+      timelogId,
+    });
+    return timelogId;
   }
 
-  async findBookingNote(
-    projectId: number,
-    issueIid: number,
-    marker: string,
-  ): Promise<GitLabBookingResult | null> {
-    const hit = this.notes.find(
-      (n) => n.projectId === projectId && n.issueIid === issueIid && n.marker === marker,
+  async findTimelog(
+    target: TimelogTarget,
+    durationMinutes: number,
+    spentAt: string,
+    summary: string,
+  ): Promise<number | null> {
+    const hit = this.timelogs.find(
+      (t) =>
+        t.projectId === target.projectId &&
+        t.issueIid === target.issueIid &&
+        t.durationMinutes === durationMinutes &&
+        t.spentAt === spentAt &&
+        t.summary === summary,
     );
-    return hit ? { noteId: hit.noteId, createdAt: hit.createdAt } : null;
+    return hit ? hit.timelogId : null;
+  }
+
+  async deleteTimelog(timelogId: number): Promise<void> {
+    if (this.deleteShouldThrow) throw this.deleteShouldThrow;
+    this.deleteCalls.push(timelogId);
+    this.timelogs = this.timelogs.filter((t) => t.timelogId !== timelogId);
   }
 }

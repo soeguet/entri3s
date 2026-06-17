@@ -1,39 +1,55 @@
 import type { Repository } from "../repository";
-import type { GitLabClient } from "../gitlab/types";
+import type { GitLabClient, TimelogTarget } from "../gitlab/types";
 import type { AppEmitter } from "../app/emitter";
-import type { BookingPayload } from "../service/booking";
-import { bookingMarker } from "../gitlab/push";
+import type { BookingPayload, BookingDeletePayload } from "../service/booking";
 
 const POLL_INTERVAL_MS = 5_000;
+
+/** Buchungs-Events (Anlegen und Stornieren) lösen dieselben UI-Refresh-Events aus. */
+function isBookingEvent(type: string): boolean {
+  return type === "booking" || type === "booking_delete";
+}
 
 async function handleBooking(
   repo: Repository,
   gl: GitLabClient,
   payload: BookingPayload,
 ): Promise<void> {
-  // Doppelbuchungs-Schutz: `/spend` ist additiv und nicht idempotent. Brach ein
+  const target: TimelogTarget = {
+    projectId: payload.projectId,
+    issueIid: payload.ticketIid,
+    issueGlobalId: payload.issueGlobalId,
+  };
+
+  // Doppelbuchungs-Schutz: timelogCreate ist nicht idempotent. Brach ein
   // vorheriger Versuch nach dem API-Call ab (DB-Fehler, verlorene Response,
-  // Crash), liegt die Note bereits in GitLab. Vor jedem Buchen prüfen, ob die
-  // Note mit unserem Entry-Marker schon existiert — wenn ja, NICHT erneut buchen.
-  const marker = bookingMarker(payload.entryId);
-  const existing = await gl.findBookingNote(payload.projectId, payload.ticketIid, marker);
-  const result =
-    existing ??
-    (await gl.bookTime(
-      payload.projectId,
-      payload.ticketIid,
+  // Crash), liegt der Timelog bereits in GitLab. Vor dem Buchen nach einem
+  // identischen Timelog suchen (best-effort: scheitert die Query, wird trotzdem
+  // gebucht — eine etwaige Doppelbuchung lässt sich per deleteBooking korrigieren).
+  let timelogId: number | null = null;
+  try {
+    timelogId = await gl.findTimelog(
+      target,
       payload.durationMinutes,
       payload.spentAt,
       payload.note,
-      marker,
-    ));
+    );
+  } catch {
+    timelogId = null;
+  }
+  timelogId ??= await gl.createTimelog(
+    target,
+    payload.durationMinutes,
+    payload.spentAt,
+    payload.note,
+  );
 
-  // Booking-Record idempotent schreiben (UNIQUE auf note_id + Vorab-Check).
-  if (!repo.bookings.getByNoteId(result.noteId, payload.projectId)) {
+  // Booking-Record idempotent schreiben (UNIQUE auf timelog_id + Vorab-Check).
+  if (!repo.bookings.getByTimelogId(timelogId, payload.projectId)) {
     repo.bookings.create({
       entryId: payload.entryId,
       ticketId: payload.ticketId,
-      gitlabNoteId: result.noteId,
+      gitlabTimelogId: timelogId,
       projectId: payload.projectId,
       issueIid: payload.ticketIid,
       durationMinutes: payload.durationMinutes,
@@ -42,6 +58,25 @@ async function handleBooking(
     });
   }
   repo.entries.updateStatus(payload.entryId, "booked");
+}
+
+async function handleBookingDelete(
+  repo: Repository,
+  gl: GitLabClient,
+  payload: BookingDeletePayload,
+): Promise<void> {
+  const booking = repo.bookings.getById(payload.bookingId);
+  if (!booking) return; // bereits gelöscht (Retry nach Erfolg) → nichts zu tun
+
+  // Erst remote löschen, dann lokal: schlägt das remote-Delete fehl, bleibt der
+  // lokale Record erhalten und das Event wird erneut versucht.
+  await gl.deleteTimelog(booking.gitlabTimelogId);
+  repo.bookings.delete(booking.id);
+
+  // Entry wieder buchbar machen, sofern keine weitere Buchung mehr existiert.
+  if (repo.bookings.listByEntry(booking.entryId).length === 0) {
+    repo.entries.updateStatus(booking.entryId, "draft");
+  }
 }
 
 /** Entry eines dead-gelaufenen Booking-Events auf 'booking_failed' setzen. */
@@ -69,17 +104,20 @@ export async function processNext(
   try {
     if (event.type === "booking") {
       await handleBooking(repo, gl, JSON.parse(event.payload) as BookingPayload);
+    } else if (event.type === "booking_delete") {
+      await handleBookingDelete(repo, gl, JSON.parse(event.payload) as BookingDeletePayload);
     }
     repo.eventQueue.complete(event.id);
-    if (event.type === "booking") emit.bookingCompleted();
+    if (isBookingEvent(event.type)) emit.bookingCompleted();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     const status = repo.eventQueue.fail(event.id, message);
-    if (event.type === "booking") {
+    if (isBookingEvent(event.type)) {
       // Dead-Letter (alle Retries verbraucht): Entry in terminalen Fehlerzustand
       // versetzen, damit das UI nicht ewig "Buchung läuft" zeigt. Bei normalen
-      // Retries bleibt der Entry auf 'pending_booking'.
-      if (status === "dead") markBookingFailed(repo, event.payload);
+      // Retries bleibt der Entry auf 'pending_booking'. (Nur für 'booking' relevant —
+      // 'booking_delete' lässt den Entry-Status unangetastet.)
+      if (status === "dead" && event.type === "booking") markBookingFailed(repo, event.payload);
       emit.bookingFailed(message);
     }
   }
