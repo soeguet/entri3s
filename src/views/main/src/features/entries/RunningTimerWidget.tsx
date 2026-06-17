@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Play, Square } from "lucide-react";
+import { Play, Square, X } from "lucide-react";
 import type { Entry } from "../../../../../shared/types";
 import {
   getRunningEntry,
   startEntry,
   stopEntry,
   setEntryNotes,
+  deleteEntry,
   getTickets,
   getProjects,
   getRecentTickets,
@@ -137,6 +138,19 @@ export function RunningTimerWidget() {
     }
     stop.mutate(entry.id);
   }
+  // Verwerfen: löscht den laufenden Entry komplett (statt Stop → Entwurf).
+  const discard = useMutation({
+    mutationFn: async (id: number) => unwrap(await deleteEntry(id)),
+    onSuccess: invalidate,
+    meta: { successToast: "Timer verworfen" },
+  });
+  function handleDiscard() {
+    if (!entry) return;
+    clearTimeout(saveTimer.current);
+    if (window.confirm("Laufenden Timer verwerfen? Die erfasste Zeit geht verloren.")) {
+      discard.mutate(entry.id);
+    }
+  }
   const setTicket = useMutation({
     mutationFn: async (args: { entry: Entry; ticketId: number | null }) => {
       for (const tid of args.entry.ticketIds) unwrap(await removeTicket(args.entry.id, tid));
@@ -164,6 +178,16 @@ export function RunningTimerWidget() {
             <span className="font-mono text-lg font-semibold tabular-nums">
               {formatElapsed(nowMs - new Date(entry.date).getTime())}
             </span>
+            <button
+              type="button"
+              onClick={handleDiscard}
+              disabled={discard.isPending}
+              title="Timer verwerfen"
+              aria-label="Timer verwerfen"
+              className="ml-auto rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
           <textarea
             value={note}

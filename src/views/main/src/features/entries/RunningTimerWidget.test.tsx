@@ -63,3 +63,25 @@ test("zeigt die Live-Dauer und stoppt den laufenden Timer", async () => {
 
   await vi.waitFor(() => expect(api.stopEntry).toHaveBeenCalledWith(7));
 });
+
+test("verwirft den laufenden Timer nach Bestätigung", async () => {
+  vi.mocked(api.getRunningEntry).mockResolvedValue({ data: runningEntry(), error: null });
+  vi.spyOn(window, "confirm").mockReturnValue(true);
+  const user = userEvent.setup();
+  renderWithClient(<RunningTimerWidget />);
+
+  await user.click(await screen.findByRole("button", { name: "Timer verwerfen" }));
+
+  await vi.waitFor(() => expect(api.deleteEntry).toHaveBeenCalledWith(7));
+});
+
+test("verwirft nichts, wenn die Bestätigung abgelehnt wird", async () => {
+  vi.mocked(api.getRunningEntry).mockResolvedValue({ data: runningEntry(), error: null });
+  vi.spyOn(window, "confirm").mockReturnValue(false);
+  const user = userEvent.setup();
+  renderWithClient(<RunningTimerWidget />);
+
+  await user.click(await screen.findByRole("button", { name: "Timer verwerfen" }));
+
+  expect(api.deleteEntry).not.toHaveBeenCalled();
+});
