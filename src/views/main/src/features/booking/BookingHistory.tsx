@@ -1,24 +1,29 @@
-import { useQuery } from "@tanstack/react-query";
-import type { Booking, Ticket } from "../../../../../shared/types";
-import { getBookingsForEntry } from "../../api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import type { Ticket } from "../../../../../shared/types";
+import { deleteBooking, getBookingsForEntry } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { formatDate, formatDuration } from "../../lib/dates";
+import { Button } from "../../components/ui/button";
 
 interface BookingHistoryProps {
   entryId: number;
   ticketsById: Map<number, Ticket>;
 }
 
-/** Link auf die konkrete GitLab-Note, abgeleitet aus der web_url des Tickets. */
-function gitlabNoteUrl(ticket: Ticket | undefined, booking: Booking): string | null {
-  return ticket?.webUrl ? `${ticket.webUrl}#note_${booking.gitlabNoteId}` : null;
-}
-
 export function BookingHistory(props: BookingHistoryProps) {
+  const qc = useQueryClient();
   const bookings = useQuery({
     queryKey: keys.bookings(props.entryId),
     queryFn: async () => unwrap(await getBookingsForEntry(props.entryId)),
+  });
+
+  const remove = useMutation({
+    mutationFn: async (bookingId: number) => unwrap(await deleteBooking(bookingId)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.bookings(props.entryId) });
+      qc.invalidateQueries({ queryKey: keys.entries() });
+    },
   });
 
   if (bookings.isLoading) {
@@ -31,13 +36,13 @@ export function BookingHistory(props: BookingHistoryProps) {
 
   const list = bookings.data ?? [];
   if (list.length === 0) {
-    return <p className="text-xs text-slate-400">Gebucht vor Tracking – keine Note verlinkt.</p>;
+    return <p className="text-xs text-slate-400">Gebucht vor Tracking – kein Timelog verlinkt.</p>;
   }
 
   return (
     <ul className="space-y-2">
       {list.map((booking) => {
-        const url = gitlabNoteUrl(props.ticketsById.get(booking.ticketId), booking);
+        const url = props.ticketsById.get(booking.ticketId)?.webUrl ?? null;
         return (
           <li key={booking.id} className="text-sm text-slate-700">
             <div className="flex items-center gap-2">
@@ -51,11 +56,19 @@ export function BookingHistory(props: BookingHistoryProps) {
                   rel="noreferrer"
                   className="text-blue-600 hover:underline"
                 >
-                  Note #{booking.gitlabNoteId} ↗
+                  Timelog #{booking.gitlabTimelogId} ↗
                 </a>
               ) : (
-                <span className="text-slate-400">Note #{booking.gitlabNoteId}</span>
+                <span className="text-slate-400">Timelog #{booking.gitlabTimelogId}</span>
               )}
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={remove.isPending}
+                onClick={() => remove.mutate(booking.id)}
+              >
+                Löschen
+              </Button>
             </div>
             {booking.note ? (
               <p className="whitespace-pre-line text-xs text-slate-500">{booking.note}</p>

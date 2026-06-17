@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Entry } from "../../../../../shared/types";
 import { createEntry, updateEntry, getTags, getTickets, getTemplates } from "../../api";
 import { keys } from "../../lib/queryKeys";
-import { RpcError, unwrap } from "../../lib/errors";
+import { unwrap } from "../../lib/errors";
 import { parsePayload } from "../../lib/templatePayload";
 import { Dialog } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
@@ -72,11 +72,6 @@ export function EntryForm(props: EntryFormProps) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.entries() });
       props.onClose();
-    },
-    onError: (err) => {
-      if (err instanceof RpcError && err.code === "OVERLAP") {
-        form.setError("startTime", { message: "Überschneidung mit bestehendem Entry" });
-      }
     },
   });
 

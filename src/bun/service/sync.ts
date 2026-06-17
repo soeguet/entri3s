@@ -17,6 +17,7 @@ function isOrphanState(state: string): boolean {
 function toUpsert(issue: GitLabIssue): TicketUpsert {
   return {
     gitlabIid: issue.iid,
+    gitlabGlobalId: issue.globalId,
     projectId: issue.project_id,
     title: issue.title,
     state: issue.state as TicketState,

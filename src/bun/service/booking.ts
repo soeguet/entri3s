@@ -13,12 +13,18 @@ export interface BookingPayload {
   ticketId: number; // lokale Ticket-ID für die bookings-Tabelle
   projectId: number;
   ticketIid: number;
+  issueGlobalId: number; // globale GitLab-Issue-ID für die GraphQL-GID
   durationMinutes: number;
   spentAt: string; // ISO-Date (YYYY-MM-DD), aus dem Entry-Datum abgeleitet
-  note: string; // Entry-Text, der als Notiz in der Buchung erscheint
+  note: string; // Entry-Text, der als Timelog-Summary in der Buchung erscheint
 }
 
-/** Buchungstext = Entry-Notiz (optional, ggf. leer — dann reine /spend-Note). */
+/** Payload zum Stornieren einer Buchung (löscht GitLab-Timelog + lokalen Record). */
+export interface BookingDeletePayload {
+  bookingId: number;
+}
+
+/** Buchungstext = Entry-Notiz (optional, ggf. leer — dann Timelog ohne Summary). */
 function bookingNote(notes: string | null): string {
   return notes?.trim() ?? "";
 }
@@ -34,18 +40,39 @@ export function createBookingService(repo: Repository) {
       if (!ticket) {
         throw appError("NO_TICKET", "Entry hat kein zugewiesenes Ticket", false);
       }
+      if (ticket.gitlabGlobalId === null) {
+        throw appError(
+          "NEEDS_SYNC",
+          "Ticket muss zuerst synchronisiert werden (fehlende GitLab-ID). Bitte Sync ausführen.",
+          false,
+        );
+      }
 
       const payload: BookingPayload = {
         entryId,
         ticketId: ticket.id,
         projectId: ticket.projectId,
         ticketIid: ticket.gitlabIid,
+        issueGlobalId: ticket.gitlabGlobalId,
         durationMinutes: entry.durationMinutes,
         spentAt: formatInTimeZone(entry.date, BOOKING_TZ, "yyyy-MM-dd"), // Berliner Kalendertag
         note: bookingNote(entry.notes),
       };
       repo.eventQueue.enqueue("booking", payload);
       repo.entries.updateStatus(entryId, "pending_booking");
+    },
+
+    /**
+     * Buchung stornieren: legt ein booking_delete-Event in die Outbox. Der Worker
+     * löscht den GitLab-Timelog + den lokalen Record und setzt den Entry zurück auf
+     * 'draft', sodass er korrigiert neu gebucht werden kann.
+     */
+    deleteBooking(bookingId: number): void {
+      const booking = repo.bookings.getById(bookingId);
+      if (!booking) throw appError("NOT_FOUND", `Buchung ${bookingId} nicht gefunden`, false);
+
+      const payload: BookingDeletePayload = { bookingId };
+      repo.eventQueue.enqueue("booking_delete", payload);
     },
 
     /** Buchungshistorie eines Entries (für RPC getBookingsForEntry). */

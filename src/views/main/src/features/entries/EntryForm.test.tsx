@@ -11,16 +11,15 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-test("zeigt Overlap-Fehler inline", async () => {
-  vi.mocked(api.createEntry).mockResolvedValueOnce({
-    data: null,
-    error: { code: "OVERLAP", message: "Überschneidung", retry: false },
-  });
+test("legt einen Entry an und schliesst das Formular", async () => {
+  vi.mocked(api.createEntry).mockResolvedValueOnce({ data: 1, error: null });
+  const onClose = vi.fn();
   const user = userEvent.setup();
-  renderWithClient(<EntryForm open onClose={() => {}} />);
+  renderWithClient(<EntryForm open onClose={onClose} />);
 
   await user.type(screen.getByLabelText("Notizen"), "Neue Aufgabe");
   await user.click(screen.getByRole("button", { name: "Erstellen" }));
 
-  expect(await screen.findByText("Überschneidung mit bestehendem Entry")).toBeInTheDocument();
+  await vi.waitFor(() => expect(api.createEntry).toHaveBeenCalled());
+  await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
 });

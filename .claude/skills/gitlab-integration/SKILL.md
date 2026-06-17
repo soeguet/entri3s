@@ -19,19 +19,20 @@ import type { Settings } from "../../shared/types";
 export interface GitLabClient {
   fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
-  bookTime(
-    projectId: number,
-    issueIid: number,
+  // Buchungen laufen über GitLab-Timelogs (GraphQL), NICHT über /spend-Kommentare:
+  createTimelog(
+    target: TimelogTarget, // { projectId, issueIid, issueGlobalId }
     durationMinutes: number,
     spentAt: string, // ISO-Date YYYY-MM-DD
-    note: string,
-    marker: string, // Idempotenz-Marker im Note-Body
-  ): Promise<GitLabBookingResult>; // { noteId, createdAt }
-  findBookingNote(
-    projectId: number,
-    issueIid: number,
-    marker: string,
-  ): Promise<GitLabBookingResult | null>;
+    summary: string, // landet im Summary-Feld der Zeiterfassung, kein Kommentar
+  ): Promise<number>; // Timelog-ID
+  findTimelog(
+    target: TimelogTarget,
+    durationMinutes: number,
+    spentAt: string,
+    summary: string,
+  ): Promise<number | null>; // Idempotenz: identischen Timelog finden
+  deleteTimelog(timelogId: number): Promise<void>; // Korrektur-Buchungen
 }
 
 // getSettings wird pro Request frisch ausgewertet → geänderte gitlabUrl wirkt
@@ -54,8 +55,8 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     return res;
   }
 
-  return { fetchIssues, fetchIssue, bookTime };
-  // Implementierungen in fetch.ts und push.ts
+  return { fetchIssues, fetchIssue, createTimelog, findTimelog, deleteTimelog };
+  // Implementierungen in fetch.ts (REST-Lesen) und timelog.ts (GraphQL-Buchen)
 }
 ```
 
@@ -91,48 +92,42 @@ function createRateLimiter(reqPerSec: number) {
 export interface GitLabClient {
   fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
-  bookTime(
-    projectId: number,
-    issueIid: number,
+  // Buchungen laufen über GitLab-Timelogs (GraphQL), NICHT über /spend-Kommentare:
+  createTimelog(
+    target: TimelogTarget, // { projectId, issueIid, issueGlobalId }
     durationMinutes: number,
     spentAt: string, // ISO-Date YYYY-MM-DD
-    note: string,
-    marker: string, // Idempotenz-Marker im Note-Body
-  ): Promise<GitLabBookingResult>; // { noteId, createdAt }
-  findBookingNote(
-    projectId: number,
-    issueIid: number,
-    marker: string,
-  ): Promise<GitLabBookingResult | null>;
+    summary: string, // landet im Summary-Feld der Zeiterfassung, kein Kommentar
+  ): Promise<number>; // Timelog-ID
+  findTimelog(
+    target: TimelogTarget,
+    durationMinutes: number,
+    spentAt: string,
+    summary: string,
+  ): Promise<number | null>; // Idempotenz: identischen Timelog finden
+  deleteTimelog(timelogId: number): Promise<void>; // Korrektur-Buchungen
 }
 
-// Fake für Tests
+// Fake für Tests (gekürzt — siehe src/bun/gitlab/types.ts)
 export class FakeGitLabClient implements GitLabClient {
-  bookedCalls: Array<{
-    projectId: number;
-    issueIid: number;
-    durationMinutes: number;
-    spentAt: string;
-    note: string;
-  }> = [];
+  createCalls: Array<{ target: TimelogTarget; durationMinutes: number; spentAt: string; summary: string }> = [];
+  deleteCalls: number[] = [];
+  timelogs: Array<{ /* projectId, issueIid, durationMinutes, spentAt, summary, timelogId */ }> = [];
   issuesToReturn: GitLabIssue[] = [];
-  nextNoteId = 500;
+  nextTimelogId = 500;
 
-  async fetchIssues() {
-    return this.issuesToReturn;
+  async createTimelog(target, d, spentAt, summary) {
+    const timelogId = this.nextTimelogId++;
+    this.createCalls.push({ target, durationMinutes: d, spentAt, summary });
+    this.timelogs.push({ ...target, durationMinutes: d, spentAt, summary, timelogId });
+    return timelogId;
   }
-  async fetchIssue() {
-    return this.issuesToReturn[0] ?? null;
+  async findTimelog(target, d, spentAt, summary) {
+    /* identischen Timelog auf projectId+issueIid+dauer+datum+summary suchen */
   }
-  async bookTime(p, i, d, spentAt, note, marker) {
-    const noteId = this.nextNoteId++;
-    this.bookedCalls.push({ projectId: p, issueIid: i, durationMinutes: d, spentAt, note, marker });
-    this.notes.push({ projectId: p, issueIid: i, marker, noteId });
-    return { noteId, createdAt: "2024-01-15T10:00:00.000Z" };
-  }
-  async findBookingNote(p, i, marker) {
-    const n = this.notes.find((x) => x.projectId === p && x.issueIid === i && x.marker === marker);
-    return n ? { noteId: n.noteId, createdAt: "2024-01-15T10:00:00.000Z" } : null;
+  async deleteTimelog(timelogId) {
+    this.deleteCalls.push(timelogId);
+    this.timelogs = this.timelogs.filter((t) => t.timelogId !== timelogId);
   }
 }
 ```
@@ -141,20 +136,21 @@ export class FakeGitLabClient implements GitLabClient {
 
 Wir syncen NICHT pro Projekt (`/projects/:id/issues`), sondern projektübergreifend
 alle Issues, auf die der Token Zugriff hat (über GraphQL, siehe nächster Abschnitt).
-Jedes Issue trägt seine `project_id`, über die der Sync die Tickets weiterhin pro
-Projekt zuordnet. Es gibt KEINE Projekt-ID in den Settings. Buchungen
-(`bookTime`/`findBookingNote`) bleiben per-Projekt, weil die Notes-API
-projektgebunden ist — die `projectId` stammt dann aus dem Ticket-Row.
+Jedes Issue trägt seine `project_id` (Sync-Zuordnung) und seine globale
+`gitlab_global_id` (aus der GraphQL-GID), die für `timelogCreate` als
+`gid://gitlab/Issue/<id>` gebraucht wird. Es gibt KEINE Projekt-ID in den Settings.
 
-## Hybrid: Sync=GraphQL, Buchungen=REST
+## Hybrid: Sync=GraphQL, Buchungen=GraphQL, Einzel-Issue=REST
 
-Der **Lese-Pfad (Sync)** läuft über **GraphQL**, der **Schreib-Pfad (Buchungen)**
-bleibt **REST**. Beide teilen sich denselben Rate-Limiter (5 req/s).
+Der **Lese-Pfad (Sync)** und der **Schreib-Pfad (Buchungen via Timelogs)** laufen
+beide über **GraphQL**. Nur `fetchIssue` (Einzel-Issue) ist noch REST. Alle teilen
+sich denselben Rate-Limiter (5 req/s).
 
 | Pfad | Transport | Endpoint | Auth |
 | --- | --- | --- | --- |
 | Sync (`fetchIssues`) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
-| `fetchIssue` / Buchungen | REST | `{base}/api/v4/...` | `PRIVATE-TOKEN: <token>` |
+| Buchen (`createTimelog`/`findTimelog`/`deleteTimelog`) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
+| `fetchIssue` | REST | `{base}/api/v4/...` | `PRIVATE-TOKEN: <token>` |
 
 Hintergrund/Entscheidung: `.claude/specs/12-gitlab-graphql-evaluation.md`.
 
@@ -230,40 +226,53 @@ export function formatDuration(minutes: number): string {
 // 90 min → "1h 30m", 60 min → "1h", 30 min → "0h 30m"
 ```
 
-## Buchung via Notes-API (`/spend` Quick Action)
+## Buchung via Timelog (GraphQL `timelogCreate`)
 
-Wir buchen **nicht** über `add_spent_time` (REST), weil das immer `Date.now()`
-als Datum setzt. Stattdessen die Notes-API mit der `/spend` Quick Action — die
-akzeptiert ein frei wählbares Buchungsdatum.
+Wir buchen über **GitLab-Timelogs** (GraphQL `timelogCreate`), **nicht** über die
+Notes-/`/spend`-Quick-Action und **nicht** über `add_spent_time` (REST).
 
+**Warum kein `/spend`-Kommentar:** `/spend` legt eine sichtbare Notiz/Kommentar am
+Issue an. Das ist unerwünscht — der Buchungstext gehört in die **Zeiterfassung**
+("Add time entry → Summary"), nicht in die Kommentarspalte. `timelogCreate`
+schreibt genau dorthin und erzeugt KEINEN Kommentar und keine Notification.
+
+```graphql
+mutation {
+  timelogCreate(input: {
+    issuableId: "gid://gitlab/Issue/<globalId>",
+    timeSpent: "1h 30m",
+    spentAt: "2024-06-17",   # frei wählbares Datum (ISO-Date, ohne Uhrzeit)
+    summary: "<Entry-Text>"  # max. 255 Zeichen → summary.slice(0, 255)
+  }) { timelog { id } errors }
+}
 ```
-POST /api/v4/projects/:projectId/issues/:issueIid/notes
-{ "body": "/spend 1h 30m 2024-06-17\n\n<Entry-Text>" }
-```
 
-- **Datum** im Body als reines ISO-Date (`YYYY-MM-DD`), ohne Uhrzeit
-  (`/spend` ignoriert Uhrzeiten — GitLab-Limitierung).
-- **Entry-Text** wird unter die Quick Action gehängt, damit die Notiz auf dem
-  Ticket sichtbar bleibt. GitLab kappt bei **255 Zeichen** → `note.slice(0, 255)`.
-- Ohne Text entsteht eine reine System-Note (keine Notification).
-- Response liefert `{ id, created_at }` — `id` ist die `gitlab_note_id`, unsere
-  Rückreferenz für die `bookings`-Tabelle. Link: `{ticket.webUrl}#note_{id}`.
+- `issuableId` braucht die **globale** Issue-ID (`gid://gitlab/Issue/<globalId>`).
+  Die `globalId` wird beim Sync aus der GraphQL-GID gezogen und auf dem Ticket
+  gespeichert (`tickets.gitlab_global_id`).
+- Response liefert die Timelog-GID (`gid://gitlab/Timelog/<id>`). Wir speichern die
+  Zahl als `bookings.gitlab_timelog_id` — Rückreferenz **und** Handle für `deleteTimelog`.
+
+### Korrektur-Buchungen: löschen + neu buchen
+
+Eine Buchung kann storniert werden (`deleteBooking` → Event `booking_delete`):
+`deleteTimelog` (`timelogDelete`) entfernt den Timelog in GitLab, der lokale
+`bookings`-Record wird gelöscht und der Entry geht zurück auf `draft` → korrigiert
+neu buchbar. (Nur der Autor des Timelogs / Maintainer darf löschen.)
 
 ### Doppelbuchungs-Schutz (Pflicht)
 
-`/spend` ist **additiv und nicht idempotent** — ein Retry nach erfolgreichem
-API-Call bucht die Zeit doppelt (Arbeitszeitbetrug). Schutz:
+`timelogCreate` ist **nicht idempotent** — ein Retry nach erfolgreichem API-Call
+bucht die Zeit doppelt (Arbeitszeitbetrug). Schutz:
 
-- Jeder Note wird ein unsichtbarer Marker mitgegeben:
-  `bookingMarker(entryId)` → `<!-- entries-booking:entry=<id> -->` (HTML-Kommentar,
-  in GitLab nicht gerendert).
-- `handleBooking()` ruft **vor** jedem `/spend` `gl.findBookingNote(projectId,
-  issueIid, marker)` auf. Existiert die Note schon → **nicht** erneut buchen,
-  nur den lokalen Record rekonziliieren.
-- DB-Insert zusätzlich idempotent: `getByNoteId()` + `UNIQUE(gitlab_note_id,
+- `handleBooking()` ruft **vor** jedem `createTimelog` `gl.findTimelog(...)` auf:
+  Query `timelogs(projectId:, startTime:, endTime:)` und Match auf Issue-iid +
+  Dauer + Summary. Existiert ein identischer Timelog → **nicht** erneut buchen,
+  nur den lokalen Record rekonziliieren. (Best-effort: scheitert die Query, wird
+  trotzdem gebucht — eine etwaige Doppelbuchung lässt sich per `deleteBooking`
+  korrigieren.)
+- DB-Insert zusätzlich idempotent: `getByTimelogId()` + `UNIQUE(gitlab_timelog_id,
   project_id)`.
-
-Nie `/spend` ohne diesen Vorab-Check buchen.
 
 ## Fehler-Mapping
 
@@ -294,18 +303,21 @@ Service schreibt in `event_queue`, Worker verarbeitet.
 export function bookEntry(repo: Repository, entryId: number) {
   const entry = repo.entries.getById(entryId);
   const ticket = repo.tickets.getForEntry(entryId);
+  // gitlabGlobalId === null → Ticket muss erst neu gesynct werden (AppError NEEDS_SYNC).
   repo.eventQueue.enqueue("booking", {
     entryId,
     ticketId: ticket.id, // lokal, für bookings-Tabelle
     projectId: ticket.projectId,
     ticketIid: ticket.gitlabIid,
+    issueGlobalId: ticket.gitlabGlobalId, // für die GraphQL-GID
     durationMinutes: entry.durationMinutes,
     spentAt: formatInTimeZone(entry.date, "Europe/Berlin", "yyyy-MM-dd"), // Berliner Tag
-    note: entry.notes ? `${entry.title}\n${entry.notes}` : entry.title,
+    note: entry.notes?.trim() ?? "",
   });
   repo.entries.updateStatus(entryId, "pending_booking");
 }
 ```
 
-Nach erfolgreichem `gl.bookTime()` schreibt der Worker einen `bookings`-Record
-mit der zurückgegebenen `gitlab_note_id` (Rückverfolgbarkeit pro Buchung).
+Nach erfolgreichem `gl.createTimelog()` schreibt der Worker einen `bookings`-Record
+mit der zurückgegebenen `gitlab_timelog_id` (Rückverfolgbarkeit pro Buchung). Das
+Stornieren läuft über ein eigenes `booking_delete`-Event (siehe oben).

@@ -4,6 +4,7 @@ import type { Ticket, TicketFilter, TicketState, TicketStatus } from "../../shar
 interface TicketRow {
   id: number;
   gitlab_iid: number;
+  gitlab_global_id: number | null;
   project_id: number;
   title: string;
   state: TicketState;
@@ -18,6 +19,7 @@ interface TicketRow {
 
 export interface TicketUpsert {
   gitlabIid: number;
+  gitlabGlobalId: number | null;
   projectId: number;
   title: string;
   state: TicketState;
@@ -30,6 +32,7 @@ function toTicket(row: TicketRow): Ticket {
   return {
     id: row.id,
     gitlabIid: row.gitlab_iid,
+    gitlabGlobalId: row.gitlab_global_id,
     projectId: row.project_id,
     title: row.title,
     state: row.state,
@@ -95,9 +98,10 @@ export function createTicketRepository(db: Database) {
       const now = new Date().toISOString();
       db.run(
         `INSERT INTO tickets
-           (gitlab_iid, project_id, title, state, status, time_estimate, time_spent, web_url, synced_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)
+           (gitlab_iid, gitlab_global_id, project_id, title, state, status, time_estimate, time_spent, web_url, synced_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)
          ON CONFLICT(gitlab_iid, project_id) DO UPDATE SET
+           gitlab_global_id = excluded.gitlab_global_id,
            title = excluded.title,
            state = excluded.state,
            time_estimate = excluded.time_estimate,
@@ -107,6 +111,7 @@ export function createTicketRepository(db: Database) {
            updated_at = excluded.updated_at`,
         [
           input.gitlabIid,
+          input.gitlabGlobalId,
           input.projectId,
           input.title,
           input.state,

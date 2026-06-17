@@ -27,6 +27,7 @@ function makeEmitter(): AppEmitter {
 function seedBooking(): number {
   repo.tickets.upsert({
     gitlabIid: 100,
+    gitlabGlobalId: 9100,
     projectId: PROJECT_ID,
     title: "Ticket",
     state: "opened",
@@ -65,22 +66,21 @@ test("booking event books time and marks entry booked", async () => {
   const processed = await processNext(repo, gl, emit);
 
   expect(processed).toBe(true);
-  expect(gl.bookedCalls).toHaveLength(1);
-  expect(gl.bookedCalls[0]).toMatchObject({
-    projectId: PROJECT_ID,
-    issueIid: 100,
+  expect(gl.createCalls).toHaveLength(1);
+  expect(gl.createCalls[0]).toMatchObject({
+    target: { projectId: PROJECT_ID, issueIid: 100, issueGlobalId: 9100 },
     durationMinutes: 90,
     spentAt: "2024-01-15", // aus Entry-Datum abgeleitet, ohne Uhrzeit
-    note: "",
+    summary: "",
   });
   expect(repo.entries.getById(entryId)?.status).toBe("booked");
   expect(events).toContain("bookingCompleted");
   expect(await processNext(repo, gl, emit)).toBe(false); // queue leer
 });
 
-test("successful booking writes a booking record with the gitlab note id", async () => {
+test("successful booking writes a booking record with the gitlab timelog id", async () => {
   const entryId = seedBooking();
-  gl.nextNoteId = 777;
+  gl.nextTimelogId = 777;
 
   await processNext(repo, gl, emit);
 
@@ -90,7 +90,7 @@ test("successful booking writes a booking record with the gitlab note id", async
     entryId,
     projectId: PROJECT_ID,
     issueIid: 100,
-    gitlabNoteId: 777,
+    gitlabTimelogId: 777,
     durationMinutes: 90,
     spentAt: "2024-01-15",
     note: "",
@@ -99,17 +99,17 @@ test("successful booking writes a booking record with the gitlab note id", async
 
 test("failed booking writes no booking record", async () => {
   const entryId = seedBooking();
-  gl.bookShouldThrow = new Error("GitLab down");
+  gl.createShouldThrow = new Error("GitLab down");
 
   await processNext(repo, gl, emit);
 
   expect(repo.bookings.listByEntry(entryId)).toHaveLength(0);
 });
 
-test("does NOT double-book when the DB write fails after a successful spend", async () => {
-  // Kritisch (Arbeitszeitbetrug): /spend gelingt, aber der Booking-Record kann
-  // nicht geschrieben werden → Event wird wiederholt. Der zweite Lauf darf NICHT
-  // erneut in GitLab buchen.
+test("does NOT double-book when the DB write fails after a successful timelog", async () => {
+  // Kritisch (Arbeitszeitbetrug): timelogCreate gelingt, aber der Booking-Record
+  // kann nicht geschrieben werden → Event wird wiederholt. Der zweite Lauf darf
+  // NICHT erneut in GitLab buchen.
   const entryId = seedBooking();
   const realCreate = repo.bookings.create;
   repo.bookings.create = () => {
@@ -117,13 +117,13 @@ test("does NOT double-book when the DB write fails after a successful spend", as
   };
 
   await processNext(repo, gl, emit); // bucht in GitLab, create wirft → re-queued
-  expect(gl.bookedCalls).toHaveLength(1);
+  expect(gl.createCalls).toHaveLength(1);
   expect(repo.bookings.listByEntry(entryId)).toHaveLength(0);
 
   repo.bookings.create = realCreate;
-  await processNext(repo, gl, emit); // Idempotenz-Check findet die Note → kein 2. /spend
+  await processNext(repo, gl, emit); // Idempotenz-Check findet den Timelog → kein 2. Create
 
-  expect(gl.bookedCalls).toHaveLength(1); // GENAU einmal in GitLab gebucht
+  expect(gl.createCalls).toHaveLength(1); // GENAU einmal in GitLab gebucht
   expect(repo.bookings.listByEntry(entryId)).toHaveLength(1);
   expect(repo.entries.getById(entryId)?.status).toBe("booked");
 });
@@ -131,19 +131,47 @@ test("does NOT double-book when the DB write fails after a successful spend", as
 test("a duplicate booking event reconciles instead of booking twice", async () => {
   const entryId = seedBooking();
   await processNext(repo, gl, emit);
-  expect(gl.bookedCalls).toHaveLength(1);
+  expect(gl.createCalls).toHaveLength(1);
 
   // Dasselbe Event versehentlich erneut einreihen (gleicher Payload).
   createBookingService(repo).bookEntry(entryId);
   await processNext(repo, gl, emit);
 
-  expect(gl.bookedCalls).toHaveLength(1); // keine zweite GitLab-Buchung
+  expect(gl.createCalls).toHaveLength(1); // keine zweite GitLab-Buchung
   expect(repo.bookings.listByEntry(entryId)).toHaveLength(1);
+});
+
+test("booking_delete removes the timelog, the record and resets the entry to draft", async () => {
+  const entryId = seedBooking();
+  await processNext(repo, gl, emit); // bucht
+  const booking = repo.bookings.listByEntry(entryId)[0]!;
+  expect(repo.entries.getById(entryId)?.status).toBe("booked");
+
+  createBookingService(repo).deleteBooking(booking.id);
+  const processed = await processNext(repo, gl, emit);
+
+  expect(processed).toBe(true);
+  expect(gl.deleteCalls).toEqual([booking.gitlabTimelogId]);
+  expect(repo.bookings.listByEntry(entryId)).toHaveLength(0);
+  expect(repo.entries.getById(entryId)?.status).toBe("draft"); // wieder buchbar
+  expect(events).toContain("bookingCompleted");
+});
+
+test("booking_delete is a no-op when the record is already gone", async () => {
+  const entryId = seedBooking();
+  await processNext(repo, gl, emit);
+  const booking = repo.bookings.listByEntry(entryId)[0]!;
+
+  createBookingService(repo).deleteBooking(booking.id); // Event eingereiht …
+  repo.bookings.delete(booking.id); // … aber der Record verschwindet vorher (Retry-Fall)
+  await processNext(repo, gl, emit);
+
+  expect(gl.deleteCalls).toHaveLength(0); // kein remote-Delete versucht
 });
 
 test("failing booking retries and dead-letters after 3 attempts", async () => {
   const entryId = seedBooking();
-  gl.bookShouldThrow = new Error("GitLab down");
+  gl.createShouldThrow = new Error("GitLab down");
 
   await processNext(repo, gl, emit);
   await processNext(repo, gl, emit);
@@ -157,7 +185,7 @@ test("failing booking retries and dead-letters after 3 attempts", async () => {
 
 test("a single (non-dead) booking failure keeps the entry on pending_booking", async () => {
   const entryId = seedBooking();
-  gl.bookShouldThrow = new Error("GitLab down");
+  gl.createShouldThrow = new Error("GitLab down");
 
   await processNext(repo, gl, emit); // erster Fehlversuch, Event wieder pending
 
@@ -167,7 +195,7 @@ test("a single (non-dead) booking failure keeps the entry on pending_booking", a
 
 test("retrying a dead booking event resets the entry and re-books it", async () => {
   const entryId = seedBooking();
-  gl.bookShouldThrow = new Error("GitLab down");
+  gl.createShouldThrow = new Error("GitLab down");
 
   await processNext(repo, gl, emit);
   await processNext(repo, gl, emit);
@@ -182,7 +210,7 @@ test("retrying a dead booking event resets the entry and re-books it", async () 
   expect(repo.entries.getById(entryId)?.status).toBe("pending_booking");
 
   // GitLab wieder erreichbar — erneutes Verarbeiten bucht erfolgreich.
-  gl.bookShouldThrow = null;
+  gl.createShouldThrow = null;
   await processNext(repo, gl, emit);
 
   expect(repo.entries.getById(entryId)?.status).toBe("booked");

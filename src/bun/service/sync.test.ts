@@ -20,6 +20,7 @@ beforeEach(() => {
 function issue(iid: number, state: string): GitLabIssue {
   return {
     iid,
+    globalId: 5000 + iid,
     project_id: PROJECT_ID,
     title: `Issue ${iid}`,
     state,
@@ -42,12 +43,13 @@ test("syncIssues upserts tickets and marks closed ones orphaned", async () => {
   expect(repo.tickets.getByGitLabIid(2, PROJECT_ID)?.status).toBe("orphaned");
 });
 
-test("syncIssues maps time stats", async () => {
+test("syncIssues maps time stats and the global issue id", async () => {
   gl.issuesToReturn = [issue(1, "opened")];
   await svc.syncIssues();
   const ticket = repo.tickets.getByGitLabIid(1, PROJECT_ID);
   expect(ticket?.timeEstimate).toBe(3600);
   expect(ticket?.timeSpent).toBe(1800);
+  expect(ticket?.gitlabGlobalId).toBe(5001);
 });
 
 test("syncIssues updates last_run", async () => {

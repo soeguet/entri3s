@@ -9,6 +9,7 @@ interface Captured {
 
 function node(iid: string, projectId: number, extra: Record<string, unknown> = {}) {
   return {
+    id: `gid://gitlab/Issue/${1000 + Number(iid)}`,
     iid,
     title: `Issue ${iid}`,
     state: "opened",
@@ -57,6 +58,7 @@ test("maps GraphQL nodes to GitLabIssue and follows cursor pagination", async ()
   // iid als Number, project_id aus der GID geparst, time_stats gemappt.
   expect(issues[0]).toEqual({
     iid: 1,
+    globalId: 1001,
     project_id: 123,
     title: "Issue 1",
     state: "opened",
