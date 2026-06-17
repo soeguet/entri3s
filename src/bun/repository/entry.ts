@@ -79,6 +79,30 @@ export function createEntryRepository(db: Database) {
         where.push(`id IN (SELECT entry_id FROM entry_tags WHERE tag_id IN (${placeholders}))`);
         params.push(...filter.tagIds);
       }
+      // Projekt- und Ticket-Auswahl stammen aus einem Hierarchie-Picker: untereinander
+      // ODER, aber als ein gemeinsamer UND-Block gegenüber den anderen Filtern.
+      const hierarchyParts: string[] = [];
+      const hierarchyParams: number[] = [];
+      if (filter.ticketIds && filter.ticketIds.length > 0) {
+        const placeholders = filter.ticketIds.map(() => "?").join(", ");
+        hierarchyParts.push(
+          `id IN (SELECT entry_id FROM entry_tickets WHERE ticket_id IN (${placeholders}))`,
+        );
+        hierarchyParams.push(...filter.ticketIds);
+      }
+      if (filter.projectIds && filter.projectIds.length > 0) {
+        const placeholders = filter.projectIds.map(() => "?").join(", ");
+        hierarchyParts.push(
+          `id IN (SELECT entry_id FROM entry_tickets et JOIN tickets t ON t.id = et.ticket_id WHERE t.project_id IN (${placeholders}))`,
+        );
+        hierarchyParams.push(...filter.projectIds);
+      }
+      if (hierarchyParts.length > 0) {
+        where.push(
+          hierarchyParts.length > 1 ? `(${hierarchyParts.join(" OR ")})` : hierarchyParts[0],
+        );
+        params.push(...hierarchyParams);
+      }
       const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
       const rows = db
         .query<EntryRow, (string | number)[]>(`SELECT * FROM entries ${clause} ORDER BY date DESC`)

@@ -7,7 +7,6 @@ import { unwrap } from "../../lib/errors";
 import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
-import { Select } from "../../components/ui/select";
 
 const PALETTE = ["#3b82f6", "#ef4444", "#a855f7", "#22c55e", "#f59e0b", "#64748b"];
 
@@ -43,13 +42,19 @@ export function TagsSection() {
         </div>
         <div>
           <Label htmlFor="tag-color">Farbe</Label>
-          <Select id="tag-color" value={color} onChange={(e) => setColor(e.target.value)}>
+          <div className="flex gap-2">
             {PALETTE.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
+              <button
+                key={c}
+                onClick={() => setColor(c)}
+                className={`h-9 w-9 rounded-lg border-2 transition-all ${color === c ? "border-foreground ring-2 ring-ring" : "border-border hover:border-foreground"
+                  }`}
+                style={{ backgroundColor: c }}
+                title={c}
+                aria-label={`Farbe ${c}`}
+              />
             ))}
-          </Select>
+          </div>
         </div>
         <Button disabled={name.trim() === "" || create.isPending} onClick={() => create.mutate()}>
           Hinzufügen
