@@ -170,7 +170,7 @@ export function RunningTimerWidget() {
   }
 
   return (
-    <div className="mt-auto border-t border-slate-200 p-3">
+    <div className="mt-auto border-t border-border p-3">
       {entry ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
@@ -184,7 +184,7 @@ export function RunningTimerWidget() {
               disabled={discard.isPending}
               title="Timer verwerfen"
               aria-label="Timer verwerfen"
-              className="ml-auto rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+              className="ml-auto rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-50"
             >
               <X className="h-4 w-4" />
             </button>
@@ -195,12 +195,12 @@ export function RunningTimerWidget() {
             onBlur={flushNotes}
             rows={2}
             placeholder="Notiz…"
-            className="w-full resize-none rounded-md border border-slate-300 px-2 py-1 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="w-full resize-none rounded-md border border-input bg-card px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <button
             type="button"
             onClick={() => setPicking(true)}
-            className="block w-full truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+            className="block w-full truncate rounded border border-border px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted"
           >
             {ticketLabel}
           </button>
@@ -208,7 +208,7 @@ export function RunningTimerWidget() {
             type="button"
             onClick={handleStop}
             disabled={stop.isPending}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-red-600 px-3 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50 dark:bg-red-700 dark:hover:bg-red-600"
           >
             <Square className="h-3.5 w-3.5 fill-current" /> Stop
           </button>
@@ -222,12 +222,12 @@ export function RunningTimerWidget() {
               if (e.key === "Enter") start.mutate();
             }}
             placeholder="Woran arbeitest du?"
-            className="h-8 w-full rounded-md border border-slate-300 px-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+            className="h-8 w-full rounded-md border border-input bg-card px-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           />
           <button
             type="button"
             onClick={() => setPicking(true)}
-            className="block w-full truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+            className="block w-full truncate rounded border border-border px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted"
           >
             {ticketLabel}
           </button>
@@ -235,7 +235,7 @@ export function RunningTimerWidget() {
             type="button"
             onClick={() => start.mutate()}
             disabled={start.isPending}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-slate-900 px-3 py-2 text-sm font-medium text-white hover:bg-slate-800 disabled:opacity-50"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
           >
             <Play className="h-3.5 w-3.5 fill-current" /> Start
           </button>

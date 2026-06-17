@@ -37,7 +37,7 @@ export function Dialog(props: DialogProps) {
     >
       <div
         className={cn(
-          "max-h-[90vh] w-full overflow-y-auto rounded-lg bg-white p-6 shadow-xl",
+          "max-h-[90vh] w-full overflow-y-auto rounded-lg bg-card p-6 shadow-xl",
           SIZE_CLASS[props.size ?? "md"],
         )}
         onClick={(e) => e.stopPropagation()}

@@ -4,6 +4,23 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>entries</title>
+    <script>
+      // Theme vor dem ersten Paint setzen (kein Flash). Spiegelt src/lib/theme.ts.
+      (function () {
+        try {
+          var mode = localStorage.getItem("entries.theme.mode") || "system";
+          var accent = localStorage.getItem("entries.theme.accent") || "slate";
+          var dark =
+            mode === "dark" ||
+            (mode === "system" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+          var el = document.documentElement;
+          el.classList.toggle("dark", dark);
+          el.setAttribute("data-accent", accent);
+        } catch (e) {
+          /* localStorage nicht verfügbar – Defaults greifen über CSS */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

@@ -171,13 +171,13 @@ export function EntriesPage() {
       {entries.isError ? <ErrorNote error={entries.error} className="mb-3" /> : null}
 
       {entries.isLoading ? (
-        <p className="py-10 text-center text-sm text-slate-400">Lädt…</p>
+        <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>
       ) : (
         <>
           {visible.length > 0 ? (
-            <p className="mb-2 text-sm text-slate-500">
+            <p className="mb-2 text-sm text-muted-foreground">
               {visible.length} {visible.length === 1 ? "Eintrag" : "Einträge"} · Summe{" "}
-              <span className="font-medium text-slate-700">{formatDuration(totalMinutes)}</span>
+              <span className="font-medium text-foreground">{formatDuration(totalMinutes)}</span>
             </p>
           ) : null}
           <EntryList

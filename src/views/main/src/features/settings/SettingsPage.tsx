@@ -9,6 +9,7 @@ import { Button } from "../../components/ui/button";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Separator } from "../../components/ui/separator";
+import { ThemeSettings } from "./ThemeSettings";
 
 const APP_VERSION = "0.0.1";
 
@@ -61,7 +62,9 @@ export function SettingsPage() {
 
       {settings.isError ? <ErrorNote error={settings.error} className="mb-3" /> : null}
 
-      <div className="space-y-4 rounded-lg border border-slate-200 bg-white p-5">
+      <ThemeSettings />
+
+      <div className="mt-6 space-y-4 rounded-lg border border-border bg-card p-5">
         <h2 className="text-lg font-semibold">GitLab</h2>
         <div>
           <Label htmlFor="s-url">GitLab URL</Label>
@@ -72,7 +75,7 @@ export function SettingsPage() {
             placeholder="https://gitlab.example.com"
           />
         </div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-muted-foreground">
           Synchronisiert projektübergreifend alle Tickets, auf die dein Token Zugriff hat — keine
           Projekt-ID nötig.
         </p>
@@ -89,9 +92,13 @@ export function SettingsPage() {
           <Button disabled={save.isPending} onClick={() => save.mutate()}>
             Speichern
           </Button>
-          {save.isSuccess ? <span className="text-sm text-green-600">Gespeichert</span> : null}
+          {save.isSuccess ? (
+            <span className="text-sm text-green-700 dark:text-green-400">Gespeichert</span>
+          ) : null}
           {save.isError ? (
-            <span className="text-sm text-red-600">{errorMessage(save.error)}</span>
+            <span className="text-sm text-red-700 dark:text-red-400">
+              {errorMessage(save.error)}
+            </span>
           ) : null}
         </div>
 
@@ -116,15 +123,17 @@ export function SettingsPage() {
             Token speichern
           </Button>
           {saveToken.isSuccess ? (
-            <span className="text-sm text-green-600">Token gespeichert</span>
+            <span className="text-sm text-green-700 dark:text-green-400">Token gespeichert</span>
           ) : null}
           {saveToken.isError ? (
-            <span className="text-sm text-red-600">{errorMessage(saveToken.error)}</span>
+            <span className="text-sm text-red-700 dark:text-red-400">
+              {errorMessage(saveToken.error)}
+            </span>
           ) : null}
         </div>
       </div>
 
-      <div className="mt-6 space-y-4 rounded-lg border border-slate-200 bg-white p-5">
+      <div className="mt-6 space-y-4 rounded-lg border border-border bg-card p-5">
         <h2 className="text-lg font-semibold">Datenbank</h2>
         <div>
           <Label htmlFor="s-backup">Backup-Pfad</Label>
@@ -144,15 +153,17 @@ export function SettingsPage() {
             Datenbank sichern
           </Button>
           {backup.isSuccess ? (
-            <span className="text-sm text-green-600">Backup erstellt</span>
+            <span className="text-sm text-green-700 dark:text-green-400">Backup erstellt</span>
           ) : null}
           {backup.isError ? (
-            <span className="text-sm text-red-600">{errorMessage(backup.error)}</span>
+            <span className="text-sm text-red-700 dark:text-red-400">
+              {errorMessage(backup.error)}
+            </span>
           ) : null}
         </div>
       </div>
 
-      <p className="mt-6 text-xs text-slate-400">entries v{APP_VERSION}</p>
+      <p className="mt-6 text-xs text-muted-foreground">entries v{APP_VERSION}</p>
     </div>
   );
 }

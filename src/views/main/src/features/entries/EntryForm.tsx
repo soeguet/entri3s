@@ -177,16 +177,18 @@ export function EntryForm(props: EntryFormProps) {
               id="ticket"
               type="button"
               onClick={() => setPicking(true)}
-              className="flex h-9 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400"
+              className="flex h-9 w-full items-center justify-between rounded-md border border-input bg-card px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               <span
-                className={selectedTicket ? "truncate text-slate-900" : "truncate text-slate-400"}
+                className={
+                  selectedTicket ? "truncate text-foreground" : "truncate text-muted-foreground"
+                }
               >
                 {selectedTicket
                   ? `#${selectedTicket.gitlabIid} ${selectedTicket.title} · ${projectName(selectedTicket.projectId)}`
                   : "– kein Ticket –"}
               </span>
-              <ChevronsUpDown className="h-4 w-4 shrink-0 text-slate-400" />
+              <ChevronsUpDown className="h-4 w-4 shrink-0 text-muted-foreground" />
             </button>
           </div>
 
@@ -201,8 +203,8 @@ export function EntryForm(props: EntryFormProps) {
                   className={
                     "rounded-full border px-3 py-1 text-xs font-medium " +
                     (selectedTags.includes(tag.id)
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-300 text-slate-600")
+                      ? "border-primary bg-primary text-primary-foreground"
+                      : "border-input text-muted-foreground")
                   }
                 >
                   {tag.name}
@@ -212,7 +214,7 @@ export function EntryForm(props: EntryFormProps) {
           </div>
 
           {mutation.isError ? (
-            <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>
+            <p className="text-sm text-red-700 dark:text-red-400">{errorMessage(mutation.error)}</p>
           ) : null}
 
           <div className="flex justify-end gap-2 pt-2">
@@ -231,5 +233,5 @@ export function EntryForm(props: EntryFormProps) {
 
 function FieldError(props: { message?: string }) {
   if (!props.message) return null;
-  return <p className="mt-1 text-xs text-red-600">{props.message}</p>;
+  return <p className="mt-1 text-xs text-red-700 dark:text-red-400">{props.message}</p>;
 }

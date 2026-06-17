@@ -31,7 +31,7 @@ export function TicketTree(props: TicketTreeProps) {
         <div
           className={cn(
             "flex items-center gap-1 rounded px-1 py-1 text-sm",
-            active ? "bg-slate-900 text-slate-50" : "text-slate-700 hover:bg-slate-100",
+            active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-muted",
           )}
           style={{ paddingLeft: `${depth * 12 + 4}px` }}
         >
@@ -57,7 +57,12 @@ export function TicketTree(props: TicketTreeProps) {
             className="flex min-w-0 flex-1 items-center justify-between gap-2 text-left"
           >
             <span className={cn("truncate", isGroup ? "font-medium" : "")}>{node.label}</span>
-            <span className={cn("shrink-0 text-xs", active ? "text-slate-300" : "text-slate-400")}>
+            <span
+              className={cn(
+                "shrink-0 text-xs",
+                active ? "text-primary-foreground/70" : "text-muted-foreground",
+              )}
+            >
               {node.ticketCount}
             </span>
           </button>
@@ -75,8 +80,8 @@ export function TicketTree(props: TicketTreeProps) {
         className={cn(
           "flex w-full items-center gap-2 rounded px-2 py-1 text-sm font-medium",
           props.selectedPath === null
-            ? "bg-slate-900 text-slate-50"
-            : "text-slate-700 hover:bg-slate-100",
+            ? "bg-primary text-primary-foreground"
+            : "text-foreground hover:bg-muted",
         )}
       >
         <FolderTree className="h-4 w-4 shrink-0" />

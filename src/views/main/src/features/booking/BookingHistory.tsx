@@ -28,16 +28,22 @@ export function BookingHistory(props: BookingHistoryProps) {
   });
 
   if (bookings.isLoading) {
-    return <p className="text-xs text-slate-400">Lädt Buchungen…</p>;
+    return <p className="text-xs text-muted-foreground">Lädt Buchungen…</p>;
   }
 
   if (bookings.isError) {
-    return <p className="text-xs text-red-600">Buchungen konnten nicht geladen werden.</p>;
+    return (
+      <p className="text-xs text-red-700 dark:text-red-400">
+        Buchungen konnten nicht geladen werden.
+      </p>
+    );
   }
 
   const list = bookings.data ?? [];
   if (list.length === 0) {
-    return <p className="text-xs text-slate-400">Gebucht vor Tracking – kein Timelog verlinkt.</p>;
+    return (
+      <p className="text-xs text-muted-foreground">Gebucht vor Tracking – kein Timelog verlinkt.</p>
+    );
   }
 
   return (
@@ -45,22 +51,22 @@ export function BookingHistory(props: BookingHistoryProps) {
       {list.map((booking) => {
         const url = props.ticketsById.get(booking.ticketId)?.webUrl ?? null;
         return (
-          <li key={booking.id} className="text-sm text-slate-700">
+          <li key={booking.id} className="text-sm text-foreground">
             <div className="flex items-center gap-2">
               <span className="font-medium">{formatDate(booking.spentAt)}</span>
-              <span className="text-slate-400">·</span>
+              <span className="text-muted-foreground">·</span>
               <span>{formatDuration(booking.durationMinutes)}</span>
               {url ? (
                 <a
                   href={url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-blue-600 hover:underline"
+                  className="text-blue-700 hover:underline dark:text-blue-400"
                 >
                   Timelog #{booking.gitlabTimelogId} ↗
                 </a>
               ) : (
-                <span className="text-slate-400">Timelog #{booking.gitlabTimelogId}</span>
+                <span className="text-muted-foreground">Timelog #{booking.gitlabTimelogId}</span>
               )}
               <Button
                 size="sm"
@@ -72,7 +78,7 @@ export function BookingHistory(props: BookingHistoryProps) {
               </Button>
             </div>
             {booking.note ? (
-              <p className="whitespace-pre-line text-xs text-slate-500">{booking.note}</p>
+              <p className="whitespace-pre-line text-xs text-muted-foreground">{booking.note}</p>
             ) : null}
           </li>
         );
