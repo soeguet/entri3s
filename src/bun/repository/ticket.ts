@@ -127,6 +127,14 @@ export function createTicketRepository(db: Database) {
       );
     },
 
+    /** Wieder geöffnetes Ticket reaktivieren (status zurück auf 'active'). */
+    markActive(gitlabIid: number, projectId: number): void {
+      db.run(
+        "UPDATE tickets SET status = 'active', updated_at = ? WHERE gitlab_iid = ? AND project_id = ?",
+        [new Date().toISOString(), gitlabIid, projectId],
+      );
+    },
+
     setStatus(id: number, status: TicketStatus): void {
       db.run("UPDATE tickets SET status = ?, updated_at = ? WHERE id = ?", [
         status,

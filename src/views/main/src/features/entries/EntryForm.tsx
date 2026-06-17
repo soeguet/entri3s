@@ -48,7 +48,9 @@ export function EntryForm(props: EntryFormProps) {
     const template = (templates.data ?? []).find((t) => String(t.id) === templateId);
     if (!template) return;
     const payload = parsePayload(template.payload);
-    const [sh, sm] = form.getValues("startTime").split(":").map(Number);
+    const start = form.getValues("startTime");
+    if (!/^\d{2}:\d{2}$/.test(start)) return;
+    const [sh, sm] = start.split(":").map(Number);
     const end = sh * 60 + sm + payload.durationMinutes;
     form.setValue("title", payload.title);
     form.setValue("notes", payload.notes ?? "");

@@ -69,7 +69,7 @@ export interface Template {
 
 // ── Events (Outbox / Dead-Letter) ────────────────────────────────────────────
 
-export type AppEventStatus = "pending" | "processing" | "dead";
+export type AppEventStatus = "pending" | "processing" | "done" | "dead";
 
 export interface AppEvent {
   id: number;
