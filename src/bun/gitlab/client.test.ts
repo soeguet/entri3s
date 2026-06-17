@@ -11,7 +11,7 @@ afterEach(() => {
 });
 
 function stubFetch(impl: () => Promise<Response> | Response): void {
-  globalThis.fetch = (async () => impl()) as typeof fetch;
+  globalThis.fetch = (async () => impl()) as unknown as typeof fetch;
 }
 
 /** Fängt den von fetchIssues geworfenen Fehler als AppErrorError ein. */

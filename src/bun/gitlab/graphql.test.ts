@@ -17,7 +17,7 @@ function node(iid: string, projectId: number, extra: Record<string, unknown> = {
     updatedAt: "2024-06-17T10:00:00.000Z",
     timeEstimate: 3600,
     totalTimeSpent: 1800,
-    project: { id: `gid://gitlab/Project/${projectId}` },
+    projectId, // GitLab liefert auf dieser Version das flache Int-Feld projectId
     ...extra,
   };
 }
@@ -86,6 +86,23 @@ test("forwards `since` as ISO string and null when omitted", async () => {
   const captured2: Captured[] = [];
   await fetchIssues(pagingClient(captured2));
   expect(captured2[0].variables.since).toBeNull();
+});
+
+test("accepts projectId in GID-string form as well as Int", async () => {
+  const captured: Captured[] = [];
+  const client: GqlClient = {
+    async gqlRequest(query, variables) {
+      captured.push({ query, variables });
+      return {
+        issues: {
+          nodes: [node("5", 0, { projectId: "gid://gitlab/Project/999" })],
+          pageInfo: { hasNextPage: false, endCursor: null },
+        },
+      };
+    },
+  };
+  const issues = await fetchIssues(client);
+  expect(issues[0].project_id).toBe(999);
 });
 
 test("defaults null time fields to 0 in time_stats", async () => {

@@ -14,7 +14,10 @@ interface GqlIssueNode {
   updatedAt: string;
   timeEstimate: number | null;
   totalTimeSpent: number | null;
-  project: { id: string }; // GID, z.B. "gid://gitlab/Project/123"
+  // `Issue.project { id }` existiert auf dieser GitLab-Version NICHT — der
+  // GraphQL-Typ Issue bietet stattdessen das flache Feld `projectId`. Je nach
+  // Version ist das ein Int (123) oder eine GID-String ("gid://gitlab/Project/123").
+  projectId: number | string;
 }
 
 interface IssuesResponse {
@@ -31,16 +34,19 @@ interface IssuesResponse {
  */
 const ISSUES_QUERY = `query($after: String, $since: Time) {
   issues(first: 100, after: $after, updatedAfter: $since) {
-    nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent project { id } }
+    nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent projectId }
     pageInfo { hasNextPage endCursor }
   }
 }`;
 
 /**
- * Parst die trailing Integer-ID aus einer GitLab-GID
- * ("gid://gitlab/Project/123" → 123).
+ * Parst eine GitLab-Projekt-/Issue-ID auf eine reine Zahl. Akzeptiert sowohl die
+ * GID-Form ("gid://gitlab/Project/123" → 123) als auch einen bereits numerischen
+ * Wert (123) — `Issue.projectId` liefert je nach GitLab-Version das eine oder das
+ * andere.
  */
-function parseGid(gid: string): number {
+function parseGid(gid: number | string): number {
+  if (typeof gid === "number") return gid;
   const last = gid.split("/").pop() ?? "";
   return Number(last);
 }
@@ -50,7 +56,7 @@ function mapNode(node: GqlIssueNode): GitLabIssue {
   return {
     iid: Number(node.iid),
     globalId: parseGid(node.id),
-    project_id: parseGid(node.project.id),
+    project_id: parseGid(node.projectId),
     title: node.title,
     state: node.state,
     web_url: node.webUrl,
