@@ -324,10 +324,36 @@ Keine Rück-Migration nötig, da die alten `add_spent_time`-Calls keine `note_id
 
 ## Definition of Done
 
-- [ ] `push.ts` nutzt Notes-Endpunkt statt `add_spent_time`
-- [ ] `bookings`-Tabelle existiert mit Migration
-- [ ] Jede erfolgreiche Buchung erzeugt einen Booking-Record mit `gitlab_note_id`
-- [ ] Frontend zeigt Booking-History mit Link zu GitLab-Note
-- [ ] Alle Tests grün, Lint sauber
-- [ ] Skill `gitlab-integration` aktualisiert
-- [ ] Kein Breaking Change für bestehende Entries mit `status = 'booked'`
+- [x] `push.ts` nutzt Notes-Endpunkt statt `add_spent_time`
+- [x] `bookings`-Tabelle existiert mit Migration
+- [x] Jede erfolgreiche Buchung erzeugt einen Booking-Record mit `gitlab_note_id`
+- [x] Frontend zeigt Booking-History mit Link zu GitLab-Note
+- [x] Alle Tests grün, Lint sauber
+- [x] Skill `gitlab-integration` aktualisiert
+- [x] Kein Breaking Change für bestehende Entries mit `status = 'booked'`
+
+### Abweichungen von der Spec
+
+- **Migration heißt `003_bookings.sql`** (nicht `002`): `002_seed_schedules.sql`
+  existiert bereits, Migrationen laufen alphabetisch.
+- **Entry-Text erscheint als sichtbarer Kommentar.** Die Spec sah eine reine
+  System-Note ohne Kommentar vor. Anforderung war aber, dass der Entry-Text
+  (Titel + Notizen) in der Buchung auftaucht — daher wird er unter die
+  `/spend` Quick Action gehängt und bei **255 Zeichen** gekappt.
+- **`bookings.note`**: Der gebuchte Text wird zusätzlich lokal gespeichert,
+  damit die Booking-History ihn ohne GitLab-Roundtrip anzeigen kann
+  (`Booking.note` im shared type ergänzt).
+- **Doppelbuchungs-Schutz (nicht in der Spec, aber zwingend):** `/spend` ist
+  additiv und nicht idempotent — ein Retry nach erfolgreichem API-Call (DB-Fehler,
+  verlorene Response, Crash) würde die Zeit ein zweites Mal buchen
+  (Arbeitszeitbetrug). Lösung: jeder Buchungs-Note wird ein unsichtbarer
+  Marker `<!-- entries-booking:entry=<id> -->` mitgegeben. `handleBooking()`
+  ruft vor jedem `/spend` `gl.findBookingNote()` auf; existiert die Note schon,
+  wird NICHT erneut gebucht, sondern nur der lokale Record rekonziliiert. Der
+  Booking-Record wird zusätzlich über `getByNoteId` + `UNIQUE(note_id, project)`
+  idempotent geschrieben. Tests in `worker.test.ts` decken den DB-Fehler- und
+  den Duplikat-Event-Fall ab.
+- **spentAt = Europe/Berlin-Kalendertag**, nicht UTC-Slice. Die Spec sagte
+  `entry.date.slice(0,10)`; das hätte frühe Berliner Einträge (00:30 = 23:30Z
+  Vortag) auf den falschen Tag gebucht — genau der Bug, den die Notes-API
+  beheben sollte. Korrigiert via `formatInTimeZone`.

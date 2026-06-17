@@ -1,12 +1,26 @@
+import { formatInTimeZone } from "date-fns-tz";
 import type { Repository } from "../repository";
+import type { Booking } from "../../shared/types";
 import { appError } from "../lib/app-error";
+
+// Buchungen sollen auf dem Kalendertag landen, an dem der User gearbeitet hat
+// (Europe/Berlin) — nicht auf dem UTC-Tag. Ein Entry um 00:30 Berlin liegt sonst
+// als 23:30Z auf dem Vortag und würde in GitLab falsch gebucht.
+const BOOKING_TZ = "Europe/Berlin";
 
 export interface BookingPayload {
   entryId: number;
+  ticketId: number; // lokale Ticket-ID für die bookings-Tabelle
   projectId: number;
   ticketIid: number;
   durationMinutes: number;
-  note: string;
+  spentAt: string; // ISO-Date (YYYY-MM-DD), aus dem Entry-Datum abgeleitet
+  note: string; // Entry-Text, der als Notiz in der Buchung erscheint
+}
+
+/** Entry-Titel + optionale Notizen zu einem Buchungstext zusammenfassen. */
+function bookingNote(title: string, notes: string | null): string {
+  return notes && notes.trim() ? `${title}\n${notes.trim()}` : title;
 }
 
 export function createBookingService(repo: Repository) {
@@ -23,13 +37,20 @@ export function createBookingService(repo: Repository) {
 
       const payload: BookingPayload = {
         entryId,
+        ticketId: ticket.id,
         projectId: ticket.projectId,
         ticketIid: ticket.gitlabIid,
         durationMinutes: entry.durationMinutes,
-        note: entry.title,
+        spentAt: formatInTimeZone(entry.date, BOOKING_TZ, "yyyy-MM-dd"), // Berliner Kalendertag
+        note: bookingNote(entry.title, entry.notes),
       };
       repo.eventQueue.enqueue("booking", payload);
       repo.entries.updateStatus(entryId, "pending_booking");
+    },
+
+    /** Buchungshistorie eines Entries (für RPC getBookingsForEntry). */
+    listForEntry(entryId: number): Booking[] {
+      return repo.bookings.listByEntry(entryId);
     },
   };
 }

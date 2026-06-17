@@ -11,6 +11,12 @@ export interface GitLabIssue {
   };
 }
 
+/** Rückreferenz auf die in GitLab erzeugte Note (für die bookings-Tabelle). */
+export interface GitLabBookingResult {
+  noteId: number;
+  createdAt: string; // ISO timestamp von GitLab
+}
+
 export interface GitLabClient {
   fetchIssues(projectId: number, since?: Date): Promise<GitLabIssue[]>;
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
@@ -18,8 +24,15 @@ export interface GitLabClient {
     projectId: number,
     issueIid: number,
     durationMinutes: number,
+    spentAt: string,
     note: string,
-  ): Promise<void>;
+    marker: string,
+  ): Promise<GitLabBookingResult>;
+  findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
@@ -28,10 +41,21 @@ export class FakeGitLabClient implements GitLabClient {
     projectId: number;
     issueIid: number;
     durationMinutes: number;
+    spentAt: string;
     note: string;
+    marker: string;
+  }> = [];
+  /** In GitLab "gespeicherte" Notes — Grundlage für findBookingNote. */
+  notes: Array<{
+    projectId: number;
+    issueIid: number;
+    marker: string;
+    noteId: number;
+    createdAt: string;
   }> = [];
   issuesToReturn: GitLabIssue[] = [];
   bookShouldThrow: Error | null = null;
+  nextNoteId = 500;
 
   async fetchIssues(): Promise<GitLabIssue[]> {
     return this.issuesToReturn;
@@ -45,9 +69,26 @@ export class FakeGitLabClient implements GitLabClient {
     projectId: number,
     issueIid: number,
     durationMinutes: number,
+    spentAt: string,
     note: string,
-  ): Promise<void> {
+    marker: string,
+  ): Promise<GitLabBookingResult> {
     if (this.bookShouldThrow) throw this.bookShouldThrow;
-    this.bookedCalls.push({ projectId, issueIid, durationMinutes, note });
+    const noteId = this.nextNoteId++;
+    const createdAt = "2024-01-15T10:00:00.000Z";
+    this.bookedCalls.push({ projectId, issueIid, durationMinutes, spentAt, note, marker });
+    this.notes.push({ projectId, issueIid, marker, noteId, createdAt });
+    return { noteId, createdAt };
+  }
+
+  async findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null> {
+    const hit = this.notes.find(
+      (n) => n.projectId === projectId && n.issueIid === issueIid && n.marker === marker,
+    );
+    return hit ? { noteId: hit.noteId, createdAt: hit.createdAt } : null;
   }
 }

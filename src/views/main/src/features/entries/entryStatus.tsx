@@ -5,6 +5,7 @@ const LABELS: Record<EntryStatus, string> = {
   draft: "Entwurf",
   pending_booking: "Buchung läuft",
   booked: "Gebucht",
+  booking_failed: "Buchung fehlgeschlagen",
   orphaned: "Verwaist",
 };
 
@@ -12,6 +13,7 @@ const VARIANTS: Record<EntryStatus, "secondary" | "warning" | "success" | "destr
   draft: "secondary",
   pending_booking: "warning",
   booked: "success",
+  booking_failed: "destructive",
   orphaned: "destructive",
 };
 

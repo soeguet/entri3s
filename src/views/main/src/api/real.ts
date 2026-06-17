@@ -25,6 +25,7 @@ const rpc = Electroview.defineRPC<AppRPCType>({
       syncFailed: () => {},
       bookingCompleted: () => {
         queryClient.invalidateQueries({ queryKey: keys.entries() });
+        queryClient.invalidateQueries({ queryKey: keys.bookings() });
         queryClient.invalidateQueries({ queryKey: keys.deadEvents() });
       },
       bookingFailed: () => {
@@ -51,6 +52,7 @@ export const removeTicket = (entryId: number, ticketId: number) =>
   r.removeTicket({ entryId, ticketId });
 export const getTickets = (filter: TicketFilter) => r.getTickets(filter);
 export const bookEntry = (entryId: number) => r.bookEntry({ entryId });
+export const getBookingsForEntry = (entryId: number) => r.getBookingsForEntry({ entryId });
 export const getDeadEvents = () => r.getDeadEvents({});
 export const retryDeadEvent = (eventId: number) => r.retryDeadEvent({ eventId });
 export const getTags = () => r.getTags({});

@@ -23,8 +23,15 @@ export interface GitLabClient {
     projectId: number,
     issueIid: number,
     durationMinutes: number,
+    spentAt: string, // ISO-Date YYYY-MM-DD
     note: string,
-  ): Promise<void>;
+    marker: string, // Idempotenz-Marker im Note-Body
+  ): Promise<GitLabBookingResult>; // { noteId, createdAt }
+  findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null>;
 }
 
 export function createGitLabClient(token: string, settings: Settings): GitLabClient {
@@ -85,14 +92,28 @@ export interface GitLabClient {
     projectId: number,
     issueIid: number,
     durationMinutes: number,
+    spentAt: string, // ISO-Date YYYY-MM-DD
     note: string,
-  ): Promise<void>;
+    marker: string, // Idempotenz-Marker im Note-Body
+  ): Promise<GitLabBookingResult>; // { noteId, createdAt }
+  findBookingNote(
+    projectId: number,
+    issueIid: number,
+    marker: string,
+  ): Promise<GitLabBookingResult | null>;
 }
 
 // Fake für Tests
 export class FakeGitLabClient implements GitLabClient {
-  bookedCalls: Array<{ projectId: number; issueIid: number; durationMinutes: number }> = [];
+  bookedCalls: Array<{
+    projectId: number;
+    issueIid: number;
+    durationMinutes: number;
+    spentAt: string;
+    note: string;
+  }> = [];
   issuesToReturn: GitLabIssue[] = [];
+  nextNoteId = 500;
 
   async fetchIssues() {
     return this.issuesToReturn;
@@ -100,8 +121,15 @@ export class FakeGitLabClient implements GitLabClient {
   async fetchIssue() {
     return this.issuesToReturn[0] ?? null;
   }
-  async bookTime(p, i, d) {
-    this.bookedCalls.push({ projectId: p, issueIid: i, durationMinutes: d });
+  async bookTime(p, i, d, spentAt, note, marker) {
+    const noteId = this.nextNoteId++;
+    this.bookedCalls.push({ projectId: p, issueIid: i, durationMinutes: d, spentAt, note, marker });
+    this.notes.push({ projectId: p, issueIid: i, marker, noteId });
+    return { noteId, createdAt: "2024-01-15T10:00:00.000Z" };
+  }
+  async findBookingNote(p, i, marker) {
+    const n = this.notes.find((x) => x.projectId === p && x.issueIid === i && x.marker === marker);
+    return n ? { noteId: n.noteId, createdAt: "2024-01-15T10:00:00.000Z" } : null;
   }
 }
 ```
@@ -179,7 +207,40 @@ export function formatDuration(minutes: number): string {
 // 90 min → "1h 30m", 60 min → "1h", 30 min → "0h 30m"
 ```
 
-Buchungs-Body: `{ spent_at: date, duration: "1h 30m" }`
+## Buchung via Notes-API (`/spend` Quick Action)
+
+Wir buchen **nicht** über `add_spent_time` (REST), weil das immer `Date.now()`
+als Datum setzt. Stattdessen die Notes-API mit der `/spend` Quick Action — die
+akzeptiert ein frei wählbares Buchungsdatum.
+
+```
+POST /api/v4/projects/:projectId/issues/:issueIid/notes
+{ "body": "/spend 1h 30m 2024-06-17\n\n<Entry-Text>" }
+```
+
+- **Datum** im Body als reines ISO-Date (`YYYY-MM-DD`), ohne Uhrzeit
+  (`/spend` ignoriert Uhrzeiten — GitLab-Limitierung).
+- **Entry-Text** wird unter die Quick Action gehängt, damit die Notiz auf dem
+  Ticket sichtbar bleibt. GitLab kappt bei **255 Zeichen** → `note.slice(0, 255)`.
+- Ohne Text entsteht eine reine System-Note (keine Notification).
+- Response liefert `{ id, created_at }` — `id` ist die `gitlab_note_id`, unsere
+  Rückreferenz für die `bookings`-Tabelle. Link: `{ticket.webUrl}#note_{id}`.
+
+### Doppelbuchungs-Schutz (Pflicht)
+
+`/spend` ist **additiv und nicht idempotent** — ein Retry nach erfolgreichem
+API-Call bucht die Zeit doppelt (Arbeitszeitbetrug). Schutz:
+
+- Jeder Note wird ein unsichtbarer Marker mitgegeben:
+  `bookingMarker(entryId)` → `<!-- entries-booking:entry=<id> -->` (HTML-Kommentar,
+  in GitLab nicht gerendert).
+- `handleBooking()` ruft **vor** jedem `/spend` `gl.findBookingNote(projectId,
+  issueIid, marker)` auf. Existiert die Note schon → **nicht** erneut buchen,
+  nur den lokalen Record rekonziliieren.
+- DB-Insert zusätzlich idempotent: `getByNoteId()` + `UNIQUE(gitlab_note_id,
+  project_id)`.
+
+Nie `/spend` ohne diesen Vorab-Check buchen.
 
 ## Fehler-Mapping
 
@@ -210,7 +271,18 @@ Service schreibt in `event_queue`, Worker verarbeitet.
 export function bookEntry(repo: Repository, entryId: number) {
   const entry = repo.entries.getById(entryId);
   const ticket = repo.tickets.getForEntry(entryId);
-  repo.eventQueue.enqueue("booking", { entryId, ticketIid: ticket.gitlabIid });
+  repo.eventQueue.enqueue("booking", {
+    entryId,
+    ticketId: ticket.id, // lokal, für bookings-Tabelle
+    projectId: ticket.projectId,
+    ticketIid: ticket.gitlabIid,
+    durationMinutes: entry.durationMinutes,
+    spentAt: formatInTimeZone(entry.date, "Europe/Berlin", "yyyy-MM-dd"), // Berliner Tag
+    note: entry.notes ? `${entry.title}\n${entry.notes}` : entry.title,
+  });
   repo.entries.updateStatus(entryId, "pending_booking");
 }
 ```
+
+Nach erfolgreichem `gl.bookTime()` schreibt der Worker einen `bookings`-Record
+mit der zurückgegebenen `gitlab_note_id` (Rückverfolgbarkeit pro Buchung).
