@@ -52,6 +52,13 @@ export function createEntryRepository(db: Database) {
       return row ? toEntry(row) : null;
     },
 
+    getRunning(): Entry | null {
+      const row = db
+        .query<EntryRow, []>("SELECT * FROM entries WHERE status = 'running' LIMIT 1")
+        .get();
+      return row ? toEntry(row) : null;
+    },
+
     list(filter: EntryFilter = {}): Entry[] {
       const where: string[] = [];
       const params: (string | number)[] = [];
@@ -105,6 +112,14 @@ export function createEntryRepository(db: Database) {
         ],
       );
       replaceRelations(entry.id, entry.tagIds, entry.ticketIds);
+    },
+
+    updateNotes(id: number, notes: string | null): void {
+      db.run("UPDATE entries SET notes = ?, updated_at = ? WHERE id = ?", [
+        notes,
+        new Date().toISOString(),
+        id,
+      ]);
     },
 
     updateStatus(id: number, status: EntryStatus): void {

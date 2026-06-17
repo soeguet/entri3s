@@ -24,6 +24,7 @@ export function BookingHistory(props: BookingHistoryProps) {
       qc.invalidateQueries({ queryKey: keys.bookings(props.entryId) });
       qc.invalidateQueries({ queryKey: keys.entries() });
     },
+    meta: { successToast: "Buchung gelöscht" },
   });
 
   if (bookings.isLoading) {

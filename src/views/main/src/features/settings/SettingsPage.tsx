@@ -40,15 +40,19 @@ export function SettingsPage() {
         }),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.settings() }),
+    meta: { successToast: "Einstellungen gespeichert", silentError: true },
   });
 
+  // Token & Backup zeigen Erfolg/Fehler bereits inline → kein doppelter Toast.
   const saveToken = useMutation({
     mutationFn: async () => unwrap(await setGitLabToken(token)),
     onSuccess: () => setToken(""),
+    meta: { silentError: true },
   });
 
   const backup = useMutation({
     mutationFn: async () => unwrap(await backupDatabase(backupPath.trim())),
+    meta: { silentError: true },
   });
 
   return (

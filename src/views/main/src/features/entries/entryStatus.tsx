@@ -2,6 +2,7 @@ import type { EntryStatus } from "../../../../../shared/types";
 import { Badge } from "../../components/ui/badge";
 
 const LABELS: Record<EntryStatus, string> = {
+  running: "läuft",
   draft: "Entwurf",
   pending_booking: "Buchung läuft",
   booked: "Gebucht",
@@ -9,7 +10,11 @@ const LABELS: Record<EntryStatus, string> = {
   orphaned: "Verwaist",
 };
 
-const VARIANTS: Record<EntryStatus, "secondary" | "warning" | "success" | "destructive"> = {
+const VARIANTS: Record<
+  EntryStatus,
+  "default" | "secondary" | "warning" | "success" | "destructive"
+> = {
+  running: "default",
   draft: "secondary",
   pending_booking: "warning",
   booked: "success",

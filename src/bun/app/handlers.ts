@@ -24,6 +24,10 @@ export function createRpc(svc: Services) {
         // Entries
         getEntries: (filter) => wrap(() => svc.entry.getAll(filter)),
         getEntry: (p) => wrap(() => svc.entry.getById(p.id)),
+        getRunningEntry: () => wrap(() => svc.entry.getRunning()),
+        startEntry: (p) => wrap(() => svc.entry.start(p)),
+        stopEntry: (p) => wrap(() => svc.entry.stop(p.id)),
+        setEntryNotes: (p) => wrap(() => svc.entry.setNotes(p.id, p.notes)),
         createEntry: (entry) => wrap(() => svc.entry.create(entry)),
         updateEntry: (entry) => wrap(() => svc.entry.update(entry)),
         deleteEntry: (p) => wrap(() => svc.entry.delete(p.id)),

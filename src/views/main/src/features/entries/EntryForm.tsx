@@ -14,7 +14,7 @@ import {
   getRecentTickets,
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
-import { unwrap } from "../../lib/errors";
+import { unwrap, errorMessage } from "../../lib/errors";
 import { parsePayload } from "../../lib/templatePayload";
 import { Dialog } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
@@ -92,6 +92,9 @@ export function EntryForm(props: EntryFormProps) {
       qc.invalidateQueries({ queryKey: keys.entries() });
       props.onClose();
     },
+    // OVERLAP & Co. werden inline unter dem Formular angezeigt → kein doppelter
+    // Error-Toast aus dem zentralen MutationCache.
+    meta: { silentError: true, successToast: props.entry ? "Gespeichert" : "Entry angelegt" },
   });
 
   const [picking, setPicking] = useState(false);
@@ -207,6 +210,10 @@ export function EntryForm(props: EntryFormProps) {
               ))}
             </div>
           </div>
+
+          {mutation.isError ? (
+            <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>
+          ) : null}
 
           <div className="flex justify-end gap-2 pt-2">
             <Button type="button" variant="outline" onClick={props.onClose}>

@@ -10,12 +10,18 @@ export const getEntries = vi.fn(() => okResp(fixtures.entries));
 export const getEntry = vi.fn((id: number) =>
   okResp(fixtures.entries.find((e) => e.id === id) ?? fixtures.entries[0]),
 );
+export const getRunningEntry = vi.fn(() => okResp(null));
+export const startEntry = vi.fn(() => okResp(99));
+export const stopEntry = vi.fn(voidResp);
+export const setEntryNotes = vi.fn(voidResp);
 export const createEntry = vi.fn(() => okResp(1));
 export const updateEntry = vi.fn(voidResp);
 export const deleteEntry = vi.fn(voidResp);
 export const assignTicket = vi.fn(voidResp);
 export const removeTicket = vi.fn(voidResp);
 export const getTickets = vi.fn(() => okResp(fixtures.tickets));
+export const getRecentTickets = vi.fn(() => okResp(fixtures.tickets));
+export const getProjects = vi.fn(() => okResp(fixtures.projects));
 export const bookEntry = vi.fn(voidResp);
 export const deleteBooking = vi.fn(voidResp);
 export const getBookingsForEntry = vi.fn(() => okResp(fixtures.bookings));

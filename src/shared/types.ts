@@ -6,7 +6,21 @@
 
 // ── Entries ─────────────────────────────────────────────────────────────────
 
-export type EntryStatus = "draft" | "pending_booking" | "booked" | "booking_failed" | "orphaned";
+export type EntryStatus =
+  | "running"
+  | "draft"
+  | "pending_booking"
+  | "booked"
+  | "booking_failed"
+  | "orphaned";
+
+// Parameter zum Starten eines laufenden Entries. `startAt` (ISO-UTC) erlaubt
+// gapfreies Anschliessen an einen vorigen Entry; ohne Angabe = jetzt.
+export interface EntryStart {
+  ticketId: number | null;
+  notes: string | null;
+  startAt?: string;
+}
 
 export interface Entry {
   id: number;
@@ -137,6 +151,10 @@ export interface AppRPCType {
     requests: {
       getEntries: { params: EntryFilter; response: RpcResponse<Entry[]> };
       getEntry: { params: { id: number }; response: RpcResponse<Entry> };
+      getRunningEntry: { params: Record<string, never>; response: RpcResponse<Entry | null> };
+      startEntry: { params: EntryStart; response: RpcResponse<number> };
+      stopEntry: { params: { id: number }; response: RpcResponse<void> };
+      setEntryNotes: { params: { id: number; notes: string | null }; response: RpcResponse<void> };
       createEntry: { params: EntryCreate; response: RpcResponse<number> };
       updateEntry: { params: Entry; response: RpcResponse<void> };
       deleteEntry: { params: { id: number }; response: RpcResponse<void> };

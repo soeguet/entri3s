@@ -4,6 +4,7 @@ import type {
   Entry,
   EntryCreate,
   EntryFilter,
+  EntryStart,
   RpcResponse,
   Project,
   Settings,
@@ -55,6 +56,46 @@ export const getEntries = (filter: EntryFilter) => {
 export const getEntry = (id: number) => {
   const entry = store.entries.find((e) => e.id === id);
   return entry ? ok(entry) : fail<Entry>("NOT_FOUND", `Entry ${id} nicht gefunden`);
+};
+
+export const getRunningEntry = () => ok(store.entries.find((e) => e.status === "running") ?? null);
+
+export const startEntry = (input: EntryStart) => {
+  if (store.entries.some((e) => e.status === "running")) {
+    return fail<number>("ALREADY_RUNNING", "Es läuft bereits ein Timer.");
+  }
+  const id = store.nextId++;
+  store.entries.push({
+    id,
+    notes: input.notes,
+    durationMinutes: 0,
+    date: input.startAt ?? now(),
+    status: "running",
+    tagIds: [],
+    ticketIds: input.ticketId === null ? [] : [input.ticketId],
+    createdAt: now(),
+    updatedAt: now(),
+  });
+  return ok(id);
+};
+
+export const stopEntry = (id: number) => {
+  const entry = store.entries.find((e) => e.id === id);
+  if (!entry) return fail<void>("NOT_FOUND", `Entry ${id} nicht gefunden`);
+  if (entry.status !== "running") return fail<void>("NOT_RUNNING", `Entry ${id} läuft nicht.`);
+  const elapsedMs = Date.now() - new Date(entry.date).getTime();
+  entry.durationMinutes = Math.max(1, Math.round(elapsedMs / 60_000));
+  entry.status = "draft";
+  entry.updatedAt = now();
+  return ok(undefined as void);
+};
+
+export const setEntryNotes = (id: number, notes: string | null) => {
+  const entry = store.entries.find((e) => e.id === id);
+  if (!entry) return fail<void>("NOT_FOUND", `Entry ${id} nicht gefunden`);
+  entry.notes = notes;
+  entry.updatedAt = now();
+  return ok(undefined as void);
 };
 
 export const createEntry = (input: EntryCreate) => {

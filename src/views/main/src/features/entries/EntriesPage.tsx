@@ -14,6 +14,7 @@ import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { EntryList } from "./EntryList";
 import { EntryForm } from "./EntryForm";
+import { GapBanner } from "./GapBanner";
 
 const TZ = "Europe/Berlin";
 
@@ -68,16 +69,19 @@ export function EntriesPage() {
   });
 
   const ticketsById = new Map((tickets.data ?? []).map((t) => [t.id, t]));
-  const visible = entries.data ?? [];
+  // Der laufende Entry wird im globalen Timer-Widget gezeigt, nicht in der Tabelle.
+  const visible = (entries.data ?? []).filter((e) => e.status !== "running");
   const totalMinutes = visible.reduce((sum, e) => sum + e.durationMinutes, 0);
 
   const remove = useMutation({
     mutationFn: async (id: number) => unwrap(await deleteEntry(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.entries() }),
+    meta: { successToast: "Entry gelöscht" },
   });
   const book = useMutation({
     mutationFn: async (id: number) => unwrap(await bookEntry(id)),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.entries() }),
+    meta: { successToast: "Zur Buchung eingereiht" },
   });
 
   function openCreate() {
@@ -159,6 +163,8 @@ export function EntriesPage() {
           />
         </div>
       </div>
+
+      <GapBanner />
 
       {book.isError ? <ErrorNote error={book.error} className="mb-3" /> : null}
       {remove.isError ? <ErrorNote error={remove.error} className="mb-3" /> : null}
