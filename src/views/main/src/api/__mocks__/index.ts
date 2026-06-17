@@ -17,6 +17,7 @@ export const assignTicket = vi.fn(voidResp);
 export const removeTicket = vi.fn(voidResp);
 export const getTickets = vi.fn(() => okResp(fixtures.tickets));
 export const bookEntry = vi.fn(voidResp);
+export const getBookingsForEntry = vi.fn(() => okResp(fixtures.bookings));
 export const getDeadEvents = vi.fn(() => okResp([]));
 export const retryDeadEvent = vi.fn(voidResp);
 export const getTags = vi.fn(() => okResp(fixtures.tags));

@@ -70,10 +70,40 @@ test("booking event books time and marks entry booked", async () => {
     projectId: PROJECT_ID,
     issueIid: 100,
     durationMinutes: 90,
+    spentAt: "2024-01-15", // aus Entry-Datum abgeleitet, ohne Uhrzeit
+    note: "Work",
   });
   expect(repo.entries.getById(entryId)?.status).toBe("booked");
   expect(events).toContain("bookingCompleted");
   expect(await processNext(repo, gl, emit)).toBe(false); // queue leer
+});
+
+test("successful booking writes a booking record with the gitlab note id", async () => {
+  const entryId = seedBooking();
+  gl.nextNoteId = 777;
+
+  await processNext(repo, gl, emit);
+
+  const bookings = repo.bookings.listByEntry(entryId);
+  expect(bookings).toHaveLength(1);
+  expect(bookings[0]).toMatchObject({
+    entryId,
+    projectId: PROJECT_ID,
+    issueIid: 100,
+    gitlabNoteId: 777,
+    durationMinutes: 90,
+    spentAt: "2024-01-15",
+    note: "Work",
+  });
+});
+
+test("failed booking writes no booking record", async () => {
+  const entryId = seedBooking();
+  gl.bookShouldThrow = new Error("GitLab down");
+
+  await processNext(repo, gl, emit);
+
+  expect(repo.bookings.listByEntry(entryId)).toHaveLength(0);
 });
 
 test("failing booking retries and dead-letters after 3 attempts", async () => {

@@ -4,6 +4,7 @@ import type { EntryFilter, TicketFilter } from "../../../../shared/types";
 export const keys = {
   entries: (filter?: EntryFilter) => ["entries", filter] as const,
   entry: (id: number) => ["entry", id] as const,
+  bookings: (entryId?: number) => ["bookings", entryId] as const,
   tickets: (filter?: TicketFilter) => ["tickets", filter] as const,
   tags: () => ["tags"] as const,
   templates: () => ["templates"] as const,

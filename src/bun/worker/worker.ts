@@ -10,7 +10,23 @@ async function handleBooking(
   gl: GitLabClient,
   payload: BookingPayload,
 ): Promise<void> {
-  await gl.bookTime(payload.projectId, payload.ticketIid, payload.durationMinutes, payload.note);
+  const result = await gl.bookTime(
+    payload.projectId,
+    payload.ticketIid,
+    payload.durationMinutes,
+    payload.spentAt,
+    payload.note,
+  );
+  repo.bookings.create({
+    entryId: payload.entryId,
+    ticketId: payload.ticketId,
+    gitlabNoteId: result.noteId,
+    projectId: payload.projectId,
+    issueIid: payload.ticketIid,
+    durationMinutes: payload.durationMinutes,
+    note: payload.note,
+    spentAt: payload.spentAt,
+  });
   repo.entries.updateStatus(payload.entryId, "booked");
 }
 

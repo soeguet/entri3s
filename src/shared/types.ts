@@ -53,6 +53,23 @@ export interface TicketFilter {
   state?: TicketState;
 }
 
+// ── Bookings (Zeitbuchungen gegen GitLab, eine Zeile pro erfolgreichem Spend) ──
+
+export interface Booking {
+  id: number;
+  entryId: number;
+  ticketId: number;
+  gitlabNoteId: number;
+  projectId: number;
+  issueIid: number;
+  durationMinutes: number;
+  note: string; // an GitLab gesendeter Buchungstext (max. 255 Zeichen)
+  spentAt: string; // ISO-Date (YYYY-MM-DD), an GitLab gesendetes Buchungsdatum
+  bookedAt: string; // ISO-UTC, Zeitpunkt der tatsächlichen Buchung
+}
+
+export type BookingInsert = Omit<Booking, "id" | "bookedAt">;
+
 // ── Tags & Templates ─────────────────────────────────────────────────────────
 
 export interface Tag {
@@ -119,6 +136,7 @@ export interface AppRPCType {
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       removeTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       bookEntry: { params: { entryId: number }; response: RpcResponse<void> };
+      getBookingsForEntry: { params: { entryId: number }; response: RpcResponse<Booking[]> };
       getDeadEvents: { params: Record<string, never>; response: RpcResponse<AppEvent[]> };
       retryDeadEvent: { params: { eventId: number }; response: RpcResponse<void> };
       getTags: { params: Record<string, never>; response: RpcResponse<Tag[]> };

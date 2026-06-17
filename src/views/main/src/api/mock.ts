@@ -1,5 +1,6 @@
 import type {
   AppEvent,
+  Booking,
   Entry,
   EntryCreate,
   EntryFilter,
@@ -14,6 +15,7 @@ import { entryFixtures } from "../fixtures/entries";
 import { ticketFixtures } from "../fixtures/tickets";
 import { tagFixtures } from "../fixtures/tags";
 import { templateFixtures } from "../fixtures/templates";
+import { bookingFixtures } from "../fixtures/bookings";
 
 // In-Memory-Store für den Browser-Dev-Modus (vite --mode mock).
 const store = {
@@ -21,6 +23,7 @@ const store = {
   tickets: structuredClone(ticketFixtures) as Ticket[],
   tags: structuredClone(tagFixtures) as Tag[],
   templates: structuredClone(templateFixtures) as Template[],
+  bookings: structuredClone(bookingFixtures) as Booking[],
   deadEvents: [] as AppEvent[],
   settings: {
     gitlabUrl: "https://gitlab.example.com",
@@ -113,9 +116,29 @@ export const bookEntry = (entryId: number) => {
   const entry = store.entries.find((e) => e.id === entryId);
   if (!entry) return fail<void>("NOT_FOUND", `Entry ${entryId} nicht gefunden`);
   if (entry.ticketIds.length === 0) return fail<void>("NO_TICKET", "Kein Ticket zugewiesen");
-  entry.status = "pending_booking";
+  // Im Mock gibt es keinen Worker — Buchung sofort als erledigt simulieren,
+  // damit die Booking-History im Dev-Modus etwas anzeigt.
+  const ticket = store.tickets.find((t) => t.id === entry.ticketIds[0]);
+  if (ticket) {
+    store.bookings.push({
+      id: store.nextId++,
+      entryId,
+      ticketId: ticket.id,
+      gitlabNoteId: store.nextId++,
+      projectId: ticket.projectId,
+      issueIid: ticket.gitlabIid,
+      durationMinutes: entry.durationMinutes,
+      note: entry.notes ? `${entry.title}\n${entry.notes}` : entry.title,
+      spentAt: entry.date.slice(0, 10),
+      bookedAt: now(),
+    });
+  }
+  entry.status = "booked";
   return ok(undefined as void);
 };
+
+export const getBookingsForEntry = (entryId: number) =>
+  ok(store.bookings.filter((b) => b.entryId === entryId));
 
 export const getDeadEvents = () => ok([...store.deadEvents]);
 export const retryDeadEvent = (eventId: number) => {

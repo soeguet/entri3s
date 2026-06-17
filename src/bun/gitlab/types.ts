@@ -11,6 +11,12 @@ export interface GitLabIssue {
   };
 }
 
+/** Rückreferenz auf die in GitLab erzeugte Note (für die bookings-Tabelle). */
+export interface GitLabBookingResult {
+  noteId: number;
+  createdAt: string; // ISO timestamp von GitLab
+}
+
 export interface GitLabClient {
   fetchIssues(projectId: number, since?: Date): Promise<GitLabIssue[]>;
   fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
@@ -18,8 +24,9 @@ export interface GitLabClient {
     projectId: number,
     issueIid: number,
     durationMinutes: number,
+    spentAt: string,
     note: string,
-  ): Promise<void>;
+  ): Promise<GitLabBookingResult>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
@@ -28,10 +35,12 @@ export class FakeGitLabClient implements GitLabClient {
     projectId: number;
     issueIid: number;
     durationMinutes: number;
+    spentAt: string;
     note: string;
   }> = [];
   issuesToReturn: GitLabIssue[] = [];
   bookShouldThrow: Error | null = null;
+  nextNoteId = 500;
 
   async fetchIssues(): Promise<GitLabIssue[]> {
     return this.issuesToReturn;
@@ -45,9 +54,11 @@ export class FakeGitLabClient implements GitLabClient {
     projectId: number,
     issueIid: number,
     durationMinutes: number,
+    spentAt: string,
     note: string,
-  ): Promise<void> {
+  ): Promise<GitLabBookingResult> {
     if (this.bookShouldThrow) throw this.bookShouldThrow;
-    this.bookedCalls.push({ projectId, issueIid, durationMinutes, note });
+    this.bookedCalls.push({ projectId, issueIid, durationMinutes, spentAt, note });
+    return { noteId: this.nextNoteId++, createdAt: "2024-01-15T10:00:00.000Z" };
   }
 }

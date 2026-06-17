@@ -64,7 +64,7 @@ export function createGitLabClient(token: string, settings: Settings): GitLabCli
   return {
     fetchIssues: (projectId, since) => fetchIssues(client, projectId, since),
     fetchIssue: (projectId, issueIid) => fetchIssue(client, projectId, issueIid),
-    bookTime: (projectId, issueIid, durationMinutes, note) =>
-      bookTime(client, projectId, issueIid, durationMinutes, note),
+    bookTime: (projectId, issueIid, durationMinutes, spentAt, note) =>
+      bookTime(client, projectId, issueIid, durationMinutes, spentAt, note),
   };
 }

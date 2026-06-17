@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import {
   createColumnHelper,
   flexRender,
@@ -12,6 +12,9 @@ import { formatDate, formatTime, formatDuration } from "../../lib/dates";
 import { Button } from "../../components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 import { EntryStatusBadge } from "./entryStatus";
+import { BookingHistory } from "../booking/BookingHistory";
+
+const COLUMN_COUNT = 6;
 
 interface EntryListProps {
   entries: Entry[];
@@ -25,6 +28,11 @@ const helper = createColumnHelper<Entry>();
 
 export function EntryList(props: EntryListProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  function toggleExpanded(id: number) {
+    setExpandedId((current) => (current === id ? null : id));
+  }
 
   const columns = [
     helper.accessor("date", {
@@ -67,6 +75,11 @@ export function EntryList(props: EntryListProps) {
             {canBook ? (
               <Button size="sm" onClick={() => props.onBook(entry)}>
                 Buchen
+              </Button>
+            ) : null}
+            {entry.status === "booked" ? (
+              <Button size="sm" variant="outline" onClick={() => toggleExpanded(entry.id)}>
+                {expandedId === entry.id ? "Buchungen ▲" : "Buchungen ▼"}
               </Button>
             ) : null}
             <Button size="sm" variant="outline" onClick={() => props.onEdit(entry)}>
@@ -117,11 +130,20 @@ export function EntryList(props: EntryListProps) {
       </THead>
       <TBody>
         {table.getRowModel().rows.map((row) => (
-          <TR key={row.id}>
-            {row.getVisibleCells().map((cell) => (
-              <TD key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TD>
-            ))}
-          </TR>
+          <Fragment key={row.id}>
+            <TR>
+              {row.getVisibleCells().map((cell) => (
+                <TD key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TD>
+              ))}
+            </TR>
+            {expandedId === row.original.id ? (
+              <TR>
+                <TD colSpan={COLUMN_COUNT} className="bg-slate-50">
+                  <BookingHistory entryId={row.original.id} ticketsById={props.ticketsById} />
+                </TD>
+              </TR>
+            ) : null}
+          </Fragment>
         ))}
       </TBody>
     </Table>
