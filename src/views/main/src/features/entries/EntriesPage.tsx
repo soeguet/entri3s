@@ -130,6 +130,7 @@ export function EntriesPage() {
             <option value="draft">Entwurf</option>
             <option value="pending_booking">Buchung läuft</option>
             <option value="booked">Gebucht</option>
+            <option value="booking_failed">Buchung fehlgeschlagen</option>
             <option value="orphaned">Verwaist</option>
           </Select>
         </div>

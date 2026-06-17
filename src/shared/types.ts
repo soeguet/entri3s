@@ -6,7 +6,7 @@
 
 // ── Entries ─────────────────────────────────────────────────────────────────
 
-export type EntryStatus = "draft" | "pending_booking" | "booked" | "orphaned";
+export type EntryStatus = "draft" | "pending_booking" | "booked" | "booking_failed" | "orphaned";
 
 export interface Entry {
   id: number;

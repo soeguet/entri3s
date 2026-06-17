@@ -37,4 +37,16 @@ export const entryFixtures: Entry[] = [
     createdAt: "2024-01-16T13:00:00.000Z",
     updatedAt: "2024-01-16T15:00:00.000Z",
   },
+  {
+    id: 4,
+    title: "Reporting-Export gebaut",
+    notes: "GitLab war nicht erreichbar",
+    durationMinutes: 45,
+    date: "2024-01-17T11:00:00.000Z",
+    status: "booking_failed",
+    tagIds: [2],
+    ticketIds: [1],
+    createdAt: "2024-01-17T11:00:00.000Z",
+    updatedAt: "2024-01-17T11:30:00.000Z",
+  },
 ];

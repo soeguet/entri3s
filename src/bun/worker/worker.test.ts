@@ -2,6 +2,7 @@ import { test, expect, beforeEach } from "bun:test";
 import { createTestDb } from "../repository/test-helper";
 import { createRepository, type Repository } from "../repository";
 import { createBookingService } from "../service/booking";
+import { createEventService } from "../service/events";
 import { FakeGitLabClient } from "../gitlab/types";
 import { processNext } from "./worker";
 import type { AppEmitter } from "../app/emitter";
@@ -151,6 +152,40 @@ test("failing booking retries and dead-letters after 3 attempts", async () => {
 
   expect(await processNext(repo, gl, emit)).toBe(false); // dead, nicht mehr pending
   expect(repo.eventQueue.listDead()).toHaveLength(1);
-  expect(repo.entries.getById(entryId)?.status).toBe("pending_booking"); // nie gebucht
+  expect(repo.entries.getById(entryId)?.status).toBe("booking_failed"); // terminal
   expect(events.filter((e) => e === "bookingFailed")).toHaveLength(3);
+});
+
+test("a single (non-dead) booking failure keeps the entry on pending_booking", async () => {
+  const entryId = seedBooking();
+  gl.bookShouldThrow = new Error("GitLab down");
+
+  await processNext(repo, gl, emit); // erster Fehlversuch, Event wieder pending
+
+  expect(repo.eventQueue.listDead()).toHaveLength(0);
+  expect(repo.entries.getById(entryId)?.status).toBe("pending_booking");
+});
+
+test("retrying a dead booking event resets the entry and re-books it", async () => {
+  const entryId = seedBooking();
+  gl.bookShouldThrow = new Error("GitLab down");
+
+  await processNext(repo, gl, emit);
+  await processNext(repo, gl, emit);
+  await processNext(repo, gl, emit);
+
+  const dead = repo.eventQueue.listDead();
+  expect(dead).toHaveLength(1);
+  expect(repo.entries.getById(entryId)?.status).toBe("booking_failed");
+
+  // Retry über den Events-Service: Entry zurück auf pending_booking, Event pending.
+  createEventService(repo).retryDead(dead[0]!.id);
+  expect(repo.entries.getById(entryId)?.status).toBe("pending_booking");
+
+  // GitLab wieder erreichbar — erneutes Verarbeiten bucht erfolgreich.
+  gl.bookShouldThrow = null;
+  await processNext(repo, gl, emit);
+
+  expect(repo.entries.getById(entryId)?.status).toBe("booked");
+  expect(repo.bookings.listByEntry(entryId)).toHaveLength(1);
 });

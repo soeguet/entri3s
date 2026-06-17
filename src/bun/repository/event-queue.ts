@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { AppEvent } from "../../shared/types";
+import type { AppEvent, AppEventStatus } from "../../shared/types";
 
 export interface ClaimedEvent {
   id: number;
@@ -51,16 +51,23 @@ export function createEventQueueRepository(db: Database) {
       ]);
     },
 
-    /** Fehlversuch zählen; ab MAX_RETRIES landet das Event im Dead-Letter. */
-    fail(id: number, error: string): void {
-      db.run(
-        `UPDATE event_queue
-         SET retries = retries + 1,
-             status = CASE WHEN retries + 1 >= ${MAX_RETRIES} THEN 'dead' ELSE 'pending' END,
-             error = ?
-         WHERE id = ?`,
-        [error, id],
-      );
+    /**
+     * Fehlversuch zählen; ab MAX_RETRIES landet das Event im Dead-Letter.
+     * Gibt den neuen Status zurück, damit der Worker beim Dead-Letter den Entry
+     * auf einen terminalen Fehlerzustand setzen kann.
+     */
+    fail(id: number, error: string): AppEventStatus {
+      const row = db
+        .query<{ status: AppEventStatus }, [string, number]>(
+          `UPDATE event_queue
+           SET retries = retries + 1,
+               status = CASE WHEN retries + 1 >= ${MAX_RETRIES} THEN 'dead' ELSE 'pending' END,
+               error = ?
+           WHERE id = ?
+           RETURNING status`,
+        )
+        .get(error, id)!;
+      return row.status;
     },
 
     /** Beim Start: hängengebliebene 'processing'-Events zurück auf 'pending'. */
@@ -81,6 +88,17 @@ export function createEventQueueRepository(db: Database) {
           error: r.error,
           createdAt: r.created_at,
         }));
+    },
+
+    /** Typ + Payload eines Dead-Letter-Events; für die Retry-Logik im Service. */
+    getDeadById(id: number): { type: string; payload: string } | null {
+      return (
+        db
+          .query<{ type: string; payload: string }, [number]>(
+            "SELECT type, payload FROM event_queue WHERE id = ? AND status = 'dead'",
+          )
+          .get(id) ?? null
+      );
     },
 
     retryDead(id: number): void {

@@ -44,6 +44,16 @@ async function handleBooking(
   repo.entries.updateStatus(payload.entryId, "booked");
 }
 
+/** Entry eines dead-gelaufenen Booking-Events auf 'booking_failed' setzen. */
+function markBookingFailed(repo: Repository, rawPayload: string): void {
+  try {
+    const payload = JSON.parse(rawPayload) as BookingPayload;
+    repo.entries.updateStatus(payload.entryId, "booking_failed");
+  } catch {
+    // Defekter Payload — kein Entry zu markieren. Das Event bleibt 'dead'.
+  }
+}
+
 /**
  * Verarbeitet genau ein Event aus der Queue. Gibt false zurück, wenn die Queue
  * leer war. Exportiert für Tests.
@@ -64,8 +74,14 @@ export async function processNext(
     if (event.type === "booking") emit.bookingCompleted();
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    repo.eventQueue.fail(event.id, message);
-    if (event.type === "booking") emit.bookingFailed(message);
+    const status = repo.eventQueue.fail(event.id, message);
+    if (event.type === "booking") {
+      // Dead-Letter (alle Retries verbraucht): Entry in terminalen Fehlerzustand
+      // versetzen, damit das UI nicht ewig "Buchung läuft" zeigt. Bei normalen
+      // Retries bleibt der Entry auf 'pending_booking'.
+      if (status === "dead") markBookingFailed(repo, event.payload);
+      emit.bookingFailed(message);
+    }
   }
   return true;
 }
