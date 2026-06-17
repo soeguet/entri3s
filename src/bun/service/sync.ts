@@ -3,8 +3,10 @@ import type { GitLabClient, GitLabIssue } from "../gitlab/types";
 import type { TicketUpsert } from "../repository/ticket";
 import type { TicketState } from "../../shared/types";
 import type { AppEmitter } from "../app/emitter";
+import { createLogger } from "../lib/logger";
 
 const SYNC_SCHEDULE = "gitlab_sync";
+const log = createLogger("sync");
 
 function ninetyDaysAgo(now: Date = new Date()): Date {
   return new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
@@ -36,11 +38,15 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
    * (globaler /issues-Endpoint) und schreibt sie pro Projekt in die Tickets.
    */
   async function syncIssues(): Promise<{ synced: number; orphaned: number }> {
-    if (syncing) return { synced: 0, orphaned: 0 };
+    if (syncing) {
+      log.warn("Sync läuft bereits — Aufruf übersprungen");
+      return { synced: 0, orphaned: 0 };
+    }
     syncing = true;
     try {
       const schedule = repo.schedules.get(SYNC_SCHEDULE);
       const since = schedule?.lastRun ? new Date(schedule.lastRun) : ninetyDaysAgo();
+      log.info("Sync gestartet", { since: since.toISOString(), incremental: !!schedule?.lastRun });
 
       const issues = await gl.fetchIssues(since);
       let orphaned = 0;
@@ -56,6 +62,7 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
       }
 
       repo.schedules.updateLastRun(SYNC_SCHEDULE);
+      log.info("Sync abgeschlossen", { synced: issues.length, orphaned });
       return { synced: issues.length, orphaned };
     } finally {
       syncing = false;
@@ -77,7 +84,9 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
           emit.syncCompleted();
           if (result.orphaned > 0) emit.orphanDetected(result.orphaned);
         } catch (e) {
-          emit.syncFailed(e instanceof Error ? e.message : String(e));
+          const message = e instanceof Error ? e.message : String(e);
+          log.error("Sync fehlgeschlagen", { error: message });
+          emit.syncFailed(message);
         }
       })();
     },

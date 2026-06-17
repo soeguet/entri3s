@@ -1,8 +1,10 @@
 import type { Repository } from "../repository";
 import type { Services } from "../service";
 import type { AppEmitter } from "../app/emitter";
+import { createLogger } from "../lib/logger";
 
 const TICK_INTERVAL_MS = 60_000;
+const log = createLogger("scheduler");
 
 async function runSchedule(
   name: string,
@@ -27,6 +29,7 @@ async function runSchedule(
     repo.schedules.updateLastRun(name);
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    log.error(`Schedule '${name}' fehlgeschlagen`, { error: message });
     if (name === "gitlab_sync") emit.syncFailed(message);
   }
 }

@@ -2,8 +2,10 @@ import type { Repository } from "../repository";
 import type { GitLabClient, TimelogTarget } from "../gitlab/types";
 import type { AppEmitter } from "../app/emitter";
 import type { BookingPayload, BookingDeletePayload } from "../service/booking";
+import { createLogger } from "../lib/logger";
 
 const POLL_INTERVAL_MS = 5_000;
+const log = createLogger("worker");
 
 /** Buchungs-Events (Anlegen und Stornieren) lösen dieselben UI-Refresh-Events aus. */
 function isBookingEvent(type: string): boolean {
@@ -102,6 +104,7 @@ export async function processNext(
   if (!event) return false;
 
   try {
+    log.info(`Event ${event.id} (${event.type}) wird verarbeitet`);
     if (event.type === "booking") {
       await handleBooking(repo, gl, JSON.parse(event.payload) as BookingPayload);
     } else if (event.type === "booking_delete") {
@@ -112,6 +115,7 @@ export async function processNext(
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     const status = repo.eventQueue.fail(event.id, message);
+    log.error(`Event ${event.id} (${event.type}) fehlgeschlagen → ${status}`, { error: message });
     if (isBookingEvent(event.type)) {
       // Dead-Letter (alle Retries verbraucht): Entry in terminalen Fehlerzustand
       // versetzen, damit das UI nicht ewig "Buchung läuft" zeigt. Bei normalen

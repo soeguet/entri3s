@@ -1,5 +1,8 @@
 import type { GqlClient } from "./client";
 import type { GitLabIssue } from "./types";
+import { createLogger } from "../lib/logger";
+
+const log = createLogger("gitlab");
 
 /** GraphQL-Form eines Issue-Knotens (Teilmenge des GitLab-Schemas). */
 interface GqlIssueNode {
@@ -68,6 +71,7 @@ function mapNode(node: GqlIssueNode): GitLabIssue {
 export async function fetchIssues(client: GqlClient, since?: Date): Promise<GitLabIssue[]> {
   const all: GitLabIssue[] = [];
   let after: string | null = null;
+  let page = 0;
 
   while (true) {
     const data = (await client.gqlRequest(ISSUES_QUERY, {
@@ -75,7 +79,9 @@ export async function fetchIssues(client: GqlClient, since?: Date): Promise<GitL
       since: since ? since.toISOString() : null,
     })) as IssuesResponse;
 
+    page++;
     for (const node of data.issues.nodes) all.push(mapNode(node));
+    log.info(`fetchIssues Seite ${page}`, { nodes: data.issues.nodes.length, total: all.length });
 
     const pageInfo = data.issues.pageInfo;
     if (!pageInfo.hasNextPage) break;

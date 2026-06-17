@@ -4,6 +4,7 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 import type { TicketFilter, TicketState, TicketStatus } from "../../../../../shared/types";
 import { getTickets, triggerSync } from "../../api";
 import { keys } from "../../lib/queryKeys";
+import type { SyncStatus } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { Button } from "../../components/ui/button";
 import { formatDuration } from "../../lib/dates";
@@ -32,8 +33,17 @@ export function TicketsPage() {
     queryFn: async () => unwrap(await getTickets(filter)),
   });
 
+  // triggerSync kehrt sofort zurück (Fire-and-Forget); Erfolg/Fehler kommen
+  // asynchron als Event und landen unter keys.syncStatus im Cache.
+  const syncStatus = useQuery({
+    queryKey: keys.syncStatus(),
+    queryFn: (): SyncStatus => ({ error: null }),
+    staleTime: Infinity,
+  });
+
   const sync = useMutation({
     mutationFn: async () => unwrap(await triggerSync()),
+    onMutate: () => qc.setQueryData<SyncStatus>(keys.syncStatus(), { error: null }),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.tickets() }),
   });
 
@@ -51,6 +61,7 @@ export function TicketsPage() {
       />
 
       {sync.isError ? <ErrorNote error={sync.error} className="mb-3" /> : null}
+      {syncStatus.data?.error ? <ErrorNote error={syncStatus.data.error} className="mb-3" /> : null}
       {tickets.isError ? <ErrorNote error={tickets.error} className="mb-3" /> : null}
 
       <div className="mb-4 flex flex-wrap items-end gap-3">
