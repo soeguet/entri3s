@@ -47,8 +47,8 @@ const PRESET_ICONS: Record<RangePreset, LucideIcon> = {
 // Subtile Farb-Codierung: "diese/jetzt" (gerade Indizes) vs. "letzte" (ungerade).
 // Nur auf inaktiven Buttons — die aktive Füllung (variant=default) bleibt unberührt.
 const PHASE_TINT: Record<"current" | "previous", string> = {
-  current: "bg-info-surface border-info-border",
-  previous: "bg-warning-surface border-warning-border",
+  current: "bg-teal-900 border-teal-800",
+  previous: "bg-zinc-900 border-zinc-600",
 };
 
 const STATUS_CHIPS: { value: EntryStatus | ""; label: string; Icon: LucideIcon }[] = [
