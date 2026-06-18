@@ -163,7 +163,7 @@ sich denselben Rate-Limiter (5 req/s).
 | Buchen (`createTimelog`/`findTimelog`/`deleteTimelog`) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
 | `fetchIssue` | REST | `{base}/api/v4/...` | `PRIVATE-TOKEN: <token>` |
 
-Hintergrund/Entscheidung: `.claude/specs/12-gitlab-graphql-evaluation.md`.
+Hintergrund/Entscheidung (GraphQL `timelogCreate` statt REST `/spend`): siehe Code-Kommentar in `src/bun/gitlab/timelog.ts`.
 
 ## Sync – GraphQL mit Cursor-Pagination (Pflicht)
 

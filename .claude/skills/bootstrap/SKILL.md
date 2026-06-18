@@ -83,4 +83,4 @@ dieser Skill ist die explizit aufgerufene Alternative.
 ## Verweise
 
 - `mise`-Skill: Task-Runner-Konventionen (`mise run <task>`).
-- `AUDIT.md`: Setup-Hinweis „vor Tests immer `bun install`".
+- Setup-Hinweis: **vor Tests immer `bun install`** — sonst Phantom-Fails („Cannot find module").
