@@ -66,6 +66,15 @@ export function toFormValues(entry: Entry): EntryFormValues {
   };
 }
 
+/**
+ * Ersetzt das Kalenderdatum eines Entries (ymd = "yyyy-MM-dd"), erhält die
+ * Berliner Ortszeit (Start-Uhrzeit). DST-sicher via fromZonedTime. Liefert ISO-UTC.
+ */
+export function withDate(entry: Entry, ymd: string): string {
+  const hhmm = formatInTimeZone(entry.date, TZ, "HH:mm");
+  return fromZonedTime(`${ymd}T${hhmm}:00`, TZ).toISOString();
+}
+
 export const emptyFormValues: EntryFormValues = {
   date: formatInTimeZone(new Date(), TZ, "yyyy-MM-dd"),
   startTime: "09:00",

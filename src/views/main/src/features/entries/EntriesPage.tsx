@@ -12,6 +12,7 @@ import { ErrorNote } from "../../components/ErrorNote";
 import { Button } from "../../components/ui/button";
 import { EntryList } from "./EntryList";
 import { EntryForm } from "./EntryForm";
+import { EntryQuickEditDialog, type QuickEditField } from "./EntryQuickEditDialog";
 import { EntriesFilters } from "./EntriesFilters";
 import { GapBanner } from "./GapBanner";
 
@@ -34,6 +35,7 @@ export function EntriesPage() {
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | undefined>(undefined);
+  const [quickEdit, setQuickEdit] = useState<{ entry: Entry; field: QuickEditField } | null>(null);
 
   function applyPreset(preset: RangePreset) {
     const range = rangeForPreset(preset);
@@ -177,6 +179,7 @@ export function EntriesPage() {
                 onEdit={openEdit}
                 onDelete={confirmDelete}
                 onBook={(entry) => book.mutate(entry.id)}
+                onQuickEdit={(entry, field) => setQuickEdit({ entry, field })}
               />
             </>
           )}
@@ -186,6 +189,12 @@ export function EntriesPage() {
       {formOpen ? (
         <EntryForm open={formOpen} onClose={() => setFormOpen(false)} entry={editing} />
       ) : null}
+
+      <EntryQuickEditDialog
+        entry={quickEdit?.entry ?? null}
+        field={quickEdit?.field ?? null}
+        onClose={() => setQuickEdit(null)}
+      />
     </div>
   );
 }

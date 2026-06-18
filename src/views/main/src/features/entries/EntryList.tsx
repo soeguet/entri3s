@@ -8,11 +8,13 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import type { Entry, Tag, Ticket } from "../../../../../shared/types";
-import { formatDate, formatEndTime, formatTime, formatDuration } from "../../lib/dates";
+import { formatDuration } from "../../lib/dates";
 import { Button } from "../../components/ui/button";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 import { EntryStatusBadge } from "./entryStatus";
 import { BookingHistory } from "../booking/BookingHistory";
+import { DateCell, NotesCell, TicketCell, TagsCell } from "./entryCells";
+import type { QuickEditField } from "./EntryQuickEditDialog";
 
 const COLUMN_COUNT = 7;
 
@@ -23,6 +25,7 @@ interface EntryListProps {
   onEdit: (entry: Entry) => void;
   onDelete: (entry: Entry) => void;
   onBook: (entry: Entry) => void;
+  onQuickEdit: (entry: Entry, field: QuickEditField) => void;
 }
 
 const helper = createColumnHelper<Entry>();
@@ -38,20 +41,12 @@ export function EntryList(props: EntryListProps) {
   const columns = [
     helper.accessor("date", {
       header: "Datum",
-      cell: (c) => {
-        const date = c.getValue();
-        const durationMinutes = c.row.original.durationMinutes;
-        return (
-          <span className="whitespace-nowrap">
-            {formatDate(date)} · {formatTime(date)} - {formatEndTime(date, durationMinutes)}
-          </span>
-        );
-      },
+      cell: (c) => <DateCell entry={c.row.original} onQuickEdit={props.onQuickEdit} />,
     }),
     helper.accessor("notes", {
       header: "Notiz",
       enableSorting: false,
-      cell: (c) => c.getValue() ?? <span className="text-muted-foreground">–</span>,
+      cell: (c) => <NotesCell entry={c.row.original} onQuickEdit={props.onQuickEdit} />,
     }),
     helper.accessor("durationMinutes", {
       header: "Dauer",
@@ -60,40 +55,25 @@ export function EntryList(props: EntryListProps) {
     helper.display({
       id: "tickets",
       header: "Ticket(s)",
-      cell: (c) => {
-        const iids = c.row.original.ticketIds
-          .map((id) => props.ticketsById.get(id))
-          .filter((t): t is Ticket => Boolean(t))
-          .map((t) => `#${t.gitlabIid}`);
-        return iids.length > 0 ? iids.join(", ") : <span className="text-muted-foreground">–</span>;
-      },
+      cell: (c) => (
+        <TicketCell
+          entry={c.row.original}
+          ticketsById={props.ticketsById}
+          onQuickEdit={props.onQuickEdit}
+        />
+      ),
     }),
     helper.display({
       id: "tags",
       header: "Tags",
       enableSorting: false,
-      cell: (c) => {
-        const tags = c.row.original.tagIds
-          .map((id) => props.tagsById.get(id))
-          .filter((t): t is Tag => Boolean(t));
-        if (tags.length === 0) return <span className="text-muted-foreground">–</span>;
-        return (
-          <div className="flex flex-wrap gap-1">
-            {tags.map((tag) => (
-              <span
-                key={tag.id}
-                style={tag.color ? { backgroundColor: tag.color, color: "#fff" } : undefined}
-                className={
-                  "rounded-full px-2 py-0.5 text-xs font-medium " +
-                  (tag.color ? "" : "bg-muted text-foreground")
-                }
-              >
-                {tag.name}
-              </span>
-            ))}
-          </div>
-        );
-      },
+      cell: (c) => (
+        <TagsCell
+          entry={c.row.original}
+          tagsById={props.tagsById}
+          onQuickEdit={props.onQuickEdit}
+        />
+      ),
     }),
     helper.accessor("status", {
       header: "Status",
@@ -172,7 +152,7 @@ export function EntryList(props: EntryListProps) {
       <TBody>
         {table.getRowModel().rows.map((row) => (
           <Fragment key={row.id}>
-            <TR>
+            <TR className={row.original.status === "booked" ? "bg-success-surface" : undefined}>
               {row.getVisibleCells().map((cell) => (
                 <TD key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TD>
               ))}
