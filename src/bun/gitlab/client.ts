@@ -18,7 +18,7 @@ function operationName(query: string): string {
   return match?.[1] ?? "graphql";
 }
 
-/** Schmale Sicht auf den HTTP-Client (REST), die fetch.ts / push.ts brauchen. */
+/** Schmale Sicht auf den HTTP-Client (REST), die fetch.ts braucht. */
 export interface ApiClient {
   apiRequest(path: string, options?: RequestInit): Promise<Response>;
 }

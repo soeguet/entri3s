@@ -52,29 +52,24 @@ Spec-Wortlaut für bare Münze nimmt.
 
 ## B. Echte Code-Funde (klein, actionable)
 
-Keiner ist kritisch; Tests sind grün. Für nachfolgende Agents als TODO:
+B1–B4 sind erledigt (Commit auf diesem Branch). B5/B6 bleiben offen, niedrige
+Priorität.
 
-- [ ] **B1 — Dark-Mode-Bug: hartcodierte slate-Farben.**
-  `src/views/main/src/features/entries/RunningTimerWidget.tsx:239` und `:273`
-  nutzen `border-slate-200 text-slate-600 hover:bg-slate-50` / `text-slate-400`
-  statt Theme-Tokens (`border-border`, `text-muted-foreground` …). Im Dark Mode
-  hell-auf-hell. Rest der Datei ist durchgängig tokenisiert → isolierte
-  Regression. *Fix: Tokens wie im übrigen Widget verwenden.*
+- [x] **B1 — Dark-Mode-Bug: hartcodierte slate-Farben.** ✅
+  `RunningTimerWidget.tsx:239/273` + Icons nutzten `slate-*` statt Theme-Tokens.
+  Auf `border-border` / `text-muted-foreground` / `hover:bg-muted` umgestellt.
 
-- [ ] **B2 — Vitest-Mock unvollständig.**
-  `src/views/main/src/api/__mocks__/index.ts` fehlt `setEntryTags` (real.ts +
-  mock.ts haben es, types.ts deklariert es). `RunningTimerWidget.test.tsx:74`
-  umgeht das bereits manuell mit explizitem Spy — Workaround, kein Testbruch,
-  aber Stolperfalle für neue Tests. *Fix: `setEntryTags` im Manual-Mock ergänzen.*
+- [x] **B2 — Vitest-Mock unvollständig.** ✅
+  `setEntryTags` in `api/__mocks__/index.ts` ergänzt. Der manuelle Spy-Workaround
+  in `RunningTimerWidget.test.tsx` ist entfernt; der Test nutzt jetzt
+  `vi.mocked(api.setEntryTags)` (und schlug ohne Fix fehl, da der echte Export
+  ein getter-only Property ist).
 
-- [ ] **B3 — Veraltetes Feld im Vitest-Mock.**
-  `__mocks__/index.ts:40` liefert `getSettings` mit `projectId: 42`, obwohl
-  `Settings` (`types.ts:131`) kein `projectId` mehr hat → type-inkompatibles
-  Objektliteral. *Fix: `projectId` aus dem Mock entfernen.*
+- [x] **B3 — Veraltetes Feld im Vitest-Mock.** ✅
+  `projectId: 42` aus `getSettings`-Mock entfernt (passt jetzt zu `Settings`).
 
-- [ ] **B4 — Toter Verweis im Doc-Kommentar.**
-  `src/bun/gitlab/client.ts:21` nennt `push.ts` („… die fetch.ts / push.ts
-  brauchen"), das es nicht mehr gibt. *Fix: Kommentar aktualisieren.*
+- [x] **B4 — Toter Verweis im Doc-Kommentar.** ✅
+  `client.ts:21` referenziert kein `push.ts` mehr.
 
 - [ ] **B5 — Fake-GitLab-Client repliziert Summary-Normalisierung nicht.**
   Real: `createTimelog`/`findTimelog` `trim()` + `slice(0,255)`
@@ -119,7 +114,11 @@ Damit niemand diese erneut „findet":
 
 ## Empfohlene nächste Schritte für Agents
 
-1. B1 (Dark-Mode) + B2/B3/B4 sind triviale, risikoarme Fixes — gute erste PR.
+1. ~~B1–B4~~ ✅ erledigt. Offen: B5/B6 (niedrige Priorität).
 2. Wer Specs anfasst: A3–A8 beim Vorbeikommen im jeweiligen Spec-Text glätten
    (oder hier abhaken), damit der Wortlaut wieder dem Code entspricht.
 3. Vor jeder Test-Runde: `bun install` (siehe Setup-Hinweis oben).
+4. Quality-Gate jetzt geordnet: `mise run check` (fmt → lint → typecheck →
+   bun-Tests → FE-Tests, sequenziell — `mise run test` allein läuft parallel
+   und garantiert keine Reihenfolge). Der alte `lint`-Task formatiert nun zuerst
+   (oxfmt) und lintet danach (oxlint).

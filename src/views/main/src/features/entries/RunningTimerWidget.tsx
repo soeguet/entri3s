@@ -236,9 +236,9 @@ export function RunningTimerWidget() {
           <button
             type="button"
             onClick={() => setPickingTags(true)}
-            className="flex w-full items-center gap-1.5 truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+            className="flex w-full items-center gap-1.5 truncate rounded border border-border px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted"
           >
-            <Tags className="h-3.5 w-3.5 shrink-0 text-slate-400" /> {tagLabel}
+            <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> {tagLabel}
           </button>
           <button
             type="button"
@@ -270,9 +270,9 @@ export function RunningTimerWidget() {
           <button
             type="button"
             onClick={() => setPickingTags(true)}
-            className="flex w-full items-center gap-1.5 truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+            className="flex w-full items-center gap-1.5 truncate rounded border border-border px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted"
           >
-            <Tags className="h-3.5 w-3.5 shrink-0 text-slate-400" /> {tagLabel}
+            <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> {tagLabel}
           </button>
           <button
             type="button"
