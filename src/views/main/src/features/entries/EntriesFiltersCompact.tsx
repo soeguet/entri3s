@@ -39,7 +39,7 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
   const showActive = showHiddenStatus || showCustomRange || showNodes;
 
   return (
-    <aside id="entries-filters" className="w-52 shrink-0 space-y-3">
+    <aside id="entries-filters" className="w-12 shrink-0 space-y-3">
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium">Filter</p>
         <Button
@@ -56,13 +56,14 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
 
       <div>
         <p className="mb-1 text-sm font-medium">Zeitraum</p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
           {PRESETS.map((preset) => (
             <Button
               key={preset.key}
               size="sm"
               variant={props.activePreset === preset.key ? "default" : "outline"}
               onClick={() => props.onPreset(preset.key)}
+              className="text-[10px]"
             >
               {preset.label}
             </Button>
@@ -72,13 +73,14 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
 
       <div>
         <p className="mb-1 text-sm font-medium">Status</p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
           {STATUS_CHIPS.map((chip) => (
             <Button
               key={chip.value || "all"}
               size="sm"
               variant={props.status === chip.value ? "default" : "outline"}
               onClick={() => props.onStatus(chip.value)}
+              className="text-[10px]"
             >
               {chip.label}
             </Button>
@@ -88,7 +90,7 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
 
       <div>
         <p className="mb-1 text-sm font-medium">Tags</p>
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
           {(tags.data ?? []).map((tag) => {
             const active = props.selectedTagIds.includes(tag.id);
             return (
@@ -112,7 +114,7 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
       </div>
 
       {showActive ? (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-col gap-1.5">
           {showHiddenStatus ? (
             <button
               type="button"
