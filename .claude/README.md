@@ -19,6 +19,11 @@ und Frontend-Seite gleichermaßen importiert. Kein `generate types`, kein Drift.
 | `testing-conventions` | bun test für Main Process, Vitest für Frontend                    |
 | `mise`                | Task Runner, alle Tasks, mise run first                           |
 
+## Audit
+
+`AUDIT.md` – Abgleich Plan ↔ Implementierung (Drift-Liste, offene Klein-Fixes).
+Lesen, bevor man dem Wortlaut alter Specs vertraut.
+
 ## MCP Server
 
 `mcp.json` – SQLite MCP für direkte DB-Inspektion im Entwicklungsbetrieb.

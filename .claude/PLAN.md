@@ -21,6 +21,10 @@
 
 Status: ⬜ offen · 🔄 in Arbeit · ✅ abgeschlossen
 
+> 📋 **Abgleich Plan ↔ Code:** siehe `AUDIT.md` (Stand 2026-06-18). Dort stehen
+> bekannte Spec-Drifts (z.B. Spec 12 Buchungen=REST ist überholt) und offene
+> Klein-Fixes. **Vor Tests immer `bun install`** — sonst Phantom-Fails.
+
 Hinweis: Buchungen laufen seit Phase 13 über GitLab-**Timelogs** (GraphQL
 `timelogCreate`), nicht mehr über `/spend`-Kommentare. Siehe
 `specs/13-booking-corrections.md` (ergänzt/korrigiert `specs/booking-v2.md`).
