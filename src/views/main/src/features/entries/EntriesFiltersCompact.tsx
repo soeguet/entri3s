@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import { useQuery } from "@tanstack/react-query";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -41,6 +42,13 @@ const PRESET_ICONS: Record<RangePreset, LucideIcon> = {
   lastWeek: CalendarClock,
   thisMonth: CalendarDays,
   lastMonth: History,
+};
+
+// Subtile Farb-Codierung: "diese/jetzt" (gerade Indizes) vs. "letzte" (ungerade).
+// Nur auf inaktiven Buttons — die aktive Füllung (variant=default) bleibt unberührt.
+const PHASE_TINT: Record<"current" | "previous", string> = {
+  current: "bg-info-surface border-info-border",
+  previous: "bg-warning-surface border-warning-border",
 };
 
 const STATUS_CHIPS: { value: EntryStatus | ""; label: string; Icon: LucideIcon }[] = [
@@ -87,19 +95,26 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
       <Separator />
 
       <div className="flex flex-col items-center gap-1.5">
-        {PRESETS.map((preset) => {
+        {PRESETS.map((preset, i) => {
           const Icon = PRESET_ICONS[preset.key];
+          const active = props.activePreset === preset.key;
+          const phase = i % 2 === 0 ? "current" : "previous";
+          // Mini-Trenner nach jedem Paar (Tag/Woche/Monat), nicht nach dem letzten.
+          const endsPair = i % 2 === 1 && i < PRESETS.length - 1;
           return (
-            <Button
-              key={preset.key}
-              variant={props.activePreset === preset.key ? "default" : "outline"}
-              size="icon"
-              title={preset.label}
-              aria-label={preset.label}
-              onClick={() => props.onPreset(preset.key)}
-            >
-              <Icon className="h-4 w-4" />
-            </Button>
+            <Fragment key={preset.key}>
+              <Button
+                variant={active ? "default" : "outline"}
+                size="icon"
+                className={active ? undefined : PHASE_TINT[phase]}
+                title={preset.label}
+                aria-label={preset.label}
+                onClick={() => props.onPreset(preset.key)}
+              >
+                <Icon className="h-4 w-4" />
+              </Button>
+              {endsPair ? <div className="my-0.5 h-px w-4 bg-border" /> : null}
+            </Fragment>
           );
         })}
       </div>
