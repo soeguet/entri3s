@@ -1,5 +1,5 @@
 import { test, expect, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, fireEvent } from "@testing-library/react";
 import { renderWithClient } from "../../lib/test-utils";
 import { entryFixtures } from "../../fixtures/entries";
 import { ticketFixtures } from "../../fixtures/tickets";
@@ -20,6 +20,7 @@ test("rendert Entries mit Notiz und Status", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onQuickEdit={noop}
     />,
   );
   expect(screen.getByText(/15\.01\.2024\s*·\s*10:00\s*[-]\s*11:30/)).toBeInTheDocument();
@@ -36,6 +37,7 @@ test("zeigt die Tags-Spalte mit Tag-Namen", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onQuickEdit={noop}
     />,
   );
   // Header der neuen Spalte.
@@ -54,6 +56,7 @@ test("zeigt Buchen-Button nur für draft-Entry mit Ticket", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={onBook}
+      onQuickEdit={noop}
     />,
   );
   // Fixtures: nur Entry 1 (draft + Ticket) ist buchbar.
@@ -70,7 +73,67 @@ test("zeigt Leermeldung ohne Entries", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onQuickEdit={noop}
     />,
   );
   expect(screen.getByText("Keine Entries.")).toBeInTheDocument();
+});
+
+test("zeigt Wochentag im Datum", () => {
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onQuickEdit={noop}
+    />,
+  );
+  // Entry 1 + 2 liegen am 15.01.2024 (Montag) → mehrere Treffer erwartet.
+  expect(screen.getAllByText(/Mo,\s*15\.01\.2024/).length).toBeGreaterThan(0);
+  // Entry 4 liegt am 17.01.2024 (Mittwoch).
+  expect(screen.getByText(/Mi,\s*17\.01\.2024/)).toBeInTheDocument();
+});
+
+test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
+  const onQuickEdit = vi.fn();
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onQuickEdit={onQuickEdit}
+    />,
+  );
+  // Erste Tags-Zelle anklicken; robuste Assertion ohne Annahme über die Sortier-Reihenfolge.
+  fireEvent.click(screen.getAllByLabelText("Tags bearbeiten")[0]);
+  expect(onQuickEdit).toHaveBeenCalledWith(
+    expect.objectContaining({ id: expect.any(Number) }),
+    "tags",
+  );
+});
+
+test("gebuchte Zeile hat bg-success-surface", () => {
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onQuickEdit={noop}
+    />,
+  );
+  // Zeile des gebuchten Eintrags (Entry 2) über das Status-Badge finden.
+  const bookedRow = screen.getByText("Gebucht").closest("tr");
+  expect(bookedRow).toHaveClass("bg-success-surface");
+  // Gegenprobe: nicht-gebuchte Zeile (Entry 1) ist nicht getönt.
+  const draftRow = screen.getByText("OAuth-Redirect gefixt").closest("tr");
+  expect(draftRow).not.toHaveClass("bg-success-surface");
 });
