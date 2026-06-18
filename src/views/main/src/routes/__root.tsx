@@ -1,6 +1,7 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
 import { Clock, Ticket, Settings, LayoutGrid, CreditCard } from "lucide-react";
 import type { ComponentType } from "react";
+import { DailyProgress } from "../features/entries/DailyProgress";
 import { RunningTimerWidget } from "../features/entries/RunningTimerWidget";
 import { Toaster } from "../components/ui/toaster";
 
@@ -33,6 +34,7 @@ function RootLayout() {
           ))}
         </nav>
 
+        <DailyProgress />
         <RunningTimerWidget />
       </aside>
 
