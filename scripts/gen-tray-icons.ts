@@ -1,7 +1,9 @@
 /**
- * Generiert die Icons der App als echte PNGs (kein externes Image-Lib):
+ * Generiert die Icons der App als echte PNGs und ICOs (kein externes Image-Lib):
  *   src/assets/tray/timer-idle.png    – grauer Stoppuhr-Glyph (kein Timer)  32x32
  *   src/assets/tray/timer-running.png – grüner Stoppuhr-Glyph (Timer läuft) 32x32
+ *   src/assets/tray/timer-idle.ico    – ICO mit 16/32/48px (Windows Tray)
+ *   src/assets/tray/timer-running.ico – ICO mit 16/32/48px (Windows Tray)
  *   src/assets/icon.png               – App-Identity-Icon (slate-900 Kachel) 256x256
  *
  * Qualität: gezeichnet wird in einen 4x supersampleten Puffer, danach per
@@ -244,20 +246,63 @@ function makeAppIcon(size: number): Buffer {
   return encodePng(downsample(c, size), size);
 }
 
+/**
+ * ICO-Datei aus mehreren PNG-Buffers erzeugen. ICO ist ein simpler Container:
+ * Header (6 Bytes) + Directory-Entries (16 Bytes je Bild) + PNG-Daten hintereinander.
+ */
+function encodeIco(images: Array<{ size: number; png: Buffer }>): Buffer {
+  const count = images.length;
+  const headerSize = 6;
+  const dirSize = 16 * count;
+  let offset = headerSize + dirSize;
+
+  const header = Buffer.alloc(headerSize);
+  header.writeUInt16LE(0, 0); // reserved
+  header.writeUInt16LE(1, 2); // type: 1 = ICO
+  header.writeUInt16LE(count, 4);
+
+  const dirEntries: Buffer[] = [];
+  for (const img of images) {
+    const entry = Buffer.alloc(16);
+    entry[0] = img.size < 256 ? img.size : 0; // width (0 = 256)
+    entry[1] = img.size < 256 ? img.size : 0; // height
+    entry[2] = 0; // color palette
+    entry[3] = 0; // reserved
+    entry.writeUInt16LE(1, 4); // color planes
+    entry.writeUInt16LE(32, 6); // bits per pixel
+    entry.writeUInt32LE(img.png.length, 8); // data size
+    entry.writeUInt32LE(offset, 12); // data offset
+    dirEntries.push(entry);
+    offset += img.png.length;
+  }
+
+  return Buffer.concat([header, ...dirEntries, ...images.map((i) => i.png)]);
+}
+
+function makeTrayIco(body: RGBA, ring: RGBA, button: RGBA): Buffer {
+  const sizes = [16, 32, 48];
+  const images = sizes.map((size) => ({ size, png: makeTrayIcon(size, body, ring, button) }));
+  return encodeIco(images);
+}
+
 const trayDir = join(import.meta.dir, "..", "src", "assets", "tray");
 const assetsDir = join(import.meta.dir, "..", "src", "assets");
 mkdirSync(trayDir, { recursive: true });
 mkdirSync(assetsDir, { recursive: true });
 
-// Tray: idle = slate-gray, running = green.
-writeFileSync(
-  join(trayDir, "timer-idle.png"),
-  makeTrayIcon(32, [100, 116, 139, 255], [71, 85, 105, 255], [100, 116, 139, 255]),
-);
-writeFileSync(
-  join(trayDir, "timer-running.png"),
-  makeTrayIcon(32, [34, 197, 94, 255], [21, 128, 61, 255], [34, 197, 94, 255]),
-);
+const IDLE_BODY: RGBA = [100, 116, 139, 255];
+const IDLE_RING: RGBA = [71, 85, 105, 255];
+const IDLE_BTN: RGBA = [100, 116, 139, 255];
+const RUN_BODY: RGBA = [34, 197, 94, 255];
+const RUN_RING: RGBA = [21, 128, 61, 255];
+const RUN_BTN: RGBA = [34, 197, 94, 255];
+
+// PNG (macOS/Linux)
+writeFileSync(join(trayDir, "timer-idle.png"), makeTrayIcon(32, IDLE_BODY, IDLE_RING, IDLE_BTN));
+writeFileSync(join(trayDir, "timer-running.png"), makeTrayIcon(32, RUN_BODY, RUN_RING, RUN_BTN));
+// ICO mit 16/32/48px (Windows)
+writeFileSync(join(trayDir, "timer-idle.ico"), makeTrayIco(IDLE_BODY, IDLE_RING, IDLE_BTN));
+writeFileSync(join(trayDir, "timer-running.ico"), makeTrayIco(RUN_BODY, RUN_RING, RUN_BTN));
 // App-Icon.
 writeFileSync(join(assetsDir, "icon.png"), makeAppIcon(256));
 

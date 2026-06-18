@@ -5,9 +5,9 @@ import { createLogger } from "../lib/logger";
 
 const log = createLogger("tray");
 
-/** Pfade der Tray-Icons (in den Bundle-Views, siehe electrobun.config.ts). */
-const ICON_RUNNING = "views://main/tray-icons/timer-running.png";
-const ICON_IDLE = "views://main/tray-icons/timer-idle.png";
+const EXT = process.platform === "win32" ? "ico" : "png";
+const ICON_RUNNING = `views://main/tray-icons/timer-running.${EXT}`;
+const ICON_IDLE = `views://main/tray-icons/timer-idle.${EXT}`;
 
 /**
  * Berechnet rein funktional den sichtbaren Tray-Zustand aus dem laufenden Entry.

@@ -57,7 +57,7 @@ function groupByProject(tickets: Ticket[], byId: Map<number, Project>): Group[] 
 
 export function TicketsPage() {
   const qc = useQueryClient();
-  const [status, setStatus] = useState<TicketStatus | "">("");
+  const [status, setStatus] = useState<TicketStatus | "">("active");
   const [state, setState] = useState<TicketState | "">("");
   const [search, setSearch] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
