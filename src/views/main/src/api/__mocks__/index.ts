@@ -14,6 +14,7 @@ export const getRunningEntry = vi.fn(() => okResp(null));
 export const startEntry = vi.fn(() => okResp(99));
 export const stopEntry = vi.fn(voidResp);
 export const setEntryNotes = vi.fn(voidResp);
+export const setEntryTags = vi.fn(voidResp);
 export const createEntry = vi.fn(() => okResp(1));
 export const updateEntry = vi.fn(voidResp);
 export const deleteEntry = vi.fn(voidResp);
@@ -37,7 +38,7 @@ export const updateTemplate = vi.fn(voidResp);
 export const deleteTemplate = vi.fn(voidResp);
 export const triggerSync = vi.fn(voidResp);
 export const getSettings = vi.fn(() =>
-  okResp({ gitlabUrl: "https://gitlab.example.com", projectId: 42, syncIntervalSec: 300 }),
+  okResp({ gitlabUrl: "https://gitlab.example.com", syncIntervalSec: 300 }),
 );
 export const saveSettings = vi.fn(voidResp);
 export const setGitLabToken = vi.fn(voidResp);

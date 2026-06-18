@@ -32,11 +32,7 @@ export function BookingHistory(props: BookingHistoryProps) {
   }
 
   if (bookings.isError) {
-    return (
-      <p className="text-xs text-red-700 dark:text-red-400">
-        Buchungen konnten nicht geladen werden.
-      </p>
-    );
+    return <p className="text-xs text-danger-accent">Buchungen konnten nicht geladen werden.</p>;
   }
 
   const list = bookings.data ?? [];
@@ -61,7 +57,7 @@ export function BookingHistory(props: BookingHistoryProps) {
                   href={url}
                   target="_blank"
                   rel="noreferrer"
-                  className="text-blue-700 hover:underline dark:text-blue-400"
+                  className="text-info-accent hover:underline"
                 >
                   Timelog #{booking.gitlabTimelogId} ↗
                 </a>

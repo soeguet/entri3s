@@ -203,7 +203,7 @@ export function RunningTimerWidget() {
       {entry ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+            <span className="h-2 w-2 animate-pulse rounded-full bg-success-solid" />
             <span className="font-mono text-lg font-semibold tabular-nums">
               {formatElapsed(nowMs - new Date(entry.date).getTime())}
             </span>
@@ -236,15 +236,15 @@ export function RunningTimerWidget() {
           <button
             type="button"
             onClick={() => setPickingTags(true)}
-            className="flex w-full items-center gap-1.5 truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+            className="flex w-full items-center gap-1.5 truncate rounded border border-border px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted"
           >
-            <Tags className="h-3.5 w-3.5 shrink-0 text-slate-400" /> {tagLabel}
+            <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> {tagLabel}
           </button>
           <button
             type="button"
             onClick={handleStop}
             disabled={stop.isPending}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50 dark:bg-red-700 dark:hover:bg-red-600"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-danger-solid px-3 py-2 text-sm font-medium text-danger-solid-foreground hover:bg-danger-solid/90 disabled:opacity-50"
           >
             <Square className="h-3.5 w-3.5 fill-current" /> Stop
           </button>
@@ -270,9 +270,9 @@ export function RunningTimerWidget() {
           <button
             type="button"
             onClick={() => setPickingTags(true)}
-            className="flex w-full items-center gap-1.5 truncate rounded border border-slate-200 px-2 py-1 text-left text-xs text-slate-600 hover:bg-slate-50"
+            className="flex w-full items-center gap-1.5 truncate rounded border border-border px-2 py-1 text-left text-xs text-muted-foreground hover:bg-muted"
           >
-            <Tags className="h-3.5 w-3.5 shrink-0 text-slate-400" /> {tagLabel}
+            <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> {tagLabel}
           </button>
           <button
             type="button"

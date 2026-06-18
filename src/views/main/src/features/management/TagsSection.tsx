@@ -47,8 +47,11 @@ export function TagsSection() {
               <button
                 key={c}
                 onClick={() => setColor(c)}
-                className={`h-9 w-9 rounded-lg border-2 transition-all ${color === c ? "border-foreground ring-2 ring-ring" : "border-border hover:border-foreground"
-                  }`}
+                className={`h-9 w-9 rounded-lg border-2 transition-all ${
+                  color === c
+                    ? "border-foreground ring-2 ring-ring"
+                    : "border-border hover:border-foreground"
+                }`}
                 style={{ backgroundColor: c }}
                 title={c}
                 aria-label={`Farbe ${c}`}
@@ -76,7 +79,7 @@ export function TagsSection() {
               onClick={() => {
                 if (window.confirm(`Tag "${tag.name}" löschen?`)) remove.mutate(tag.id);
               }}
-              className="text-muted-foreground hover:text-red-700 dark:hover:text-red-400"
+              className="text-muted-foreground hover:text-danger-accent"
               aria-label={`Tag ${tag.name} löschen`}
             >
               <Trash2 className="h-3.5 w-3.5" />

@@ -60,8 +60,7 @@ export function DailyProgress() {
       <div className="h-1.5 overflow-hidden rounded-full bg-muted">
         <div
           className={
-            "h-full rounded-full transition-all " +
-            (pct >= 100 ? "bg-green-500" : "bg-primary")
+            "h-full rounded-full transition-all " + (pct >= 100 ? "bg-success-solid" : "bg-primary")
           }
           style={{ width: `${pct}%` }}
         />

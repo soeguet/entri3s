@@ -18,6 +18,12 @@ und Frontend-Seite gleichermaßen importiert. Kein `generate types`, kein Drift.
 | `react-typescript`    | Props-Stil, Typen aus shared/, Linting, React Compiler            |
 | `testing-conventions` | bun test für Main Process, Vitest für Frontend                    |
 | `mise`                | Task Runner, alle Tasks, mise run first                           |
+| `bootstrap`           | Frische Shell/Container komplett projekt-fertig machen            |
+
+## Audit
+
+`AUDIT.md` – Abgleich Plan ↔ Implementierung (Drift-Liste, offene Klein-Fixes).
+Lesen, bevor man dem Wortlaut alter Specs vertraut.
 
 ## MCP Server
 

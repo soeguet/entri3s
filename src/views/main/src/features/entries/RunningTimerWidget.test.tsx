@@ -68,10 +68,7 @@ test("setzt Tags am laufenden Timer per setEntryTags", async () => {
     data: [{ id: 3, name: "Meeting", color: null }],
     error: null,
   });
-  // vitests Automock lässt bei `export *`-Re-Exports vereinzelt einen Namen aus
-  // (hier setEntryTags) — Spy daher explizit setzen.
-  const setTagsSpy = vi.fn().mockResolvedValue({ data: null, error: null });
-  (api as unknown as { setEntryTags: typeof setTagsSpy }).setEntryTags = setTagsSpy;
+  vi.mocked(api.setEntryTags).mockResolvedValue({ data: undefined, error: null });
   const user = userEvent.setup();
   renderWithClient(<RunningTimerWidget />);
 
@@ -81,7 +78,7 @@ test("setzt Tags am laufenden Timer per setEntryTags", async () => {
   await user.click(screen.getByRole("button", { name: /Tags wählen/ }));
   await user.click(await screen.findByRole("button", { name: "Meeting" }));
 
-  await vi.waitFor(() => expect(setTagsSpy).toHaveBeenCalledWith(7, [3]));
+  await vi.waitFor(() => expect(api.setEntryTags).toHaveBeenCalledWith(7, [3]));
 });
 
 test("speichert die Notiz beim Verlassen des Feldes (Autosave)", async () => {

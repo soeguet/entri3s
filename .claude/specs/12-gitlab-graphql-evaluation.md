@@ -1,6 +1,15 @@
 # Evaluierung: GitLab REST → GraphQL
 
-Status: ✅ Hybrid umgesetzt (Sync=GraphQL, Buchungen=REST). Offen: GraphQL-Verfügbarkeit
+> ⚠️ **TEILWEISE ÜBERHOLT durch Spec 13.** Dieses Dokument hält die ursprüngliche
+> Evaluierung fest. Die hier getroffene Empfehlung „**Buchungen bleiben REST**"
+> (Notes-API mit `/spend`) wurde später verworfen: Buchungen laufen jetzt über
+> GraphQL `timelogCreate` (`src/bun/gitlab/timelog.ts`), `gitlab/push.ts` ist
+> entfernt. Für den aktuellen Stand siehe `specs/13-booking-corrections.md` und
+> `AUDIT.md`. Alle Abschnitte unten, die von REST-Buchungen ausgehen
+> (insb. „Knackpunkt: Buchungen", „Empfehlung", „Entscheidung"), sind historisch.
+
+Status (historisch): Hybrid empfohlen (Sync=GraphQL, Buchungen=REST). Tatsächlich
+umgesetzt: **beides GraphQL** (Sync + Buchungen). Offen: GraphQL-Verfügbarkeit
 auf der Self-hosted-Instanz mit echtem Token verifizieren.
 Kontext: Wunsch, von der REST-Integration (`src/bun/gitlab/`) auf GraphQL zu wechseln,
 weil GraphQL persönlich vertrauter ist und ggf. besser für den projektübergreifenden

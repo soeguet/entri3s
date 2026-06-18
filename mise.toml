@@ -38,10 +38,20 @@ description = "Alle Tests"
 depends = ["test-bun", "test-fe"]
 
 [tasks.lint]
-description = "oxlint + oxfmt"
+description = "oxfmt + oxlint (erst formatieren, dann linten)"
 run = """
-oxlint ./src/
 oxfmt ./src/
+oxlint ./src/
+"""
+
+[tasks.check]
+description = "Quality-Gate in Reihenfolge: fmt+lint → typecheck → Tests"
+run = """
+oxfmt ./src/
+oxlint ./src/
+bunx tsc --noEmit
+bun test ./src/bun/
+cd src/views/main && bun run vitest run
 """
 
 [tasks.doctor]

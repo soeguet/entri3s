@@ -62,5 +62,3 @@ Entry, dessen Ende noch nicht feststeht:
 - [x] Nur ein laufender Timer; übersteht App-Neustart
 - [x] Gapfreies Anschliessen an den letzten Entry funktioniert
 - [x] `mise run test` + `mise run lint` grün
-</content>
-</invoke>

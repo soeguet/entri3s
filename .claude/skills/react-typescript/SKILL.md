@@ -131,6 +131,32 @@ mise run doctor   # vor jedem Commit
 - Page-Title im Content-Bereich (nie in der Sidebar)
 - Kein Top-Nav
 
+## Farben / Status-Tokens
+
+**Nie rohe Tailwind-Farbklassen** (`slate-*`, `red-700`, `amber-50`,
+`dark:bg-*` …). Sie brechen den Dark Mode und die WCAG-Kontraste. Es gibt nur
+semantische Tokens (in `index.css` als CSS-Variablen, in `tailwind.config.js`
+gemappt) — sie reagieren automatisch auf hell/dunkel, kein `dark:`-Prefix nötig.
+
+Neutral / Flächen:
+
+- `bg-background`, `text-foreground`, `bg-card`, `bg-muted`,
+  `text-muted-foreground`, `border-border`, `border-input`, `bg-primary` /
+  `text-primary-foreground`, `ring-ring`.
+
+Status (Banner, Badges, Toasts, Inline-Text, Buttons/Indikatoren):
+
+| Zustand | weiche Fläche | Rahmen | Text/Icon | solider Button | Text auf solid |
+| ------- | ------------- | ------ | --------- | -------------- | -------------- |
+| success | `bg-success-surface` | `border-success-border` | `text-success-accent` | `bg-success-solid` | `text-success-solid-foreground` |
+| warning | `bg-warning-surface` | `border-warning-border` | `text-warning-accent` | `bg-warning-solid` | `text-warning-solid-foreground` |
+| danger  | `bg-danger-surface`  | `border-danger-border`  | `text-danger-accent`  | `bg-danger-solid`  | `text-danger-solid-foreground`  |
+| info    | `bg-info-surface`    | `border-info-border`    | `text-info-accent` (Links) | – | – |
+
+Hover auf soliden Buttons: `hover:bg-<status>-solid/90` (wie `bg-primary/90`).
+Neuer Status/Farbe nötig? Erst Token in `index.css` **und** `tailwind.config.js`
+anlegen, dann verwenden — nicht inline hardcoden.
+
 ## Events (Bun → Frontend)
 
 ```typescript
