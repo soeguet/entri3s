@@ -1,11 +1,29 @@
 import { useQuery } from "@tanstack/react-query";
+import type { LucideIcon } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  CalendarRange,
+  CheckCircle2,
+  Filter,
+  FolderTree,
+  History,
+  List,
+  PanelLeftOpen,
+  Pencil,
+  Sun,
+  Sunset,
+  Tags,
+} from "lucide-react";
 import type { EntryStatus } from "../../../../../shared/types";
 import { getTags } from "../../api";
-import { keys } from "../../lib/queryKeys";
+import type { RangePreset } from "../../lib/dates";
 import { unwrap } from "../../lib/errors";
+import { keys } from "../../lib/queryKeys";
+import { Badge } from "../../components/ui/badge";
 import { Button } from "../../components/ui/button";
-import { PanelLeftOpen, X } from "lucide-react";
-import { PRESETS, tagChipStyle, type FilterControls } from "./EntriesFilters";
+import { Separator } from "../../components/ui/separator";
+import { PRESETS, type FilterControls } from "./EntriesFilters";
 
 interface EntriesFiltersCompactProps extends FilterControls {
   from: string;
@@ -16,10 +34,19 @@ interface EntriesFiltersCompactProps extends FilterControls {
   onExpand: () => void;
 }
 
-const STATUS_CHIPS: { value: EntryStatus | ""; label: string }[] = [
-  { value: "", label: "Alle" },
-  { value: "draft", label: "Entwurf" },
-  { value: "booked", label: "Gebucht" },
+const PRESET_ICONS: Record<RangePreset, LucideIcon> = {
+  today: Sun,
+  yesterday: Sunset,
+  thisWeek: CalendarRange,
+  lastWeek: CalendarClock,
+  thisMonth: CalendarDays,
+  lastMonth: History,
+};
+
+const STATUS_CHIPS: { value: EntryStatus | ""; label: string; Icon: LucideIcon }[] = [
+  { value: "", label: "Alle", Icon: List },
+  { value: "draft", label: "Entwurf", Icon: Pencil },
+  { value: "booked", label: "Gebucht", Icon: CheckCircle2 },
 ];
 
 const STATUS_LABELS: Record<string, string> = {
@@ -32,6 +59,9 @@ const STATUS_LABELS: Record<string, string> = {
 export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
   const tags = useQuery({ queryKey: keys.tags(), queryFn: async () => unwrap(await getTags()) });
 
+  const count = props.selectedTagIds.length;
+  const activeTags = (tags.data ?? []).filter((t) => props.selectedTagIds.includes(t.id));
+
   const showHiddenStatus =
     props.status !== "" && props.status !== "draft" && props.status !== "booked";
   const showCustomRange = (props.from !== "" || props.to !== "") && props.activePreset === null;
@@ -39,9 +69,8 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
   const showActive = showHiddenStatus || showCustomRange || showNodes;
 
   return (
-    <aside id="entries-filters" className="w-12 shrink-0 space-y-3">
-      <div className="flex items-center justify-between">
-        <p className="text-sm font-medium">Filter</p>
+    <aside id="entries-filters" className="w-14 shrink-0 space-y-3">
+      <div className="flex justify-center">
         <Button
           variant="ghost"
           size="icon"
@@ -51,104 +80,130 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
           onClick={props.onExpand}
         >
           <PanelLeftOpen className="h-4 w-4" />
+          <span className="sr-only">Filter</span>
         </Button>
       </div>
 
-      <div>
-        <p className="mb-1 text-sm font-medium">Zeitraum</p>
-        <div className="flex flex-col gap-1.5">
-          {PRESETS.map((preset) => (
+      <Separator />
+
+      <div className="flex flex-col items-center gap-1.5">
+        {PRESETS.map((preset) => {
+          const Icon = PRESET_ICONS[preset.key];
+          return (
             <Button
               key={preset.key}
-              size="sm"
               variant={props.activePreset === preset.key ? "default" : "outline"}
+              size="icon"
+              title={preset.label}
+              aria-label={preset.label}
               onClick={() => props.onPreset(preset.key)}
-              className="text-[10px]"
             >
-              {preset.label}
+              <Icon className="h-4 w-4" />
             </Button>
-          ))}
-        </div>
+          );
+        })}
       </div>
 
-      <div>
-        <p className="mb-1 text-sm font-medium">Status</p>
-        <div className="flex flex-col gap-1.5">
-          {STATUS_CHIPS.map((chip) => (
-            <Button
-              key={chip.value || "all"}
-              size="sm"
-              variant={props.status === chip.value ? "default" : "outline"}
-              onClick={() => props.onStatus(chip.value)}
-              className="text-[10px]"
-            >
-              {chip.label}
-            </Button>
-          ))}
-        </div>
+      <Separator />
+
+      <div className="flex flex-col items-center gap-1.5">
+        {STATUS_CHIPS.map((chip) => (
+          <Button
+            key={chip.value || "all"}
+            variant={props.status === chip.value ? "default" : "outline"}
+            size="icon"
+            title={chip.label}
+            aria-label={chip.label}
+            onClick={() => props.onStatus(chip.value)}
+          >
+            <chip.Icon className="h-4 w-4" />
+          </Button>
+        ))}
       </div>
 
-      <div>
-        <p className="mb-1 text-sm font-medium">Tags</p>
-        <div className="flex flex-col gap-1.5">
-          {(tags.data ?? []).map((tag) => {
-            const active = props.selectedTagIds.includes(tag.id);
-            return (
-              <button
+      <Separator />
+
+      <div className="flex flex-col items-center gap-1.5">
+        <div className="relative">
+          <Button
+            variant="outline"
+            size="icon"
+            title="Tags auswählen (aufklappen)"
+            aria-label="Tags auswählen (aufklappen)"
+            onClick={props.onExpand}
+          >
+            <Tags className="h-4 w-4" />
+          </Button>
+          {count > 0 ? (
+            <Badge className="absolute -right-1 -top-1 h-4 min-w-4 justify-center px-1 text-[10px]">
+              {count}
+            </Badge>
+          ) : null}
+        </div>
+        {activeTags.length > 0 ? (
+          <div className="flex flex-wrap justify-center gap-1">
+            {activeTags.slice(0, 3).map((tag) => (
+              <span
                 key={tag.id}
-                type="button"
-                onClick={() => props.onToggleTag(tag.id)}
-                style={tagChipStyle(tag, active)}
-                className={
-                  "rounded-full border px-3 py-1 text-xs font-medium " +
-                  (active
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "border-input text-muted-foreground")
-                }
-              >
-                {tag.name}
-              </button>
-            );
-          })}
-        </div>
+                title={tag.name}
+                className="h-2.5 w-2.5 rounded-full border"
+                style={{ backgroundColor: tag.color ?? undefined }}
+              />
+            ))}
+            {activeTags.length > 3 ? (
+              <span className="text-[10px] text-muted-foreground">+{activeTags.length - 3}</span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
 
       {showActive ? (
-        <div className="flex flex-col gap-1.5">
-          {showHiddenStatus ? (
-            <button
-              type="button"
-              aria-label="Statusfilter entfernen"
-              onClick={() => props.onStatus("")}
-              className="inline-flex items-center gap-1 rounded-full border border-input px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-            >
-              {STATUS_LABELS[props.status] ?? props.status}
-              <X className="h-3 w-3" />
-            </button>
-          ) : null}
-          {showCustomRange ? (
-            <button
-              type="button"
-              aria-label="Zeitraumfilter entfernen"
-              onClick={props.onClearRange}
-              className="inline-flex items-center gap-1 rounded-full border border-input px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-            >
-              Eigener Zeitraum
-              <X className="h-3 w-3" />
-            </button>
-          ) : null}
-          {showNodes ? (
-            <button
-              type="button"
-              aria-label="Projekt-/Ticketfilter entfernen"
-              onClick={props.onClearNodes}
-              className="inline-flex items-center gap-1 rounded-full border border-input px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-            >
-              {`Projekte/Tickets (${props.selectedNodes.size})`}
-              <X className="h-3 w-3" />
-            </button>
-          ) : null}
-        </div>
+        <>
+          <Separator />
+          <div className="flex flex-col items-center gap-1.5">
+            {showHiddenStatus ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ring-1 ring-primary text-primary"
+                title={`Status: ${STATUS_LABELS[props.status] ?? props.status} — entfernen`}
+                aria-label={`Status: ${STATUS_LABELS[props.status] ?? props.status} — entfernen`}
+                onClick={() => props.onStatus("")}
+              >
+                <Filter className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {showCustomRange ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="ring-1 ring-primary text-primary"
+                title="Eigener Zeitraum — entfernen"
+                aria-label="Eigener Zeitraum — entfernen"
+                onClick={props.onClearRange}
+              >
+                <CalendarClock className="h-4 w-4" />
+              </Button>
+            ) : null}
+            {showNodes ? (
+              <div className="relative">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="ring-1 ring-primary text-primary"
+                  title={`Projekte/Tickets (${props.selectedNodes.size}) — entfernen`}
+                  aria-label={`Projekte/Tickets (${props.selectedNodes.size}) — entfernen`}
+                  onClick={props.onClearNodes}
+                >
+                  <FolderTree className="h-4 w-4" />
+                </Button>
+                <Badge className="absolute -right-1 -top-1 h-4 min-w-4 justify-center px-1 text-[10px]">
+                  {props.selectedNodes.size}
+                </Badge>
+              </div>
+            ) : null}
+          </div>
+        </>
       ) : null}
     </aside>
   );
