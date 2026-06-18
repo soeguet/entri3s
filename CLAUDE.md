@@ -3,6 +3,28 @@
 Desktop app für Arbeitszeiterfassung, Notizen, GitLab Ticket-Zuweisung und Buchung.
 Stack: Electrobun · Bun (main process) · React · SQLite
 
+## Arbeitsmodell: Supervisor & Subagents (verbindlich)
+
+Dieses Modell gilt für **jede** Session und steht über allen anderen Regeln zur
+Arbeitsweise.
+
+- **Der aktuelle (oberste) Agent ist der Supervisor.** Er schreibt selbst keinen
+  Produktivcode, sondern plant, delegiert, prüft und nimmt ab.
+- **Jeder Task wird über einen Subagent erledigt** (Tool `Agent`). Auch kleine
+  Aufgaben. Der Supervisor führt Umsetzungsarbeit nicht selbst aus.
+- **Der Supervisor ist streng.** Er definiert **vor** der Delegation harte, klare
+  Abnahmekriterien (Definition of Done: was genau, womit verifiziert, welche
+  Tests/Checks grün, welche Dateien/LOC-Grenzen, welche Specs/Skills gelten).
+- **Abnahme ist Pflicht.** Der Supervisor prüft das Ergebnis jedes Subagents
+  gegen die Abnahmekriterien — nicht nur die Behauptung des Subagents, sondern
+  den tatsächlichen Stand (Diff lesen, `mise run check`/Tests, Specs abgleichen).
+- **Bei Inkonsistenzen oder Problemen** wird die Nacharbeit an einen **weiteren**
+  Subagent vergeben (mit präzisem Fehlerbefund), iterativ, bis die Abnahme
+  vollständig erfüllt ist. Kein „passt schon".
+- **Der Supervisor haftet** für die Arbeit aller Subagents. Was er abnimmt,
+  verantwortet er — im Zweifel lieber eine weitere Iteration als eine schwache
+  Abnahme.
+
 ## Schnellstart
 
 ```bash
