@@ -66,6 +66,16 @@ export function toFormValues(entry: Entry): EntryFormValues {
   };
 }
 
+/** Berliner Datum/Uhrzeit-Eingaben → { date: ISO-UTC, durationMinutes }. DST-sicher. */
+export function composeDateTime(
+  date: string,
+  startTime: string,
+  endTime: string,
+): { date: string; durationMinutes: number } {
+  const start = fromZonedTime(`${date}T${startTime}:00`, TZ);
+  return { date: start.toISOString(), durationMinutes: toMinutes(endTime) - toMinutes(startTime) };
+}
+
 export const emptyFormValues: EntryFormValues = {
   date: formatInTimeZone(new Date(), TZ, "yyyy-MM-dd"),
   startTime: "09:00",

@@ -17,6 +17,12 @@ export function formatTime(iso: string): string {
   return formatInTimeZone(new Date(iso), TZ, "HH:mm");
 }
 
+/** ISO-UTC → deutscher Kurz-Wochentag "Mo".."So" (Europe/Berlin). */
+export function formatWeekday(iso: string): string {
+  const dow = formatInTimeZone(new Date(iso), TZ, "i"); // ISO 1=Mo .. 7=So
+  return ["Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"][Number(dow) - 1];
+}
+
 export function formatEndTime(iso: string, durationMinutes: number): string {
   const end = new Date(new Date(iso).getTime() + durationMinutes * 60_000);
   return formatInTimeZone(end, TZ, "HH:mm");

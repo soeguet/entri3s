@@ -12,6 +12,7 @@ import { ErrorNote } from "../../components/ErrorNote";
 import { Button } from "../../components/ui/button";
 import { EntryList } from "./EntryList";
 import { EntryForm } from "./EntryForm";
+import { EntryQuickEditDialog, type QuickEditField } from "./EntryQuickEditDialog";
 import { EntriesFilters } from "./EntriesFilters";
 import { EntriesFiltersCompact } from "./EntriesFiltersCompact";
 import { loadCollapsed, saveCollapsed } from "./filterPrefs";
@@ -41,6 +42,7 @@ export function EntriesPage() {
     setCollapsedState(value);
     saveCollapsed(value);
   }
+  const [quickEdit, setQuickEdit] = useState<{ entry: Entry; field: QuickEditField } | null>(null);
 
   function applyPreset(preset: RangePreset) {
     const range = rangeForPreset(preset);
@@ -202,6 +204,7 @@ export function EntriesPage() {
                 onEdit={openEdit}
                 onDelete={confirmDelete}
                 onBook={(entry) => book.mutate(entry.id)}
+                onQuickEdit={(entry, field) => setQuickEdit({ entry, field })}
               />
             </>
           )}
@@ -211,6 +214,12 @@ export function EntriesPage() {
       {formOpen ? (
         <EntryForm open={formOpen} onClose={() => setFormOpen(false)} entry={editing} />
       ) : null}
+
+      <EntryQuickEditDialog
+        entry={quickEdit?.entry ?? null}
+        field={quickEdit?.field ?? null}
+        onClose={() => setQuickEdit(null)}
+      />
     </div>
   );
 }

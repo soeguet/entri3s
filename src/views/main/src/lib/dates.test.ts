@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { formatDuration, formatDate, rangeForPreset } from "./dates";
+import { formatDuration, formatDate, formatWeekday, rangeForPreset } from "./dates";
 
 test("formatDuration formats minutes", () => {
   expect(formatDuration(45)).toBe("45m");
@@ -27,4 +27,11 @@ test("rangeForPreset uses the Berlin calendar day across UTC midnight", () => {
   const now = new Date("2024-06-12T22:30:00.000Z");
   expect(rangeForPreset("today", now)).toEqual({ from: "2024-06-13", to: "2024-06-13" });
   expect(rangeForPreset("yesterday", now)).toEqual({ from: "2024-06-12", to: "2024-06-12" });
+});
+
+test("formatWeekday renders German short weekdays in Europe/Berlin", () => {
+  expect(formatWeekday("2024-01-15T09:00:00.000Z")).toBe("Mo");
+  expect(formatWeekday("2024-01-17T11:00:00.000Z")).toBe("Mi");
+  // 22:30 UTC Sa = 00:30 CEST So (16.06.) in Berlin.
+  expect(formatWeekday("2024-06-15T22:30:00.000Z")).toBe("So");
 });
