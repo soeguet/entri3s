@@ -92,13 +92,9 @@ export function SettingsPage() {
           <Button disabled={save.isPending} onClick={() => save.mutate()}>
             Speichern
           </Button>
-          {save.isSuccess ? (
-            <span className="text-sm text-success-accent">Gespeichert</span>
-          ) : null}
+          {save.isSuccess ? <span className="text-sm text-success-accent">Gespeichert</span> : null}
           {save.isError ? (
-            <span className="text-sm text-danger-accent">
-              {errorMessage(save.error)}
-            </span>
+            <span className="text-sm text-danger-accent">{errorMessage(save.error)}</span>
           ) : null}
         </div>
 
@@ -126,9 +122,7 @@ export function SettingsPage() {
             <span className="text-sm text-success-accent">Token gespeichert</span>
           ) : null}
           {saveToken.isError ? (
-            <span className="text-sm text-danger-accent">
-              {errorMessage(saveToken.error)}
-            </span>
+            <span className="text-sm text-danger-accent">{errorMessage(saveToken.error)}</span>
           ) : null}
         </div>
       </div>
@@ -156,9 +150,7 @@ export function SettingsPage() {
             <span className="text-sm text-success-accent">Backup erstellt</span>
           ) : null}
           {backup.isError ? (
-            <span className="text-sm text-danger-accent">
-              {errorMessage(backup.error)}
-            </span>
+            <span className="text-sm text-danger-accent">{errorMessage(backup.error)}</span>
           ) : null}
         </div>
       </div>

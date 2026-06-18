@@ -176,7 +176,9 @@ export function EntryForm(props: EntryFormProps) {
             ) : (
               <>
                 Dauer:{" "}
-                <span className="font-medium text-foreground">{formatDuration(previewMinutes)}</span>
+                <span className="font-medium text-foreground">
+                  {formatDuration(previewMinutes)}
+                </span>
                 {roundUpToQuarterHour(previewMinutes) !== previewMinutes ? (
                   <span className="text-muted-foreground">
                     {" "}

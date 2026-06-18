@@ -32,9 +32,7 @@ export function BookingHistory(props: BookingHistoryProps) {
   }
 
   if (bookings.isError) {
-    return (
-      <p className="text-xs text-danger-accent">Buchungen konnten nicht geladen werden.</p>
-    );
+    return <p className="text-xs text-danger-accent">Buchungen konnten nicht geladen werden.</p>;
   }
 
   const list = bookings.data ?? [];
