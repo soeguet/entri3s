@@ -21,7 +21,7 @@ export function TagPicker(props: TagPickerProps) {
         <button
           type="button"
           onClick={props.onDone}
-          className="rounded p-1 text-slate-500 hover:bg-slate-100"
+          className="rounded p-1 text-muted-foreground hover:bg-muted"
           aria-label="Zurück"
         >
           <ChevronLeft className="h-5 w-5" />
@@ -30,7 +30,7 @@ export function TagPicker(props: TagPickerProps) {
       </div>
 
       {props.tags.length === 0 ? (
-        <p className="px-1 py-6 text-center text-sm text-slate-400">
+        <p className="px-1 py-6 text-center text-sm text-muted-foreground">
           Keine Tags angelegt. Tags lassen sich unter „Verwaltung" erstellen.
         </p>
       ) : (
@@ -43,8 +43,8 @@ export function TagPicker(props: TagPickerProps) {
               className={cn(
                 "rounded-full border px-3 py-1 text-xs font-medium",
                 props.value.includes(tag.id)
-                  ? "border-slate-900 bg-slate-900 text-white"
-                  : "border-slate-300 text-slate-600 hover:bg-slate-50",
+                  ? "border-primary bg-primary text-primary-foreground"
+                  : "border-input text-muted-foreground hover:bg-muted",
               )}
             >
               {tag.name}
@@ -57,7 +57,7 @@ export function TagPicker(props: TagPickerProps) {
         <button
           type="button"
           onClick={props.onDone}
-          className="rounded-md bg-slate-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-slate-800"
+          className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
         >
           Fertig
         </button>

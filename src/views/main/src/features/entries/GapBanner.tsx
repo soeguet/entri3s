@@ -61,7 +61,7 @@ export function GapBanner() {
 
   const lastEndIso = new Date(lastEnd).toISOString();
   return (
-    <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-200">
+    <div className="mb-3 flex items-center justify-between gap-3 rounded-md border border-warning-border bg-warning-surface px-4 py-2 text-sm text-warning-accent">
       <span className="flex items-center gap-2">
         <AlertTriangle className="h-4 w-4 shrink-0" />
         {formatDuration(gapMinutes)} nicht erfasst seit {formatTime(lastEndIso)}
@@ -70,7 +70,7 @@ export function GapBanner() {
         type="button"
         onClick={() => fill.mutate(lastEndIso)}
         disabled={fill.isPending}
-        className="shrink-0 rounded-md bg-amber-700 px-3 py-1 text-xs font-medium text-white hover:bg-amber-800 disabled:opacity-50 dark:bg-amber-700 dark:hover:bg-amber-600"
+        className="shrink-0 rounded-md bg-warning-solid px-3 py-1 text-xs font-medium text-warning-solid-foreground hover:bg-warning-solid/90 disabled:opacity-50"
       >
         Lücke füllen &amp; weiter
       </button>

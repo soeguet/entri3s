@@ -170,15 +170,15 @@ export function EntryForm(props: EntryFormProps) {
           <FieldError message={form.formState.errors.endTime?.message} />
           <FieldError message={form.formState.errors.startTime?.message} />
 
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-muted-foreground">
             {previewMinutes === null ? (
-              <span className="text-slate-400">Dauer: –</span>
+              <span className="text-muted-foreground">Dauer: –</span>
             ) : (
               <>
                 Dauer:{" "}
-                <span className="font-medium text-slate-700">{formatDuration(previewMinutes)}</span>
+                <span className="font-medium text-foreground">{formatDuration(previewMinutes)}</span>
                 {roundUpToQuarterHour(previewMinutes) !== previewMinutes ? (
-                  <span className="text-slate-400">
+                  <span className="text-muted-foreground">
                     {" "}
                     → {formatDuration(roundUpToQuarterHour(previewMinutes))} gebucht
                   </span>
@@ -235,7 +235,7 @@ export function EntryForm(props: EntryFormProps) {
           </div>
 
           {mutation.isError ? (
-            <p className="text-sm text-red-700 dark:text-red-400">{errorMessage(mutation.error)}</p>
+            <p className="text-sm text-danger-accent">{errorMessage(mutation.error)}</p>
           ) : null}
 
           <div className="flex justify-end gap-2 pt-2">
@@ -254,5 +254,5 @@ export function EntryForm(props: EntryFormProps) {
 
 function FieldError(props: { message?: string }) {
   if (!props.message) return null;
-  return <p className="mt-1 text-xs text-red-700 dark:text-red-400">{props.message}</p>;
+  return <p className="mt-1 text-xs text-danger-accent">{props.message}</p>;
 }

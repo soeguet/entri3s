@@ -76,7 +76,7 @@ export function TagsSection() {
               onClick={() => {
                 if (window.confirm(`Tag "${tag.name}" löschen?`)) remove.mutate(tag.id);
               }}
-              className="text-muted-foreground hover:text-red-700 dark:hover:text-red-400"
+              className="text-muted-foreground hover:text-danger-accent"
               aria-label={`Tag ${tag.name} löschen`}
             >
               <Trash2 className="h-3.5 w-3.5" />

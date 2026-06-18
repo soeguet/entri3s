@@ -203,7 +203,7 @@ export function RunningTimerWidget() {
       {entry ? (
         <div className="space-y-2">
           <div className="flex items-center gap-2">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+            <span className="h-2 w-2 animate-pulse rounded-full bg-success-solid" />
             <span className="font-mono text-lg font-semibold tabular-nums">
               {formatElapsed(nowMs - new Date(entry.date).getTime())}
             </span>
@@ -244,7 +244,7 @@ export function RunningTimerWidget() {
             type="button"
             onClick={handleStop}
             disabled={stop.isPending}
-            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-red-700 px-3 py-2 text-sm font-medium text-white hover:bg-red-800 disabled:opacity-50 dark:bg-red-700 dark:hover:bg-red-600"
+            className="flex w-full items-center justify-center gap-1.5 rounded-md bg-danger-solid px-3 py-2 text-sm font-medium text-danger-solid-foreground hover:bg-danger-solid/90 disabled:opacity-50"
           >
             <Square className="h-3.5 w-3.5 fill-current" /> Stop
           </button>

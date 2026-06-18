@@ -93,10 +93,10 @@ export function SettingsPage() {
             Speichern
           </Button>
           {save.isSuccess ? (
-            <span className="text-sm text-green-700 dark:text-green-400">Gespeichert</span>
+            <span className="text-sm text-success-accent">Gespeichert</span>
           ) : null}
           {save.isError ? (
-            <span className="text-sm text-red-700 dark:text-red-400">
+            <span className="text-sm text-danger-accent">
               {errorMessage(save.error)}
             </span>
           ) : null}
@@ -123,10 +123,10 @@ export function SettingsPage() {
             Token speichern
           </Button>
           {saveToken.isSuccess ? (
-            <span className="text-sm text-green-700 dark:text-green-400">Token gespeichert</span>
+            <span className="text-sm text-success-accent">Token gespeichert</span>
           ) : null}
           {saveToken.isError ? (
-            <span className="text-sm text-red-700 dark:text-red-400">
+            <span className="text-sm text-danger-accent">
               {errorMessage(saveToken.error)}
             </span>
           ) : null}
@@ -153,10 +153,10 @@ export function SettingsPage() {
             Datenbank sichern
           </Button>
           {backup.isSuccess ? (
-            <span className="text-sm text-green-700 dark:text-green-400">Backup erstellt</span>
+            <span className="text-sm text-success-accent">Backup erstellt</span>
           ) : null}
           {backup.isError ? (
-            <span className="text-sm text-red-700 dark:text-red-400">
+            <span className="text-sm text-danger-accent">
               {errorMessage(backup.error)}
             </span>
           ) : null}

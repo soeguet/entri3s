@@ -29,6 +29,34 @@
     --primary: #0f172a;
     --primary-foreground: #f8fafc;
     --ring: #475569;
+
+    /* Status-Tokens: weiche Fläche + Rahmen + Text/Icon (accent) für Banner,
+       Badges, Toasts; solide Variante (solid) für Buttons/Indikatoren.
+       Kontrast in beiden Modi gegen die jeweilige Fläche geprüft (≥ 4.5:1). */
+    --success-surface: #f0fdf4;
+    --success-border: #bbf7d0;
+    --success-accent: #166534;
+    /* green-800 auf surface ~7:1 */
+    --success-solid: #15803d;
+    --success-solid-foreground: #ffffff;
+
+    --warning-surface: #fffbeb;
+    --warning-border: #fde68a;
+    --warning-accent: #92400e;
+    /* amber-800 auf surface ~6.5:1 */
+    --warning-solid: #b45309;
+    --warning-solid-foreground: #ffffff;
+
+    --danger-surface: #fef2f2;
+    --danger-border: #fecaca;
+    --danger-accent: #b91c1c;
+    --danger-solid: #b91c1c;
+    --danger-solid-foreground: #ffffff;
+
+    --info-surface: #eff6ff;
+    --info-border: #bfdbfe;
+    --info-accent: #1d4ed8;
+    /* blue-700, Links auf hell ~5.9:1 */
   }
 
   .dark {
@@ -50,6 +78,33 @@
     /* heller, neutraler Button auf dunkel */
     --primary-foreground: #0f172a;
     --ring: #94a3b8;
+
+    /* Status-Tokens (dunkel): gedämpfte, warm/kühl abgestimmte Flächen statt
+       der muddy amber-950-Optik; heller Akzenttext (300er-Töne) ~9-11:1. */
+    --success-surface: #0f2417;
+    --success-border: #1f4a30;
+    --success-accent: #86efac;
+    --success-solid: #16a34a;
+    --success-solid-foreground: #052e16;
+
+    --warning-surface: #2a2008;
+    --warning-border: #5c4514;
+    --warning-accent: #fcd34d;
+    /* amber-300 auf surface ~11:1 */
+    --warning-solid: #d97706;
+    --warning-solid-foreground: #1c1207;
+    /* dunkler Text auf hellem Amber ~8:1 */
+
+    --danger-surface: #2a1416;
+    --danger-border: #5c2329;
+    --danger-accent: #fca5a5;
+    --danger-solid: #b91c1c;
+    --danger-solid-foreground: #ffffff;
+
+    --info-surface: #11243f;
+    --info-border: #1e3a5f;
+    --info-accent: #93c5fd;
+    /* blue-300, Links auf dunkel ~9:1 */
   }
 
   /* ── Akzent-Presets (hell): dunkle Fläche, weisser Text ≥ 7:1 ─────────────── */
