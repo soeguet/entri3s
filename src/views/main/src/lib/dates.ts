@@ -48,7 +48,13 @@ export function roundUpToQuarterHour(minutes: number): number {
 
 // ── Komfort-Datumsbereiche für Filter ────────────────────────────────────────
 
-export type RangePreset = "today" | "thisWeek" | "lastWeek" | "thisMonth" | "lastMonth";
+export type RangePreset =
+  | "today"
+  | "yesterday"
+  | "thisWeek"
+  | "lastWeek"
+  | "thisMonth"
+  | "lastMonth";
 
 export interface DateRange {
   from: string; // yyyy-MM-dd
@@ -89,6 +95,10 @@ export function rangeForPreset(preset: RangePreset, now: Date = new Date()): Dat
   switch (preset) {
     case "today":
       return { from: utcToYmd(today), to: utcToYmd(today) };
+    case "yesterday": {
+      const y1 = addDays(today, -1);
+      return { from: utcToYmd(y1), to: utcToYmd(y1) };
+    }
     case "thisWeek": {
       const start = startOfWeek(today);
       return { from: utcToYmd(start), to: utcToYmd(addDays(start, 6)) };

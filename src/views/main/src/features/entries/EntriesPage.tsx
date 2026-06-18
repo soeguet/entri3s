@@ -14,6 +14,8 @@ import { EntryList } from "./EntryList";
 import { EntryForm } from "./EntryForm";
 import { EntryQuickEditDialog, type QuickEditField } from "./EntryQuickEditDialog";
 import { EntriesFilters } from "./EntriesFilters";
+import { EntriesFiltersCompact } from "./EntriesFiltersCompact";
+import { loadCollapsed, saveCollapsed } from "./filterPrefs";
 import { GapBanner } from "./GapBanner";
 
 const TZ = "Europe/Berlin";
@@ -35,6 +37,11 @@ export function EntriesPage() {
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | undefined>(undefined);
+  const [collapsed, setCollapsedState] = useState(() => loadCollapsed());
+  function setCollapsed(value: boolean) {
+    setCollapsedState(value);
+    saveCollapsed(value);
+  }
   const [quickEdit, setQuickEdit] = useState<{ entry: Entry; field: QuickEditField } | null>(null);
 
   function applyPreset(preset: RangePreset) {
@@ -130,28 +137,46 @@ export function EntriesPage() {
       />
 
       <div className="flex gap-6">
-        <EntriesFilters
-          status={status}
-          onStatus={setStatus}
-          from={from}
-          to={to}
-          activePreset={activePreset}
-          onPreset={applyPreset}
-          onFrom={(v) => {
-            setFrom(v);
-            setActivePreset(null);
-          }}
-          onTo={(v) => {
-            setTo(v);
-            setActivePreset(null);
-          }}
-          onClearRange={clearRange}
-          selectedTagIds={selectedTagIds}
-          onToggleTag={toggleTag}
-          tree={tree}
-          selectedNodes={selectedNodes}
-          onNodes={setSelectedNodes}
-        />
+        {collapsed ? (
+          <EntriesFiltersCompact
+            status={status}
+            onStatus={setStatus}
+            activePreset={activePreset}
+            onPreset={applyPreset}
+            selectedTagIds={selectedTagIds}
+            onToggleTag={toggleTag}
+            from={from}
+            to={to}
+            onClearRange={clearRange}
+            selectedNodes={selectedNodes}
+            onClearNodes={() => setSelectedNodes(new Set())}
+            onExpand={() => setCollapsed(false)}
+          />
+        ) : (
+          <EntriesFilters
+            status={status}
+            onStatus={setStatus}
+            from={from}
+            to={to}
+            activePreset={activePreset}
+            onPreset={applyPreset}
+            onFrom={(v) => {
+              setFrom(v);
+              setActivePreset(null);
+            }}
+            onTo={(v) => {
+              setTo(v);
+              setActivePreset(null);
+            }}
+            onClearRange={clearRange}
+            selectedTagIds={selectedTagIds}
+            onToggleTag={toggleTag}
+            tree={tree}
+            selectedNodes={selectedNodes}
+            onNodes={setSelectedNodes}
+            onCollapse={() => setCollapsed(true)}
+          />
+        )}
 
         <div className="min-w-0 flex-1">
           <GapBanner />

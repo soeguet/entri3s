@@ -6,38 +6,44 @@ import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import type { FilterTreeNode } from "../../lib/filterTree";
 import { type RangePreset } from "../../lib/dates";
+import { PanelLeftClose } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
 import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { EntryFilterTree } from "./EntryFilterTree";
 
-const PRESETS: { key: RangePreset; label: string }[] = [
+export const PRESETS: { key: RangePreset; label: string }[] = [
   { key: "today", label: "Heute" },
+  { key: "yesterday", label: "Gestern" },
   { key: "thisWeek", label: "Diese Woche" },
   { key: "lastWeek", label: "Letzte Woche" },
   { key: "thisMonth", label: "Dieser Monat" },
   { key: "lastMonth", label: "Letzter Monat" },
 ];
 
-interface EntriesFiltersProps {
+export interface FilterControls {
   status: EntryStatus | "";
   onStatus: (value: EntryStatus | "") => void;
-  from: string;
-  to: string;
   activePreset: RangePreset | null;
   onPreset: (preset: RangePreset) => void;
+  selectedTagIds: number[];
+  onToggleTag: (id: number) => void;
+}
+
+interface EntriesFiltersProps extends FilterControls {
+  from: string;
+  to: string;
   onFrom: (value: string) => void;
   onTo: (value: string) => void;
   onClearRange: () => void;
-  selectedTagIds: number[];
-  onToggleTag: (id: number) => void;
   tree: FilterTreeNode[];
   selectedNodes: Set<string>;
   onNodes: (next: Set<string>) => void;
+  onCollapse: () => void;
 }
 
-function tagChipStyle(tag: Tag, active: boolean): CSSProperties {
+export function tagChipStyle(tag: Tag, active: boolean): CSSProperties {
   if (!active || !tag.color) return {};
   return { backgroundColor: tag.color, borderColor: tag.color, color: "#fff" };
 }
@@ -46,7 +52,21 @@ export function EntriesFilters(props: EntriesFiltersProps) {
   const tags = useQuery({ queryKey: keys.tags(), queryFn: async () => unwrap(await getTags()) });
 
   return (
-    <aside className="w-72 shrink-0 space-y-4">
+    <aside id="entries-filters" className="w-72 shrink-0 space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm font-medium">Filter</p>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Filter einklappen"
+          aria-expanded={true}
+          aria-controls="entries-filters"
+          onClick={props.onCollapse}
+        >
+          <PanelLeftClose className="h-4 w-4" />
+        </Button>
+      </div>
+
       <div>
         <Label htmlFor="f-status">Status</Label>
         <Select

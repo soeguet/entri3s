@@ -15,6 +15,7 @@ test("rangeForPreset computes ranges anchored to Berlin today", () => {
   // Mittwoch, 12.06.2024 (Woche Mo 10.06 – So 16.06).
   const now = new Date("2024-06-12T10:00:00.000Z");
   expect(rangeForPreset("today", now)).toEqual({ from: "2024-06-12", to: "2024-06-12" });
+  expect(rangeForPreset("yesterday", now)).toEqual({ from: "2024-06-11", to: "2024-06-11" });
   expect(rangeForPreset("thisWeek", now)).toEqual({ from: "2024-06-10", to: "2024-06-16" });
   expect(rangeForPreset("lastWeek", now)).toEqual({ from: "2024-06-03", to: "2024-06-09" });
   expect(rangeForPreset("thisMonth", now)).toEqual({ from: "2024-06-01", to: "2024-06-30" });
@@ -25,6 +26,7 @@ test("rangeForPreset uses the Berlin calendar day across UTC midnight", () => {
   // 22:30 UTC = 00:30 in Berlin (CEST) am Folgetag.
   const now = new Date("2024-06-12T22:30:00.000Z");
   expect(rangeForPreset("today", now)).toEqual({ from: "2024-06-13", to: "2024-06-13" });
+  expect(rangeForPreset("yesterday", now)).toEqual({ from: "2024-06-12", to: "2024-06-12" });
 });
 
 test("formatWeekday renders German short weekdays in Europe/Berlin", () => {
