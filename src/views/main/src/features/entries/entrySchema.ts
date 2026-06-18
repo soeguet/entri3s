@@ -66,13 +66,14 @@ export function toFormValues(entry: Entry): EntryFormValues {
   };
 }
 
-/**
- * Ersetzt das Kalenderdatum eines Entries (ymd = "yyyy-MM-dd"), erhält die
- * Berliner Ortszeit (Start-Uhrzeit). DST-sicher via fromZonedTime. Liefert ISO-UTC.
- */
-export function withDate(entry: Entry, ymd: string): string {
-  const hhmm = formatInTimeZone(entry.date, TZ, "HH:mm");
-  return fromZonedTime(`${ymd}T${hhmm}:00`, TZ).toISOString();
+/** Berliner Datum/Uhrzeit-Eingaben → { date: ISO-UTC, durationMinutes }. DST-sicher. */
+export function composeDateTime(
+  date: string,
+  startTime: string,
+  endTime: string,
+): { date: string; durationMinutes: number } {
+  const start = fromZonedTime(`${date}T${startTime}:00`, TZ);
+  return { date: start.toISOString(), durationMinutes: toMinutes(endTime) - toMinutes(startTime) };
 }
 
 export const emptyFormValues: EntryFormValues = {

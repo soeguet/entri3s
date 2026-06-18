@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { formatInTimeZone } from "date-fns-tz";
 import type { Entry } from "../../../../../shared/types";
 import {
   getTags,
@@ -15,12 +14,12 @@ import {
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
-import { withDate } from "./entrySchema";
+import { composeDateTime } from "./entrySchema";
 import { Dialog } from "../../components/ui/dialog";
 import { TagPicker } from "./TagPicker";
 import { TicketPicker } from "./TicketPicker";
 import { NoteQuickEdit } from "./NoteQuickEdit";
-import { DateQuickEdit } from "./DateQuickEdit";
+import { DateTimeQuickEdit } from "./DateTimeQuickEdit";
 
 export type QuickEditField = "tags" | "ticket" | "notes" | "date";
 
@@ -90,11 +89,24 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
     onSuccess: invalidate,
     meta: { successToast: "Notiz gespeichert" },
   });
-  const saveDate = useMutation({
-    mutationFn: async (args: { entry: Entry; ymd: string }) =>
-      unwrap(await updateEntry({ ...args.entry, date: withDate(args.entry, args.ymd) })),
+  const saveDateTime = useMutation({
+    mutationFn: async (args: {
+      entry: Entry;
+      date: string;
+      startTime: string;
+      endTime: string;
+    }) => {
+      const next = composeDateTime(args.date, args.startTime, args.endTime);
+      unwrap(
+        await updateEntry({
+          ...args.entry,
+          date: next.date,
+          durationMinutes: next.durationMinutes,
+        }),
+      );
+    },
     onSuccess: invalidate,
-    meta: { successToast: "Datum geändert" },
+    meta: { successToast: "Zeit geändert" },
   });
 
   function onToggleTag(id: number) {
@@ -140,11 +152,11 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
           onCancel={props.onClose}
         />
       ) : (
-        <DateQuickEdit
-          initialYmd={formatInTimeZone(entry.date, "Europe/Berlin", "yyyy-MM-dd")}
-          pending={saveDate.isPending}
-          onSave={(ymd) => {
-            saveDate.mutate({ entry, ymd });
+        <DateTimeQuickEdit
+          entry={entry}
+          pending={saveDateTime.isPending}
+          onSave={(v) => {
+            saveDateTime.mutate({ entry, ...v });
             props.onClose();
           }}
           onCancel={props.onClose}
