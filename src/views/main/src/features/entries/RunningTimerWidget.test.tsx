@@ -62,6 +62,26 @@ test("startet einen Timer mit vorab gewähltem Tag", async () => {
   );
 });
 
+test("startet rückdatiert über den -15-Schnellbutton", async () => {
+  vi.mocked(api.getRunningEntry).mockResolvedValue({ data: null, error: null });
+  const user = userEvent.setup();
+  renderWithClient(<RunningTimerWidget />);
+
+  await user.click(screen.getByRole("button", { name: "-15" }));
+  await user.click(screen.getByRole("button", { name: /^Start/ }));
+
+  await vi.waitFor(() =>
+    expect(api.startEntry).toHaveBeenCalledWith(
+      expect.objectContaining({ startAt: expect.any(String) }),
+    ),
+  );
+
+  const arg = vi.mocked(api.startEntry).mock.calls[0][0];
+  const diff = (Date.now() - new Date(arg.startAt!).getTime()) / 60000;
+  expect(diff).toBeGreaterThanOrEqual(14);
+  expect(diff).toBeLessThanOrEqual(16);
+});
+
 test("setzt Tags am laufenden Timer per setEntryTags", async () => {
   vi.mocked(api.getRunningEntry).mockResolvedValue({ data: runningEntry(), error: null });
   vi.mocked(api.getTags).mockResolvedValue({

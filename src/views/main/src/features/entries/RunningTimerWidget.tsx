@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Play, Square, Tags, X } from "lucide-react";
-import type { Entry } from "../../../../../shared/types";
+import type { Entry, EntryStart } from "../../../../../shared/types";
 import { formatElapsed } from "../../../../../shared/time";
 import {
   getRunningEntry,
@@ -22,6 +22,7 @@ import { unwrap } from "../../lib/errors";
 import { Dialog } from "../../components/ui/dialog";
 import { TicketPicker } from "./TicketPicker";
 import { TagPicker } from "./TagPicker";
+import { StartTimePicker } from "./StartTimePicker";
 
 /** Tickt jede Sekunde, solange `active` true ist — für die Live-Anzeige. */
 function useTick(active: boolean): number {
@@ -70,6 +71,7 @@ export function RunningTimerWidget() {
   const [draftTagIds, setDraftTagIds] = useState<number[]>([]);
   const [picking, setPicking] = useState(false);
   const [pickingTags, setPickingTags] = useState(false);
+  const [backdate, setBackdate] = useState<Date | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const norm = (s: string | null) => (s ?? "").trim();
@@ -92,17 +94,22 @@ export function RunningTimerWidget() {
   }
 
   const start = useMutation({
-    mutationFn: async () =>
-      unwrap(
-        await startEntry({
-          ticketId: draftTicketId,
-          notes: note.trim() || null,
-          tagIds: draftTagIds,
-        }),
-      ),
+    mutationFn: async () => {
+      const args: EntryStart = {
+        ticketId: draftTicketId,
+        notes: note.trim() || null,
+        tagIds: draftTagIds,
+      };
+      // Rückdatierung nur übernehmen, wenn sie tatsächlich in der Vergangenheit
+      // liegt — sonst Schlüssel weglassen (Backend/Tests erwarten exakt
+      // {ticketId, notes, tagIds} ohne startAt).
+      if (backdate && backdate.getTime() < Date.now()) args.startAt = backdate.toISOString();
+      return unwrap(await startEntry(args));
+    },
     onSuccess: () => {
       setDraftTicketId(null);
       setDraftTagIds([]);
+      setBackdate(null);
       invalidate();
     },
     meta: { successToast: "Timer gestartet" },
@@ -274,6 +281,7 @@ export function RunningTimerWidget() {
           >
             <Tags className="h-3.5 w-3.5 shrink-0 text-muted-foreground" /> {tagLabel}
           </button>
+          <StartTimePicker value={backdate} onChange={setBackdate} />
           <button
             type="button"
             onClick={() => start.mutate()}
