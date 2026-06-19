@@ -88,6 +88,8 @@ export interface GitLabClient {
   ): Promise<GitLabCommit[]>;
   /** Gibt id/username/name des Token-Besitzers zurueck (gecacht). */
   fetchCurrentUser(): Promise<CurrentUser>;
+  /** Leert den in-memory Current-User-Cache (nach Token-Wechsel). */
+  clearCurrentUserCache(): void;
   /** Alle Kommentare (Notes) eines Issues (GraphQL, Cursor-Pagination über alle Seiten). */
   fetchTicketComments(projectFullPath: string, issueIid: number): Promise<GitLabComment[]>;
 }
@@ -118,6 +120,7 @@ export class FakeGitLabClient implements GitLabClient {
   commitsToReturn: GitLabCommit[] = [];
   commentsToReturn: GitLabComment[] = [];
   nextTimelogId = 500;
+  clearCurrentUserCacheCalls = 0;
 
   async fetchIssues(): Promise<GitLabIssue[]> {
     return this.issuesToReturn;
@@ -185,6 +188,10 @@ export class FakeGitLabClient implements GitLabClient {
 
   async fetchCurrentUser(): Promise<CurrentUser> {
     return this.currentUser;
+  }
+
+  clearCurrentUserCache(): void {
+    this.clearCurrentUserCacheCalls++;
   }
 
   async fetchTicketComments(): Promise<GitLabComment[]> {

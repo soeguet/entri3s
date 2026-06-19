@@ -207,6 +207,11 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     fetchCommits: (projectId, since, until, author) =>
       restFetchCommits(client, projectId, since, until, author),
     fetchCurrentUser,
+    // In-memory Cache muss bei Token-Wechsel invalidiert werden: der Client ist
+    // langlebig (einmal beim Start erzeugt), sonst bliebe der alte User gecacht.
+    clearCurrentUserCache: () => {
+      cachedCurrentUser = null;
+    },
     fetchTicketComments: (fullPath, iid) => commentsFetch(gqlClient, fullPath, iid),
   };
 }

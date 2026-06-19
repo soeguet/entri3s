@@ -15,7 +15,7 @@ interface GqlIssueNode {
   timeEstimate: number | null;
   totalTimeSpent: number | null;
   userNotesCount: number;
-  assignees: { nodes: Array<{ id: string; username: string; name: string }> };
+  assignees: { nodes: Array<{ id: string; username: string; name: string }> } | null;
 }
 
 /**
@@ -86,7 +86,7 @@ function mapNode(node: GqlIssueNode, projectId: number): GitLabIssue {
     web_url: node.webUrl,
     updated_at: node.updatedAt,
     userNotesCount: node.userNotesCount ?? 0,
-    assignees: node.assignees.nodes.map((a) => ({
+    assignees: (node.assignees?.nodes ?? []).map((a) => ({
       id: parseGid(a.id), // User-GID "gid://gitlab/User/123" → 123
       username: a.username,
       name: a.name,

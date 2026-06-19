@@ -114,6 +114,16 @@ test("maps assignees, parsing their user id from the GID", async () => {
   ]);
 });
 
+test("tolerates a null assignees connection and yields an empty array", async () => {
+  const client = fakeClient([], [{ id: "gid://gitlab/Project/7", fullPath: "grp/a" }], {
+    "grp/a:start": {
+      project: { issues: page([issueNode("1", { assignees: null })]) },
+    },
+  });
+  const issues = await fetchIssues(client);
+  expect(issues[0].assignees).toEqual([]);
+});
+
 test("follows cursor pagination within a project", async () => {
   const captured: Captured[] = [];
   const client = fakeClient(captured, [{ id: "gid://gitlab/Project/7", fullPath: "grp/big" }], {

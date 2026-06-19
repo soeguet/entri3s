@@ -46,3 +46,20 @@ test("runMigrations is idempotent", () => {
   const count = db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM schedules").get();
   expect(count?.n).toBe(3);
 });
+
+test("migration 013 nulls gitlab_sync.last_run (assignee resync)", () => {
+  const db = new Database(":memory:");
+  runMigrations(db);
+
+  const applied = db
+    .query<{ name: string }, [string]>("SELECT name FROM migrations WHERE name = ?")
+    .get("013_resync_assignees.sql");
+  expect(applied).not.toBeNull();
+
+  const row = db
+    .query<{ last_run: string | null }, []>(
+      "SELECT last_run FROM schedules WHERE name = 'gitlab_sync'",
+    )
+    .get();
+  expect(row?.last_run).toBeNull();
+});

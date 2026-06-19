@@ -24,7 +24,7 @@ export function createService(repo: Repository, gl: GitLabClient, db: Database, 
     ticket: createTicketService(repo),
     project: createProjectService(repo),
     events: createEventService(repo),
-    settings: createSettingsService(repo, db),
+    settings: createSettingsService(repo, db, gl),
     commit: createCommitService(repo, gl),
     comment: createCommentService(repo, gl),
   };
