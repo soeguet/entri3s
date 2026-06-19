@@ -36,6 +36,7 @@ function seedTicket(iid: number): number {
 function note(noteId: number, updatedAt = "2024-06-17T10:00:00.000Z"): GitLabComment {
   return {
     noteId,
+    discussionId: `disc-${noteId}`,
     authorUsername: "alice",
     authorName: "Alice",
     body: `body ${noteId}`,

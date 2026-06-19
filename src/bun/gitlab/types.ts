@@ -42,9 +42,10 @@ export interface TimelogTarget {
   issueGlobalId: number;
 }
 
-/** Rohe GitLab-Kommentar-Form (Note) eines Issues (GraphQL notes-Connection). */
+/** Rohe GitLab-Kommentar-Form (Note) eines Issues (GraphQL discussions-Connection). */
 export interface GitLabComment {
   noteId: number;
+  discussionId: string; // Hash-Teil der Discussion-GID; gruppiert Reply-Threads
   authorUsername: string;
   authorName: string;
   body: string;

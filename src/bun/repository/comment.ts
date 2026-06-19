@@ -5,6 +5,7 @@ interface CommentRow {
   id: number;
   ticket_id: number;
   gitlab_note_id: number;
+  discussion_id: string | null;
   author_username: string;
   author_name: string;
   body: string;
@@ -19,6 +20,7 @@ function toTicketComment(row: CommentRow): TicketComment {
     id: row.id,
     ticketId: row.ticket_id,
     gitlabNoteId: row.gitlab_note_id,
+    discussionId: row.discussion_id ?? "",
     authorUsername: row.author_username,
     authorName: row.author_name,
     body: row.body,
@@ -52,11 +54,12 @@ export function createCommentRepository(db: Database) {
         for (const c of comments) {
           db.run(
             `INSERT INTO ticket_comments
-               (ticket_id, gitlab_note_id, author_username, author_name, body, body_html, is_system, created_at, updated_at, synced_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+               (ticket_id, gitlab_note_id, discussion_id, author_username, author_name, body, body_html, is_system, created_at, updated_at, synced_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               ticketId,
               c.gitlabNoteId,
+              c.discussionId,
               c.authorUsername,
               c.authorName,
               c.body,

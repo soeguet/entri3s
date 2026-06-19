@@ -40,6 +40,7 @@ function comment(
 ): Omit<TicketComment, "id" | "ticketId"> {
   return {
     gitlabNoteId: noteId,
+    discussionId: `disc-${noteId}`,
     authorUsername: "alice",
     authorName: "Alice",
     body: `body ${noteId}`,
@@ -67,6 +68,16 @@ test("maps is_system 1 back to a boolean", () => {
     comment(1, "2024-06-17T10:00:00.000Z", { isSystem: true }),
   ]);
   expect(repo.comments.listForTicket(ticketId)[0].isSystem).toBe(true);
+});
+
+test("roundtrips discussion_id; missing discussion_id maps to empty string", () => {
+  repo.comments.replaceForTicket(ticketId, [
+    comment(1, "2024-06-17T10:00:00.000Z", { discussionId: "thread-x" }),
+    comment(2, "2024-06-17T11:00:00.000Z", { discussionId: "" }),
+  ]);
+  const list = repo.comments.listForTicket(ticketId);
+  expect(list[0].discussionId).toBe("thread-x");
+  expect(list[1].discussionId).toBe("");
 });
 
 test("replaceForTicket fully replaces the previous set", () => {

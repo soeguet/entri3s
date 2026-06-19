@@ -1,10 +1,13 @@
 import type { TicketComment } from "../../../../../shared/types";
 import { formatDateTime } from "../../lib/dates";
+import { renderGitlabHtml } from "../../lib/gitlabHtml";
 import { Badge } from "../../components/ui/badge";
 
 interface CommentItemProps {
   comment: TicketComment;
   isNew: boolean;
+  // Antwort innerhalb einer Discussion → eingerückt mit linkem Connector dargestellt.
+  isReply?: boolean;
 }
 
 /** Ein einzelner Kommentar — System-Notizen kompakt, normale als HTML-Karte. */
@@ -19,9 +22,12 @@ export function CommentItem(props: CommentItemProps) {
     );
   }
 
-  const wrapper = props.isNew
+  const card = props.isNew
     ? "rounded border border-border bg-card p-3 border-l-4 border-l-info-accent pl-3"
     : "rounded border border-border bg-card p-3";
+  // Replies bekommen eine linke Einrückung + dezenten Rand als Connector, damit
+  // klar erkennbar ist: Antwort auf den darüberliegenden Kommentar.
+  const wrapper = props.isReply ? `ml-6 border-l-2 border-border pl-3 ${card}` : card;
 
   return (
     <div className={wrapper}>
@@ -31,10 +37,11 @@ export function CommentItem(props: CommentItemProps) {
         <span className="text-muted-foreground">{formatDateTime(props.comment.createdAt)}</span>
         {props.isNew ? <Badge variant="secondary">Neu</Badge> : null}
       </div>
-      {/* Bewusst KEIN Sanitizing — lokale Single-User-App, HTML kommt vom eigenen GitLab. */}
+      {/* Bewusst KEIN Sanitizing — lokale Single-User-App, HTML kommt vom eigenen GitLab.
+          renderGitlabHtml entpackt <gl-emoji> in den Unicode-Fallback (sonst unsichtbar). */}
       <div
         className="gitlab-content"
-        dangerouslySetInnerHTML={{ __html: props.comment.bodyHtml }}
+        dangerouslySetInnerHTML={{ __html: renderGitlabHtml(props.comment.bodyHtml) }}
       />
     </div>
   );

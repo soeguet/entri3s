@@ -12,11 +12,17 @@ interface GqlNoteNode {
   updatedAt: string;
 }
 
-interface NotesResponse {
+/** GraphQL-Form eines Discussion-Knotens: bündelt zusammengehörige Notes. */
+interface GqlDiscussionNode {
+  id: string; // GID der Discussion, z.B. "gid://gitlab/Discussion/<hash>"
+  notes: { nodes: GqlNoteNode[] };
+}
+
+interface DiscussionsResponse {
   project: {
     issue: {
-      notes: {
-        nodes: GqlNoteNode[];
+      discussions: {
+        nodes: GqlDiscussionNode[];
         pageInfo: { hasNextPage: boolean; endCursor: string | null };
       };
     } | null;
@@ -24,15 +30,25 @@ interface NotesResponse {
 }
 
 /**
- * Kommentare (Notes) eines Issues. Die notes-Connection kennt KEIN `updatedAfter`
- * (anders als die issues-Connection), daher holen wir immer alle Seiten.
- * `$iid` ist im GitLab-Schema ein String! — daher String(issueIid).
+ * Kommentare (Notes) eines Issues über die discussions-Connection. Eine Discussion
+ * mit MEHREREN Notes ist ein Reply-Thread (erste Note = Ursprung, weitere = Antworten);
+ * Top-Level-Kommentare und System-Notes sind je eine eigene Discussion mit einer Note.
+ * Anders als die issues-Connection kennt diese Connection KEIN `updatedAfter`,
+ * daher holen wir immer alle Seiten. `$iid` ist im GitLab-Schema ein String!
+ *
+ * Limitation v1: innere notes(first: 100) — Discussions mit >100 Antworten werden
+ * abgeschnitten (extrem selten). Akzeptiert.
  */
-const NOTES_QUERY = `query($fullPath: ID!, $iid: String!, $after: String) {
+const DISCUSSIONS_QUERY = `query($fullPath: ID!, $iid: String!, $after: String) {
   project(fullPath: $fullPath) {
     issue(iid: $iid) {
-      notes(first: 100, after: $after) {
-        nodes { id body bodyHtml system author { id username name } createdAt updatedAt }
+      discussions(first: 100, after: $after) {
+        nodes {
+          id
+          notes(first: 100) {
+            nodes { id body bodyHtml system author { id username name } createdAt updatedAt }
+          }
+        }
         pageInfo { hasNextPage endCursor }
       }
     }
@@ -44,9 +60,10 @@ function parseGid(gid: string): number {
   return Number(gid.split("/").pop() ?? "");
 }
 
-function mapNode(node: GqlNoteNode): GitLabComment {
+function mapNode(node: GqlNoteNode, discussionId: string): GitLabComment {
   return {
     noteId: parseGid(node.id),
+    discussionId,
     authorUsername: node.author?.username ?? "",
     authorName: node.author?.name ?? "",
     body: node.body,
@@ -57,7 +74,7 @@ function mapNode(node: GqlNoteNode): GitLabComment {
   };
 }
 
-/** Alle Kommentare eines Issues (Cursor-Pagination über alle Note-Seiten). */
+/** Alle Kommentare eines Issues (Cursor-Pagination über alle Discussion-Seiten). */
 export async function fetchTicketComments(
   client: GqlClient,
   projectFullPath: string,
@@ -67,20 +84,25 @@ export async function fetchTicketComments(
   let after: string | null = null;
 
   while (true) {
-    const data = (await client.gqlRequest(NOTES_QUERY, {
+    const data = (await client.gqlRequest(DISCUSSIONS_QUERY, {
       fullPath: projectFullPath,
       iid: String(issueIid),
       after,
-    })) as NotesResponse;
+    })) as DiscussionsResponse;
 
     // Projekt nicht erreichbar oder Issue nicht (mehr) vorhanden → keine Kommentare.
     if (!data.project || !data.project.issue) return comments;
 
-    const notes = data.project.issue.notes;
-    for (const node of notes.nodes) comments.push(mapNode(node));
+    const discussions = data.project.issue.discussions;
+    for (const discussion of discussions.nodes) {
+      // discussion.id ist eine GID mit HASH-String als trailing-Teil (KEINE Zahl)
+      // — daher NICHT parseGid, sondern den trailing-Teil als String übernehmen.
+      const discussionId = discussion.id.split("/").pop() ?? "";
+      for (const node of discussion.notes.nodes) comments.push(mapNode(node, discussionId));
+    }
 
-    if (!notes.pageInfo.hasNextPage) break;
-    after = notes.pageInfo.endCursor;
+    if (!discussions.pageInfo.hasNextPage) break;
+    after = discussions.pageInfo.endCursor;
   }
 
   return comments;

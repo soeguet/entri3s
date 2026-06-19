@@ -20,8 +20,17 @@ function noteNode(noteId: number, extra: Record<string, unknown> = {}) {
   };
 }
 
+/** Eine Discussion mit ihren Notes; die ID ist ein Hash-String (KEINE Zahl). */
+function discussionNode(hash: string, notes: unknown[]) {
+  return { id: `gid://gitlab/Discussion/${hash}`, notes: { nodes: notes } };
+}
+
 function page(nodes: unknown[], hasNextPage = false, endCursor: string | null = null) {
   return { nodes, pageInfo: { hasNextPage, endCursor } };
+}
+
+function issue(discussions: ReturnType<typeof page>) {
+  return { project: { issue: { discussions } } };
 }
 
 /** Fake-GqlClient: liefert je nach `after`-Variable kanned Seiten. */
@@ -35,11 +44,11 @@ function fakeClient(captured: Captured[], pages: Record<string, unknown>): GqlCl
   };
 }
 
-test("aggregates notes across two pages and maps the GID", async () => {
+test("aggregates discussions across two pages and maps the note GID", async () => {
   const captured: Captured[] = [];
   const client = fakeClient(captured, {
-    start: { project: { issue: { notes: page([noteNode(1)], true, "CURSOR_A") } } },
-    CURSOR_A: { project: { issue: { notes: page([noteNode(456)]) } } },
+    start: issue(page([discussionNode("aaa", [noteNode(1)])], true, "CURSOR_A")),
+    CURSOR_A: issue(page([discussionNode("bbb", [noteNode(456)])])),
   });
 
   const comments = await fetchTicketComments(client, "grp/a", 5);
@@ -52,11 +61,29 @@ test("aggregates notes across two pages and maps the GID", async () => {
   expect(captured[1].variables.after).toBe("CURSOR_A");
 });
 
+test("notes of one discussion share its discussionId; distinct discussions differ", async () => {
+  const client = fakeClient([], {
+    start: issue(
+      page([
+        discussionNode("thread1", [noteNode(1), noteNode(2), noteNode(3)]),
+        discussionNode("thread2", [noteNode(4)]),
+      ]),
+    ),
+  });
+
+  const comments = await fetchTicketComments(client, "grp/a", 5);
+
+  expect(comments).toHaveLength(4);
+  // Hash-String wird übernommen (kein numerisches Parsing).
+  expect(comments[0].discussionId).toBe("thread1");
+  expect(comments[1].discussionId).toBe("thread1");
+  expect(comments[2].discussionId).toBe("thread1");
+  expect(comments[3].discussionId).toBe("thread2");
+});
+
 test("falls back to empty author fields when author is null", async () => {
   const client = fakeClient([], {
-    start: {
-      project: { issue: { notes: page([noteNode(1, { author: null, system: true })]) } },
-    },
+    start: issue(page([discussionNode("aaa", [noteNode(1, { author: null, system: true })])])),
   });
   const comments = await fetchTicketComments(client, "grp/a", 1);
   expect(comments[0].authorUsername).toBe("");

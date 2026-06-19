@@ -22,6 +22,7 @@ function hashComments(raw: GitLabComment[]): string {
 function toComment(c: GitLabComment): Omit<TicketComment, "id" | "ticketId"> {
   return {
     gitlabNoteId: c.noteId,
+    discussionId: c.discussionId,
     authorUsername: c.authorUsername,
     authorName: c.authorName,
     body: c.body,

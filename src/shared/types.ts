@@ -119,6 +119,9 @@ export interface TicketComment {
   id: number;
   ticketId: number;
   gitlabNoteId: number;
+  // Hash-Teil der GitLab-Discussion-GID: gruppiert Replies. Mehrere Kommentare mit
+  // gleicher discussionId bilden einen Thread; leer/distinct = Top-Level.
+  discussionId: string;
   authorUsername: string;
   authorName: string;
   body: string; // Markdown (für Suche)

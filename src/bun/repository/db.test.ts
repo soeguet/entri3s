@@ -1,6 +1,26 @@
 import { test, expect } from "bun:test";
 import { Database } from "bun:sqlite";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { runMigrations } from "./db";
+
+/**
+ * Wendet alle .sql-Migrationen bis EINSCHLIESSLICH `lastFile` an und schreibt sie
+ * in die migrations-Tabelle, sodass ein anschließendes runMigrations() sie
+ * überspringt und nur die späteren Migrationen ausführt. Nur für Tests.
+ */
+function applyMigrationsUpTo(db: Database, lastFile: string): void {
+  db.exec("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, run_at TEXT NOT NULL)");
+  const dir = join(import.meta.dir, "migrations");
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  for (const file of files) {
+    db.exec(readFileSync(join(dir, file), "utf8"));
+    db.run("INSERT INTO migrations VALUES (?, ?)", [file, new Date().toISOString()]);
+    if (file === lastFile) break;
+  }
+}
 
 test("runMigrations creates the full schema", () => {
   const db = new Database(":memory:");
@@ -92,4 +112,32 @@ test("migration 014 adds the ticket metadata columns and nulls gitlab_sync.last_
     )
     .get();
   expect(row?.last_run).toBeNull();
+});
+
+test("migration 015 adds discussion_id and nulls comments_hash for the backfill", () => {
+  const db = new Database(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+
+  // Migrationen bis EINSCHLIESSLICH 014 anwenden, dann ein Ticket mit gesetztem
+  // comments_hash anlegen — so lässt sich der einmalige UPDATE in 015 verifizieren.
+  applyMigrationsUpTo(db, "014_ticket_metadata.sql");
+  db.run(
+    "INSERT INTO tickets (gitlab_iid, project_id, title, state, comments_hash) VALUES (1, 1, 'T', 'opened', 'oldhash')",
+  );
+
+  // Jetzt 015 (und ggf. spätere) anwenden.
+  runMigrations(db);
+
+  const cols = db
+    .query<{ name: string }, []>("PRAGMA table_info(ticket_comments)")
+    .all()
+    .map((c) => c.name);
+  expect(cols).toContain("discussion_id");
+
+  const row = db
+    .query<{ comments_hash: string | null }, []>(
+      "SELECT comments_hash FROM tickets WHERE gitlab_iid = 1",
+    )
+    .get();
+  expect(row?.comments_hash).toBeNull();
 });
