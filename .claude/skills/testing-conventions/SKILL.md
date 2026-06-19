@@ -7,165 +7,96 @@ description: Test-Konventionen für entries — bun test für Main Process, Vite
 
 ## Kernprinzip
 
-Der einzige legitime Mock ist `FakeGitLabClient`.
-Alles andere testet gegen echtes SQLite (in-memory) oder echte Fixtures.
+Zwei getrennte Runner: **`bun test` für `src/bun/`**, **Vitest für
+`src/views/main/`**. Der einzige legitime Mock im Backend ist
+`FakeGitLabClient`; alles andere testet gegen echtes In-Memory-SQLite oder echte
+Fixtures. Im Frontend wird `src/api/` gemockt — nie `electrobun/view` direkt.
+
+## Tasks
+
+- `mise run test-bun` → `bun test ./src/bun/`
+- `mise run test-fe` → `cd src/views/main && bun run vitest run`
+- `mise run test` → beide (`depends`).
+
+Ad-hoc: `bun test ./src/bun/repository/`, `bun test --watch`. Kein Jest, kein
+Vitest für `src/bun/`.
 
 ---
 
-## Bun Test (Main Process: src/bun/)
-
-### Test Runner
-
-```bash
-bun test                         # alle Tests
-bun test src/bun/repository/     # nur Repository
-bun test --watch                 # Watch-Mode
-```
-
-Bun's eingebauter Test-Runner, kein Jest, kein Vitest für src/bun/.
+## Bun Test (Main Process)
 
 ### Setup: In-Memory SQLite
 
-```typescript
-// src/bun/repository/test-helper.ts
-import { Database } from "bun:sqlite";
-import { runMigrations } from "./db";
-
-export function createTestDb(): Database {
-  const db = new Database(":memory:");
-  db.exec("PRAGMA foreign_keys = ON");
-  runMigrations(db);
-  return db;
-}
-```
+`src/bun/repository/test-helper.ts` → `createTestDb()`: `new Database(":memory:")`,
+`PRAGMA foreign_keys = ON`, dann `runMigrations` (volles Schema). Frische DB pro
+Test in `beforeEach`. Typisches Pattern (siehe `repository/entry.test.ts`):
 
 ```typescript
-// src/bun/repository/entry.test.ts
 import { test, expect, beforeEach } from "bun:test";
 import { createTestDb } from "./test-helper";
-import { createEntryRepository } from "./entry";
+import { createRepository, type Repository } from "./index";
 
-let repo: ReturnType<typeof createEntryRepository>;
-
+let full: Repository;
 beforeEach(() => {
-  const db = createTestDb();
-  repo = createEntryRepository(db);
-});
-
-test("createEntry returns new id", () => {
-  const id = repo.create({
-    title: "Test",
-    durationMinutes: 60,
-    date: "2024-01-15T10:00:00Z",
-    status: "draft",
-    notes: null,
-  });
-  expect(id).toBeGreaterThan(0);
+  full = createRepository(createTestDb()); // ganzes Repo, damit Relationen (tickets/tags) testbar sind
 });
 ```
+
+Entry-Inputs kommen über einen `input(overrides)`-Builder mit den realen
+Domain-Feldern (`notes`, `durationMinutes`, `date`, `status`, `tagIds`,
+`ticketIds` — **kein `title`**).
+
+### FakeGitLabClient
+
+`new FakeGitLabClient()` aus `src/bun/gitlab/types.ts` — die EINZIGE legitime
+Mock-Klasse. Genutzt in `service/sync.test.ts` und `worker/worker.test.ts`.
+
+`gitlab/client.test.ts` geht anders vor: es stubt `globalThis.fetch` direkt (mit
+`afterEach`-Restore), um Fehler-Mapping zu prüfen — jede `fetch`-Variante muss
+auf den richtigen `AppError`-Code + `retry` mappen (`GITLAB_ERROR`,
+`AUTH_FAILED`, `NETWORK_ERROR` retryable, `NO_GITLAB_URL` vor jedem Request).
 
 ### Was testen (Bun)
 
-- **Repository:** alle CRUD-Methoden, Grenzfälle (not found, duplicate)
-- **Event Queue:** enqueue → claimNext → complete/fail, ResetStuck
-- **Service/entry:** Overlap Detection (Grenzfälle)
-- **Service/sync:** FakeGitLabClient, Orphan Marking, last_synced_at Update
-- **Worker:** Retry-Logik, Dead-Letter nach 3 Fehlern
-- **gitlab/format:** FormatDuration Edge Cases (0min, 60min, 90min)
+- Repository: CRUD + Grenzfälle (not found, Filter-Kombinationen, Dedup).
+- Event Queue: enqueue → claimNext → complete/fail, resetStuck, Dead-Letter nach
+  `MAX_RETRIES`.
+- Service/entry (Overlap), Service/sync (Orphan-Marking via Fake), Worker-Retry.
+- `gitlab/format`, `gitlab/client` Fehler-Mapping.
 
 ### Was NICHT testen (Bun)
 
-- `src/bun/index.ts` (Wiring, zu viel Setup)
-- Electrobun APIs selbst
-- Scheduler-Timing (setInterval-basiert)
+`index.ts` (reines Wiring), Electrobun-APIs selbst, Scheduler-Timing.
 
 ---
 
-## Vitest (Frontend: src/views/main/)
-
-### Kernprinzip
-
-Komponenten importieren aus `src/api/`.
-Tests mocken `src/api/` — nie `electrobun/view`, nie `@backend-impl` direkt.
+## Vitest (Frontend)
 
 ### Setup
 
-```typescript
-// src/views/main/src/api/__mocks__/index.ts
-import { vi } from "vitest";
-import { fixtures } from "../fixtures";
+`vitest.config.ts`: `environment: "jsdom"`, `globals: true`, setupFile
+`vitest.setup.ts` (importiert `@testing-library/jest-dom/vitest`). Der
+`@backend-impl`-Alias zeigt in Tests fest auf `src/api/mock.ts`.
 
-export const getEntries = vi.fn().mockResolvedValue({ data: fixtures.entries, error: null });
-export const createEntry = vi.fn().mockResolvedValue({ data: 1, error: null });
-export const getTags = vi.fn().mockResolvedValue({ data: fixtures.tags, error: null });
-// ... alle exports
-```
-
-```typescript
-// src/views/main/src/features/entries/EntryList.test.tsx
-import { vi, test, expect } from 'vitest'
-import { render, screen } from '@testing-library/react'
-import { QueryClientProvider } from '@tanstack/react-query'
-import { createTestQueryClient } from '../../lib/test-utils'
-
-vi.mock('../../api')
-
-test('rendert entries aus Mock', async () => {
-  render(
-    <QueryClientProvider client={createTestQueryClient()}>
-      <EntryList />
-    </QueryClientProvider>
-  )
-  await screen.findByText(fixtures.entries[0].title)
-})
-```
+Komponenten-Tests mocken zusätzlich `src/api/` via `vi.mock("../../api")`. Der
+manuelle Mock liegt in `src/api/__mocks__/index.ts`: pro Export ein `vi.fn`, das
+ein `{ data, error: null }`-Promise liefert (`okResp`/`voidResp`-Helper). Tests
+können einzelne Funktionen überschreiben.
 
 ### Was testen (Vitest)
 
-- Feature-Komponenten: Rendering, User-Interaktionen
-- Form-Validierung: Zod-Schemas, Fehleranzeige
-- Error-States: wenn API `{ data: null, error: {...} }` zurückgibt
-- Route-Übergänge via TanStack Router Memory History
+Feature-Komponenten (Rendering, Interaktion), Form-/Zod-Validierung,
+Error-States (`{ data: null, error }`), Router-Übergänge.
 
 ### Was NICHT testen (Vitest)
 
-- shadcn/ui oder Radix Internals
-- TanStack Table oder Query Internals
-- `src/api/real.ts` (integration concern)
+shadcn/Radix-Internals, TanStack Table/Query-Internals, `src/api/real.ts`
+(Integration-Concern).
 
 ---
 
 ## Fixtures
 
-```typescript
-// src/views/main/src/fixtures/entries.ts
-import type { Entry } from "../../../../shared/types";
-
-export const fixtures = {
-  entries: [
-    {
-      id: 1,
-      title: "Feature X implementiert",
-      durationMinutes: 90,
-      date: "2024-01-15T09:00:00Z",
-      status: "draft",
-      notes: null,
-      createdAt: "2024-01-15T09:00:00Z",
-      updatedAt: "2024-01-15T09:00:00Z",
-    },
-  ] satisfies Entry[],
-};
-```
-
-Fixtures sind typisiert mit Types aus `src/shared/types.ts`.
-Wenn ein Typ sich ändert, bricht der Build — kein Drift möglich.
-
----
-
-## mise Tasks
-
-```bash
-mise run test-bun   # bun test ./src/bun/
-mise run test-fe    # vitest run in src/views/main/
-mise run test       # beide nacheinander
-```
+`src/views/main/src/fixtures/*` (zentral re-exportiert als `fixtures`). Typisiert
+mit den Domain-Typen aus `src/shared/types.ts` via `satisfies` — ändert sich ein
+Typ, bricht der Build, kein Drift.

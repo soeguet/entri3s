@@ -130,6 +130,8 @@ export async function processNext(
 
 /** Pollt die event_queue alle 5s und verarbeitet alle pending Events sequentiell. */
 export function startWorker(repo: Repository, gl: GitLabClient, emit: AppEmitter): Timer {
+  // Reentrancy-Guard: solange ein Tick noch Events abarbeitet, überspringt der
+  // nächste Intervall-Tick — so wird die Queue nie parallel verarbeitet.
   let isProcessing = false;
 
   async function tick(): Promise<void> {

@@ -6,6 +6,10 @@
 
 // ── Entries ─────────────────────────────────────────────────────────────────
 
+// Lebenszyklus eines Entries. `booking_failed` = Buchung endgültig gescheitert
+// (alle Retries verbraucht); bewusst eigener Entry-Status, NICHT zu verwechseln
+// mit dem Event-Queue-Status `dead` (siehe AppEventStatus weiter unten), der nur
+// das Outbox-Event betrifft, nicht den Entry.
 export type EntryStatus =
   | "running"
   | "draft"

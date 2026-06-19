@@ -32,13 +32,8 @@ src/views/main/
         └── errors.ts
 ```
 
-## Datei-Größe
-
-250–300 LOC pro Datei. Hard limit ~350. Feature-Dateien aufteilen wenn nötig.
-
-## KISS über DRY
-
-Lieber JSX duplizieren als eine fragwürdige Abstraktion bauen.
+Datei-Größe und KISS-über-DRY gelten wie projektweit (CLAUDE.md); Feature-Dateien
+aufteilen statt eine fragwürdige Abstraktion zu bauen, lieber JSX duplizieren.
 
 ## Props: Nie Destructuren
 
@@ -108,19 +103,10 @@ Nie `.data` ohne vorherige `.error`-Prüfung nutzen.
 - Kein manuelles `useMemo`, `useCallback`, `React.memo` in neuem Code
 - Wenn du denkst du brauchst einen: lass den Compiler entscheiden
 
-## Linting / Formatting
+## Linting / doctor
 
-```bash
-mise run lint   # oxlint + oxfmt, beide müssen sauber sein
-```
-
-Nie `// eslint-disable` oder ähnliche Suppression-Kommentare.
-
-## react-doctor
-
-```bash
-mise run doctor   # vor jedem Commit
-```
+`mise run lint` (oxfmt+oxlint, beide sauber) und `mise run doctor` (react-doctor,
+vor jedem Commit). Nie `// eslint-disable` oder ähnliche Suppression-Kommentare.
 
 ## Layout
 
@@ -159,12 +145,7 @@ anlegen, dann verwenden — nicht inline hardcoden.
 
 ## Events (Bun → Frontend)
 
-```typescript
-// src/api/events.ts
-export function registerEvents(queryClient: QueryClient) {
-  // electroview message handlers sind in real.ts definiert
-  // und rufen diese Funktion auf
-}
-```
-
-Nie Event-Handler in Komponenten registrieren.
+Push-Events (Sync/Buchung fertig etc.) kommen als electroview **message handlers**,
+definiert ausschließlich im `defineRPC`-Block in `src/api/real.ts`. Sie
+invalidieren bzw. setzen die betroffenen Query-Keys (`queryClient`) und zeigen ggf.
+einen Toast. Nie Event-Handler in Komponenten registrieren.

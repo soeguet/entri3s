@@ -5,359 +5,168 @@ description: GitLab API Integration für entries — TypeScript mit fetch(). Ver
 
 # GitLab Integration – entries (TypeScript)
 
-## Kein SDK — natives fetch()
+Kein SDK, kein GitLab-npm-Paket: natives Bun `fetch()`. Lesen läuft über GraphQL
+(Sync) bzw. REST (Einzel-Issue), Schreiben (Buchungen) über GraphQL-Timelogs.
 
-GitLab hat eine REST API. Wir nutzen Bun's eingebautes `fetch()`.
-Kein extra npm-Paket für GitLab nötig.
+## Dateien
 
-## Client Struktur
+| Datei | Inhalt |
+| --- | --- |
+| `client.ts` | `createGitLabClient`, Rate-Limiter, `apiRequest`/`gqlRequest`, Fehler-Mapping, URL-Validierung |
+| `graphql.ts` | Sync-Lesepfad: `fetchProjects` + `fetchIssues` (Pagination, Mapping) |
+| `fetch.ts` | `fetchIssue` (Einzel-Issue, REST) |
+| `timelog.ts` | `createTimelog`/`findTimelog`/`deleteTimelog` (GraphQL-Mutationen) |
+| `format.ts` | `formatDuration`, `roundUpToQuarterHour` |
+| `types.ts` | `GitLabClient`-Interface, Domain-Typen, `FakeGitLabClient` (Test-Double) |
 
-```typescript
-// src/bun/gitlab/client.ts
-import type { Settings } from "../../shared/types";
+Das `GitLabClient`-Interface und `FakeGitLabClient` leben in `types.ts` — dort
+nachschlagen, nicht hier duplizieren. Typen kommen aus `types.ts`/`shared/types.ts`,
+nie separat definieren.
 
-export interface GitLabClient {
-  fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
-  fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
-  // Buchungen laufen über GitLab-Timelogs (GraphQL), NICHT über /spend-Kommentare:
-  createTimelog(
-    target: TimelogTarget, // { projectId, issueIid, issueGlobalId }
-    durationMinutes: number,
-    spentAt: string, // ISO-Date YYYY-MM-DD
-    summary: string, // landet im Summary-Feld der Zeiterfassung, kein Kommentar
-  ): Promise<number>; // Timelog-ID
-  findTimelog(
-    target: TimelogTarget,
-    durationMinutes: number,
-    spentAt: string,
-    summary: string,
-  ): Promise<number | null>; // Idempotenz: identischen Timelog finden
-  deleteTimelog(timelogId: number): Promise<void>; // Korrektur-Buchungen
-}
-
-// getSettings wird pro Request frisch ausgewertet → geänderte gitlabUrl wirkt
-// ohne App-Neustart. buildApiUrl validiert das http(s)-Schema (sonst AppError
-// NO_GITLAB_URL statt "fetch() URL is invalid").
-export function createGitLabClient(token: string, getSettings: () => Settings): GitLabClient {
-  const limiter = createRateLimiter(5); // 5 req/s
-
-  async function apiRequest(path: string, options?: RequestInit) {
-    await limiter.throttle();
-    const res = await fetch(buildApiUrl(getSettings().gitlabUrl, path), {
-      ...options,
-      headers: {
-        "PRIVATE-TOKEN": token,
-        "Content-Type": "application/json",
-        ...options?.headers,
-      },
-    });
-    if (!res.ok) throw toApiError(res.status, await res.text());
-    return res;
-  }
-
-  return { fetchIssues, fetchIssue, createTimelog, findTimelog, deleteTimelog };
-  // Implementierungen in fetch.ts (REST-Lesen) und timelog.ts (GraphQL-Buchen)
-}
-```
-
-## Rate Limiter
-
-```typescript
-// src/bun/gitlab/client.ts (intern)
-function createRateLimiter(reqPerSec: number) {
-  let tokens = reqPerSec;
-  let lastRefill = Date.now();
-
-  return {
-    async throttle() {
-      const now = Date.now();
-      const elapsed = (now - lastRefill) / 1000;
-      tokens = Math.min(reqPerSec, tokens + elapsed * reqPerSec);
-      lastRefill = now;
-      if (tokens < 1) {
-        await Bun.sleep(Math.ceil(1000 / reqPerSec));
-        tokens = 0;
-      } else {
-        tokens--;
-      }
-    },
-  };
-}
-```
-
-## Interface für Testbarkeit
-
-```typescript
-// src/bun/gitlab/types.ts
-export interface GitLabClient {
-  fetchIssues(since?: Date): Promise<GitLabIssue[]>; // projektübergreifend (globaler /issues-Endpoint)
-  fetchIssue(projectId: number, issueIid: number): Promise<GitLabIssue | null>;
-  // Buchungen laufen über GitLab-Timelogs (GraphQL), NICHT über /spend-Kommentare:
-  createTimelog(
-    target: TimelogTarget, // { projectId, issueIid, issueGlobalId }
-    durationMinutes: number,
-    spentAt: string, // ISO-Date YYYY-MM-DD
-    summary: string, // landet im Summary-Feld der Zeiterfassung, kein Kommentar
-  ): Promise<number>; // Timelog-ID
-  findTimelog(
-    target: TimelogTarget,
-    durationMinutes: number,
-    spentAt: string,
-    summary: string,
-  ): Promise<number | null>; // Idempotenz: identischen Timelog finden
-  deleteTimelog(timelogId: number): Promise<void>; // Korrektur-Buchungen
-}
-
-// Fake für Tests (gekürzt — siehe src/bun/gitlab/types.ts)
-export class FakeGitLabClient implements GitLabClient {
-  createCalls: Array<{ target: TimelogTarget; durationMinutes: number; spentAt: string; summary: string }> = [];
-  deleteCalls: number[] = [];
-  timelogs: Array<{ /* projectId, issueIid, durationMinutes, spentAt, summary, timelogId */ }> = [];
-  issuesToReturn: GitLabIssue[] = [];
-  nextTimelogId = 500;
-
-  async createTimelog(target, d, spentAt, summary) {
-    const timelogId = this.nextTimelogId++;
-    this.createCalls.push({ target, durationMinutes: d, spentAt, summary });
-    this.timelogs.push({ ...target, durationMinutes: d, spentAt, summary, timelogId });
-    return timelogId;
-  }
-  async findTimelog(target, d, spentAt, summary) {
-    /* identischen Timelog auf projectId+issueIid+dauer+datum+summary suchen */
-  }
-  async deleteTimelog(timelogId) {
-    this.deleteCalls.push(timelogId);
-    this.timelogs = this.timelogs.filter((t) => t.timelogId !== timelogId);
-  }
-}
-```
-
-## Projektübergreifend – Iteration über Mitglieds-Projekte
-
-Wir syncen projektübergreifend alle Issues, auf die der Token Zugriff hat. Die
-GitLab-**Root**-`issues`-GraphQL-Query taugt dafür NICHT: sie verlangt ein
-Pflicht-Filterargument (`"You must provide at least one filter argument for this
-query"`) und verbietet so einen unbegrenzten Sync. Stattdessen:
-
-1. `projects(membership: true)` → alle Projekte, in denen der User Mitglied ist
-   (Cursor-Pagination).
-2. Pro Projekt `project(fullPath:) { issues(...) }` — die **projektgebundene**
-   issues-Connection braucht KEIN Filterargument (das Projekt ist der Scope).
-
-Die Projekte werden nach und nach abgearbeitet, gedrosselt über den gemeinsamen
-Rate-Limiter (5 req/s) — passend zum Hintergrund-Sync (z. B. 1×/Tag + bei Bedarf),
-damit die API nicht überlastet wird. Jedes Issue trägt seine `project_id` (aus dem
-Projekt der Schleife injiziert) und seine globale `gitlab_global_id` (aus der
-GraphQL-GID), die für `timelogCreate` als `gid://gitlab/Issue/<id>` gebraucht wird.
-Es gibt KEINE Projekt-ID in den Settings.
-
-## Hybrid: Sync=GraphQL, Buchungen=GraphQL, Einzel-Issue=REST
-
-Der **Lese-Pfad (Sync)** und der **Schreib-Pfad (Buchungen via Timelogs)** laufen
-beide über **GraphQL**. Nur `fetchIssue` (Einzel-Issue) ist noch REST. Alle teilen
-sich denselben Rate-Limiter (5 req/s).
+## Transport-Übersicht
 
 | Pfad | Transport | Endpoint | Auth |
 | --- | --- | --- | --- |
-| Sync (`fetchIssues`) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
-| Buchen (`createTimelog`/`findTimelog`/`deleteTimelog`) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
-| `fetchIssue` | REST | `{base}/api/v4/...` | `PRIVATE-TOKEN: <token>` |
+| `fetchProjects`, `fetchIssues` (Sync) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
+| `createTimelog`/`findTimelog`/`deleteTimelog` (Buchen) | GraphQL | `POST {base}/api/graphql` | `Authorization: Bearer <token>` |
+| `fetchIssue` (Einzel-Issue) | REST | `{base}/api/v4/...` | `PRIVATE-TOKEN: <token>` |
 
-Hintergrund/Entscheidung: `.claude/specs/12-gitlab-graphql-evaluation.md`.
+- **Rate-Limiter 5 req/s, eine Instanz, SHARED** über REST und GraphQL (Token-Bucket
+  in `client.ts createRateLimiter`, vor jedem Call `await limiter.throttle()`).
+- `getSettings()` wird pro Request frisch ausgewertet → geänderte `gitlabUrl` wirkt
+  ohne App-Neustart. `validatedBase` erzwingt `http(s)`-Schema, sonst `AppError`
+  `NO_GITLAB_URL` (statt rohem "fetch URL is invalid").
+- GraphQL-Token braucht Scope **`read_api`**.
 
-## Sync – GraphQL mit Cursor-Pagination (Pflicht)
+## GraphQL-Fehler: HTTP 200 mit `errors[]` (Pflicht-Check)
 
-```typescript
-// src/bun/gitlab/graphql.ts — Schritt 1: Mitglieds-Projekte
-query($after: String) {
-  projects(membership: true, first: 100, after: $after) {
-    nodes { id fullPath }
+GraphQL liefert **HTTP 200 auch bei Fehlern** — der Fehler steckt im `errors`-Array
+des Bodys. `gqlRequest` muss nach dem JSON-Parsen prüfen: ist `body.errors` ein
+nicht-leeres Array → `AppError` Code `GITLAB_ERROR` (Message = gejointe Messages,
+`retry: false`). Non-ok HTTP-Status weiterhin über `toApiError` (siehe `client.ts`).
+
+## Sync – projektübergreifend, GraphQL, Pagination (Pflicht)
+
+Wir syncen alle Issues, auf die der Token Zugriff hat. Die GitLab-**Root**-`issues`-
+Query taugt dafür NICHT: sie verlangt ein Pflicht-Filterargument ("You must provide
+at least one filter argument for this query") und verbietet so einen unbegrenzten
+Sync. Stattdessen zweistufig:
+
+1. `projects(membership: true, first: 100, after:)` → alle Mitglieds-Projekte
+   (Cursor-Pagination).
+2. Pro Projekt `project(fullPath:) { issues(first: 100, after:, updatedAfter:) }` —
+   die **projektgebundene** issues-Connection braucht KEIN Filterargument.
+
+```graphql
+project(fullPath: $fullPath) {
+  issues(first: 100, after: $after, updatedAfter: $since) {
+    nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent }
     pageInfo { hasNextPage endCursor }
   }
 }
-
-// Schritt 2: Issues je Projekt (projektgebunden, KEIN Pflicht-Filter nötig)
-query($fullPath: ID!, $after: String, $since: Time) {
-  project(fullPath: $fullPath) {
-    issues(first: 100, after: $after, updatedAfter: $since) {
-      nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent }
-      pageInfo { hasNextPage endCursor }
-    }
-  }
-}
 ```
 
-- Schleife solange `pageInfo.hasNextPage`, jeweils `after: endCursor` mitgeben —
-  sowohl für die Projektliste als auch für die Issues je Projekt.
-- **Kein `state`-Filter** — wir brauchen auch geschlossene Issues für die
-  Orphan-Erkennung.
-- `Issue.project { id }` existiert je nach GitLab-Version NICHT — deshalb die
-  `project_id` aus dem Projekt der Schleife injizieren (nicht aus dem Issue-Knoten).
+Regeln (siehe `graphql.ts`):
+
+- **Pagination ist Pflicht** — Schleife solange `pageInfo.hasNextPage`, jeweils
+  `after: endCursor`. Gilt für Projektliste UND Issues je Projekt. Nie einen
+  List-Endpoint ohne Pagination aufrufen → sonst stille Datenverluste.
+- **Kein `state`-Filter** — der Sync braucht auch geschlossene Issues für die
+  Orphan-Erkennung (sonst entstehen Orphans falsch).
+- **`project_id` aus der Schleife injizieren**, nicht aus dem Issue-Knoten:
+  `Issue.project { id }` existiert je nach GitLab-Version nicht.
 - `data.project` kann `null` sein (Projekt nicht erreichbar) → überspringen.
-- Mapping GraphQL → `GitLabIssue`: `iid` ist ein String → `Number(...)`;
-  `id` (Issue-GID) → `parseGid`; `state` ist bereits lowercase
-  (opened/closed/locked); `timeEstimate`/`totalTimeSpent` → `time_stats` (null → 0).
+- Mapping → `GitLabIssue`: `iid` ist String → `Number()`; `id` (GID) → `parseGid`
+  (trailing Integer); `state` ist bereits lowercase (opened/closed/locked);
+  `timeEstimate`/`totalTimeSpent` → `time_stats` (null → 0). Die GID-Zahl wird als
+  `globalId` gespeichert — gebraucht für `timelogCreate`.
 - `since` → GraphQL-Variable `updatedAfter` als ISO-String.
 
-Nie einen List-Endpoint ohne Pagination aufrufen. Stille Datenverluste sonst.
+### Inkrementeller Sync & Orphans
 
-### GraphQL-Fehler (HTTP 200 mit `errors[]`)
-
-GraphQL liefert **HTTP 200 auch bei Fehlern** — der Fehler steckt im
-`errors`-Array des Bodys. Nach dem JSON-Parsen: ist `body.errors` ein nicht-leeres
-Array → `AppError` mit Code `GITLAB_ERROR` (Message = zusammengeführte
-Fehlermeldungen, `retry: false`). Non-ok HTTP-Status weiterhin über `toApiError`.
-Diese Logik liegt in `client.ts` `gqlRequest`. GraphQL braucht Token-Scope
-`read_api`.
-
-## Inkrementeller Sync
-
-- `last_synced_at` aus `schedules` Table lesen
-- `updated_after` Parameter bei allen List-Calls setzen
-- Beim ersten Run: `since = 90 Tage zurück`, nicht alles
-
-## Orphan Detection
-
-```typescript
-// src/bun/service/sync.ts
-export async function syncIssues(repo: Repository, gl: GitLabClient) {
-  const schedule = repo.schedules.get("gitlab_sync");
-  const since = schedule.lastRun ? new Date(schedule.lastRun) : ninetyDaysAgo();
-
-  const issues = await gl.fetchIssues(since); // projektübergreifend
-
-  for (const issue of issues) {
-    repo.tickets.upsert(issue); // projectId kommt aus issue.project_id
-    if (issue.state === "closed" || issue.state === "locked") {
-      repo.tickets.markOrphaned(issue.iid, issue.project_id);
-    }
-  }
-
-  repo.schedules.updateLastRun("gitlab_sync");
-}
-```
-
-## Zeit-Format für Buchungen
-
-```typescript
-// src/bun/gitlab/format.ts
-export function formatDuration(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  if (m === 0) return `${h}h`;
-  return `${h}h ${m}m`;
-}
-// 90 min → "1h 30m", 60 min → "1h", 30 min → "0h 30m"
-
-// Gebucht wird IMMER auf die nächste volle Viertelstunde aufgerundet
-// (service/booking.ts, beim Bauen des Payloads — der Entry behält seine echte Dauer):
-export function roundUpToQuarterHour(minutes: number): number {
-  return Math.ceil(minutes / 15) * 15; // 1 → 15, 16 → 30, 90 → 90
-}
-```
-
-## Buchungsdatum: immer 12:00 UTC
-
-`spentAt` wird als Kalendertag `YYYY-MM-DD` durchgereicht (aus dem Berliner Tag des
-Entries, `service/booking.ts`). Beim Senden an `timelogCreate` hängt
-`timelog.ts` jedoch `T12:00:00Z` an (`toNoonUtc`): GitLab interpretiert ein reines
-Datum als **Mitternacht** und verschob die Buchung über die Zeitzonen-Umrechnung
-sonst auf den **Vortag** (z. B. `2026-06-15` → `2026-06-14 22:00 UTC`). Mittags-UTC
-liegt in jeder relevanten Zeitzone sicher auf demselben Tag. Der `findTimelog`-
-Idempotenz-Lookup nutzt weiter den reinen Tag als `startTime`/`endTime`-Fenster.
+`syncIssues` (`service/sync.ts`) liest `lastRun` aus `schedules` (`gitlab_sync`);
+fehlt er, ist `since = ninetyDaysAgo()` (nicht alles). Ablauf: erst
+`gl.fetchProjects()` → `repo.projects.upsert` (Frontend leitet daraus den
+Gruppenbaum ab), dann `gl.fetchIssues(since)` → pro Issue `tickets.upsert`; bei
+`closed`/`locked` → `markOrphaned`, sonst → `markActive` (wieder geöffnete Tickets
+reaktivieren). Am Ende `schedules.updateLastRun`. `checkOrphans` macht den
+Vollabgleich gegen die aktuell offen gemeldeten Issues.
 
 ## Buchung via Timelog (GraphQL `timelogCreate`)
 
-Wir buchen über **GitLab-Timelogs** (GraphQL `timelogCreate`), **nicht** über die
-Notes-/`/spend`-Quick-Action und **nicht** über `add_spent_time` (REST).
+Wir buchen über **GitLab-Timelogs** (`timelogCreate`), **nicht** über `/spend`
+(Quick-Action) und **nicht** über `add_spent_time` (REST).
 
-**Warum kein `/spend`-Kommentar:** `/spend` legt eine sichtbare Notiz/Kommentar am
-Issue an. Das ist unerwünscht — der Buchungstext gehört in die **Zeiterfassung**
-("Add time entry → Summary"), nicht in die Kommentarspalte. `timelogCreate`
-schreibt genau dorthin und erzeugt KEINEN Kommentar und keine Notification.
+**Warum kein `/spend`:** `/spend` erzeugt eine sichtbare Notiz/Kommentar am Issue.
+Der Buchungstext gehört aber in die Zeiterfassung ("Add time entry → Summary"),
+nicht in die Kommentarspalte. `timelogCreate` schreibt genau dorthin — KEIN
+Kommentar, keine Notification. (Hintergrund als Kommentar in `timelog.ts`.)
 
 ```graphql
-mutation {
-  timelogCreate(input: {
-    issuableId: "gid://gitlab/Issue/<globalId>",
-    timeSpent: "1h 30m",
-    spentAt: "2024-06-17T12:00:00Z",  # Kalendertag auf 12:00 UTC (siehe oben)
-    summary: "<Entry-Text>"  # max. 255 Zeichen → summary.slice(0, 255)
-  }) { timelog { id } errors }
+mutation($issuableId: IssuableID!, $timeSpent: String!, $spentAt: Time, $summary: String!) {
+  timelogCreate(input: { issuableId: $issuableId, timeSpent: $timeSpent, spentAt: $spentAt, summary: $summary }) {
+    timelog { id }
+    errors
+  }
 }
 ```
 
-- `issuableId` braucht die **globale** Issue-ID (`gid://gitlab/Issue/<globalId>`).
-  Die `globalId` wird beim Sync aus der GraphQL-GID gezogen und auf dem Ticket
-  gespeichert (`tickets.gitlab_global_id`).
-- Response liefert die Timelog-GID (`gid://gitlab/Timelog/<id>`). Wir speichern die
-  Zahl als `bookings.gitlab_timelog_id` — Rückreferenz **und** Handle für `deleteTimelog`.
+- `issuableId` braucht die **globale** Issue-ID als `gid://gitlab/Issue/<globalId>`
+  (beim Sync aus der GID gezogen, auf dem Ticket als `gitlab_global_id` gespeichert).
+- Response liefert die Timelog-GID; wir speichern die Zahl als
+  `bookings.gitlab_timelog_id` — Rückreferenz UND Handle für `deleteTimelog`.
+- `summary` wird bei 255 Zeichen gekappt (`MAX_SUMMARY_LENGTH`, `truncate`).
+- `timelogCreate.errors` zusätzlich prüfen (feldspezifisch), nicht nur Top-Level.
 
-### Korrektur-Buchungen: löschen + neu buchen
+### Buchungsdatum: immer 12:00 UTC (`toNoonUtc`)
 
-Eine Buchung kann storniert werden (`deleteBooking` → Event `booking_delete`):
-`deleteTimelog` (`timelogDelete`) entfernt den Timelog in GitLab, der lokale
-`bookings`-Record wird gelöscht und der Entry geht zurück auf `draft` → korrigiert
-neu buchbar. (Nur der Autor des Timelogs / Maintainer darf löschen.)
+`spentAt` kommt als Kalendertag `YYYY-MM-DD` (Berliner Tag des Entries). Vor dem
+Senden hängt `timelog.ts toNoonUtc` `T12:00:00Z` an: GitLab interpretiert ein
+reines Datum als **Mitternacht** und verschob die Buchung über die Zeitzonen-
+Umrechnung sonst auf den **Vortag** (z. B. `2026-06-15` → `2026-06-14 22:00 UTC`).
+Mittags-UTC liegt in jeder relevanten Zeitzone sicher auf demselben Tag. Der
+`findTimelog`-Lookup nutzt weiter den reinen Tag als `startTime`/`endTime`-Fenster.
 
-### Doppelbuchungs-Schutz (Pflicht)
+### Aufrunden auf 15-Minuten-Raster
+
+`roundUpToQuarterHour` (`format.ts`) rundet die zu buchende Dauer IMMER auf die
+nächste volle Viertelstunde auf (1→15, 16→30, 90→90). Der Entry behält seine echte
+Dauer; nur der Buchungs-Payload wird aufgerundet. `formatDuration` macht daraus das
+GitLab-Format (90 → "1h 30m", 60 → "1h", 0 → "0h").
+
+### Doppelbuchungs-Schutz (Pflicht, best-effort)
 
 `timelogCreate` ist **nicht idempotent** — ein Retry nach erfolgreichem API-Call
-bucht die Zeit doppelt (Arbeitszeitbetrug). Schutz:
+bucht doppelt (Arbeitszeitbetrug). Schutz: **vor** jedem `createTimelog`
+`gl.findTimelog(...)` aufrufen — Query `timelogs(projectId:, startTime:, endTime:)`
+über das Tagesfenster, Match auf Issue-`iid` + Dauer (Sekunden) + Summary. Treffer →
+nicht erneut buchen, nur lokalen Record rekonziliieren. **Best-effort:** scheitert
+die Query, wird trotzdem gebucht (eine Doppelbuchung lässt sich per `deleteBooking`
+korrigieren). Zusätzlich DB-seitig idempotent über
+`UNIQUE(gitlab_timelog_id, project_id)`.
 
-- `handleBooking()` ruft **vor** jedem `createTimelog` `gl.findTimelog(...)` auf:
-  Query `timelogs(projectId:, startTime:, endTime:)` und Match auf Issue-iid +
-  Dauer + Summary. Existiert ein identischer Timelog → **nicht** erneut buchen,
-  nur den lokalen Record rekonziliieren. (Best-effort: scheitert die Query, wird
-  trotzdem gebucht — eine etwaige Doppelbuchung lässt sich per `deleteBooking`
-  korrigieren.)
-- DB-Insert zusätzlich idempotent: `getByTimelogId()` + `UNIQUE(gitlab_timelog_id,
-  project_id)`.
+### Korrektur-Buchungen: löschen + neu
 
-## Fehler-Mapping
-
-```typescript
-// src/bun/gitlab/client.ts
-function toApiError(status: number, body: string): AppError {
-  const codes: Record<number, string> = {
-    401: "AUTH_FAILED",
-    403: "AUTH_FAILED",
-    404: "NOT_FOUND",
-    429: "RATE_LIMITED",
-  };
-  return {
-    code: codes[status] ?? "GITLAB_ERROR",
-    message: body,
-    retry: status === 429 || status >= 500,
-  };
-}
-```
+Stornieren läuft über ein eigenes `booking_delete`-Event: `deleteTimelog`
+(`timelogDelete`) entfernt den Timelog, der lokale `bookings`-Record wird gelöscht,
+der Entry geht zurück auf `draft`. Einen bereits extern gelöschten Timelog meldet
+GitLab als **Top-Level**-GraphQL-Error (Exception aus `gqlRequest`), nicht im
+`timelogDelete.errors`-Feld — `deleteTimelog` toleriert BEIDE Pfade über
+`isAlreadyGone`, sonst bliebe der Record hängen / liefe ins Dead-Letter.
 
 ## Buchung via Event Queue
 
-Buchungen gehen NIE direkt von service/ zu gitlab/.
-Service schreibt in `event_queue`, Worker verarbeitet.
+Buchungen gehen NIE direkt von `service/` zu `gitlab/`. Service schreibt in
+`event_queue`, der Worker verarbeitet. `bookEntry` (`service/booking.ts`) enqueued
+ein `booking`-Event mit `issueGlobalId`, `projectId`, `ticketIid`, `durationMinutes`
+und `spentAt` (Berliner Tag via `formatInTimeZone(..., "Europe/Berlin", "yyyy-MM-dd")`);
+ist `gitlabGlobalId === null`, erst neu syncen (`AppError NEEDS_SYNC`). Entry geht auf
+`pending_booking`. Nach erfolgreichem `gl.createTimelog()` schreibt der Worker den
+`bookings`-Record mit der zurückgegebenen `gitlab_timelog_id`.
 
-```typescript
-// service/booking.ts
-export function bookEntry(repo: Repository, entryId: number) {
-  const entry = repo.entries.getById(entryId);
-  const ticket = repo.tickets.getForEntry(entryId);
-  // gitlabGlobalId === null → Ticket muss erst neu gesynct werden (AppError NEEDS_SYNC).
-  repo.eventQueue.enqueue("booking", {
-    entryId,
-    ticketId: ticket.id, // lokal, für bookings-Tabelle
-    projectId: ticket.projectId,
-    ticketIid: ticket.gitlabIid,
-    issueGlobalId: ticket.gitlabGlobalId, // für die GraphQL-GID
-    durationMinutes: entry.durationMinutes,
-    spentAt: formatInTimeZone(entry.date, "Europe/Berlin", "yyyy-MM-dd"), // Berliner Tag
-    note: entry.notes?.trim() ?? "",
-  });
-  repo.entries.updateStatus(entryId, "pending_booking");
-}
-```
+## Fehler-Codes (`toApiError`, `client.ts`)
 
-Nach erfolgreichem `gl.createTimelog()` schreibt der Worker einen `bookings`-Record
-mit der zurückgegebenen `gitlab_timelog_id` (Rückverfolgbarkeit pro Buchung). Das
-Stornieren läuft über ein eigenes `booking_delete`-Event (siehe oben).
+401/403 → `AUTH_FAILED`, 404 → `NOT_FOUND`, 429 → `RATE_LIMITED`, sonst
+`GITLAB_ERROR`. `retry: true` bei 429 und ≥500. Netzwerkfehler (DNS/TLS/Timeout) →
+`NETWORK_ERROR` (`retry: true`) statt roher "fetch failed"-Exception. Über RPC immer
+`AppError`, nie rohe Exceptions.

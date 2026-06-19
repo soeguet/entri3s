@@ -37,12 +37,13 @@ mise run lint            # oxlint + oxfmt
 
 ## Orientierung
 
-| Was                          | Wo                  |
-| ---------------------------- | ------------------- |
-| Architektur & Entscheidungen | `.claude/README.md` |
-| Gesamtplan & Phasenstatus    | `.claude/PLAN.md`   |
-| Detailspecs pro Phase        | `.claude/specs/`    |
-| Coding-Konventionen          | `.claude/skills/`   |
+| Was                 | Wo                                      |
+| ------------------- | --------------------------------------- |
+| Coding-Konventionen | `.claude/skills/`                       |
+| Warum etwas so ist  | Kommentar an der jeweiligen Code-Stelle |
+
+Es gibt bewusst **keine** Spec-/Plan-/Audit-Dateien mehr. Der Code ist die
+einzige Quelle der Wahrheit.
 
 ## Projektstruktur
 
@@ -64,7 +65,17 @@ src/
 - **SQLite:** UTC speichern, `Europe/Berlin` nur im Frontend
 - **Fehler:** immer `AppError` in Response, nie rohe Exceptions über RPC
 
-## Aktueller Arbeitsstand
+## Dokumentations-Policy (verbindlich)
 
-Lies `.claude/PLAN.md` → dort steht welche Phase aktiv ist.
-Lies dann die entsprechende Spec in `.claude/specs/`.
+Wir führen **keine** separate Doku mehr — keine Spec-, Plan-, README- oder
+Audit-Markdown-Dateien. Der Code ist die einzige Quelle der Wahrheit.
+
+- **Normalfall:** gar nicht dokumentieren. Lesbarer Code und sprechende Namen
+  genügen.
+- **Ausnahme:** Nur **nicht-normale** Entscheidungen festhalten — bewusste
+  Abweichungen, Workarounds, entfernte Prüfungen, überraschende Trade-offs.
+  Und zwar **direkt als Kommentar an der betroffenen Code-Stelle**, niemals in
+  einer separaten Datei. Knapp: *was* weicht ab und *warum*.
+- Soll so eine kommentierte Stelle später grundlegend geändert werden, den User
+  darauf aufmerksam machen und ggf. nachfragen, warum es ursprünglich so
+  umgesetzt wurde — bevor man sie umbaut.
