@@ -35,7 +35,10 @@ export const commentFixtures: TicketComment[] = [
     authorUsername: "reviewer",
     authorName: "Review Person",
     body: "Sieht gut aus, bitte noch Tests ergänzen.",
-    bodyHtml: "<p>Sieht gut aus, bitte noch Tests ergänzen.</p>",
+    // Inline-Bild mit /uploads/-URL → GitlabContent lädt es über den Backend-Proxy
+    // (im Mock kommt der graue SVG-Placeholder zurück).
+    bodyHtml:
+      '<p>Sieht gut aus, bitte noch Tests ergänzen.</p><p><img src="/uploads/abc123/screenshot.png" alt="Screenshot"></p>',
     isSystem: false,
     createdAt: "2024-01-15T10:30:00.000Z",
     updatedAt: "2024-01-15T10:30:00.000Z",

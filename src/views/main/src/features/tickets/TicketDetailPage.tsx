@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams } from "@tanstack/react-router";
-import { RefreshCw } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import {
   getTicket,
   getTicketComments,
@@ -12,11 +12,12 @@ import {
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
-import { Button } from "../../components/ui/button";
 import { ErrorNote } from "../../components/ErrorNote";
-import { PinButton } from "./PinButton";
 import { CommentThread } from "./CommentThread";
+import { GitlabContent } from "./GitlabContent";
 import { TicketMeta } from "./TicketMeta";
+import { TicketDetailHeader } from "./TicketDetailHeader";
+import { TicketDetailToolbar } from "./TicketDetailToolbar";
 
 export function TicketDetailPage() {
   const params = useParams({ from: "/tickets/$ticketId" });
@@ -76,9 +77,7 @@ export function TicketDetailPage() {
   if (ticket.isError || ticket.data == null) {
     return (
       <div>
-        <Link to="/tickets" className="text-sm text-info-accent hover:underline">
-          ← Zurück zu Tickets
-        </Link>
+        <BackLink />
         <ErrorNote error={ticket.error ?? "Ticket nicht gefunden."} className="mt-3" />
       </div>
     );
@@ -88,64 +87,69 @@ export function TicketDetailPage() {
 
   return (
     <div>
-      <Link to="/tickets" className="text-sm text-info-accent hover:underline">
-        ← Zurück zu Tickets
-      </Link>
+      <BackLink />
 
-      <div className="mt-3 mb-6 flex items-start justify-between gap-4">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2">
-            <span className="font-mono text-muted-foreground">#{t.gitlabIid}</span>
-            <h1 className="text-2xl font-bold tracking-tight">{t.title}</h1>
-          </div>
-          {t.webUrl ? (
-            <div className="mt-2">
-              <a
-                href={t.webUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-sm text-info-accent hover:underline"
-              >
-                In GitLab öffnen
-              </a>
-            </div>
-          ) : null}
-        </div>
-        <PinButton
-          pinned={t.pinned}
-          disabled={pin.isPending}
-          onToggle={() => pin.mutate({ pinned: t.pinned })}
+      <div className="mt-3 space-y-4">
+        <TicketDetailHeader
+          ticket={t}
+          pinPending={pin.isPending}
+          onTogglePin={() => pin.mutate({ pinned: t.pinned })}
+        />
+        <TicketDetailToolbar
+          webUrl={t.webUrl}
+          markReadPending={markRead.isPending}
+          syncPending={manualSync.isPending}
+          onMarkRead={() => markRead.mutate()}
+          onSync={() => manualSync.mutate()}
         />
       </div>
 
-      <div className="mb-6 flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={markRead.isPending}
-          onClick={() => markRead.mutate()}
-        >
-          Als gelesen markieren
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={manualSync.isPending}
-          onClick={() => manualSync.mutate()}
-        >
-          <RefreshCw className={"h-4 w-4 " + (manualSync.isPending ? "animate-spin" : "")} />
-          Kommentare aktualisieren
-        </Button>
+      {markRead.isError ? <ErrorNote error={markRead.error} className="mt-4" /> : null}
+      {manualSync.isError ? <ErrorNote error={manualSync.error} className="mt-4" /> : null}
+      {pin.isError ? <ErrorNote error={pin.error} className="mt-4" /> : null}
+      {comments.isError ? <ErrorNote error={comments.error} className="mt-4" /> : null}
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_18rem]">
+        <div className="min-w-0 space-y-8">
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Beschreibung
+            </h2>
+            {t.descriptionHtml ? (
+              <GitlabContent html={t.descriptionHtml} />
+            ) : (
+              <p className="text-sm text-muted-foreground">Keine Beschreibung.</p>
+            )}
+          </section>
+
+          <section>
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Kommentare
+            </h2>
+            {comments.isLoading ? (
+              <p className="text-sm text-muted-foreground">Lädt…</p>
+            ) : (
+              <CommentThread comments={comments.data ?? []} lastViewedAt={t.lastViewedAt} />
+            )}
+          </section>
+        </div>
+
+        <aside className="lg:sticky lg:top-4 lg:self-start">
+          <TicketMeta ticket={t} />
+        </aside>
       </div>
-
-      <TicketMeta ticket={t} />
-
-      {markRead.isError ? <ErrorNote error={markRead.error} className="mb-3" /> : null}
-      {manualSync.isError ? <ErrorNote error={manualSync.error} className="mb-3" /> : null}
-      {pin.isError ? <ErrorNote error={pin.error} className="mb-3" /> : null}
-      {comments.isError ? <ErrorNote error={comments.error} className="mb-3" /> : null}
-
-      <CommentThread comments={comments.data ?? []} lastViewedAt={t.lastViewedAt} />
     </div>
+  );
+}
+
+function BackLink() {
+  return (
+    <Link
+      to="/tickets"
+      className="inline-flex items-center gap-1 text-sm text-info-accent hover:underline"
+    >
+      <ArrowLeft className="h-4 w-4" />
+      Zurück zu Tickets
+    </Link>
   );
 }
