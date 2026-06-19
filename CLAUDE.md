@@ -24,6 +24,11 @@ Arbeitsweise.
 - **Der Supervisor haftet** für die Arbeit aller Subagents. Was er abnimmt,
   verantwortet er — im Zweifel lieber eine weitere Iteration als eine schwache
   Abnahme.
+- **Konzeptarbeit:** Bei größeren Features zuerst Konzept erarbeiten, dann von
+  2 kritischen Review-Subagents (UX/Frontend + Backend/Architektur) prüfen lassen,
+  Feedback synthetisieren, und erst dann implementieren. Implementierung wieder
+  über Subagents (z.B. Backend + Frontend parallel), Abnahme durch den Supervisor
+  mit `mise run check` (lint + tests) und manuellem Diff-Review.
 
 ## Schnellstart
 
