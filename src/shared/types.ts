@@ -76,6 +76,7 @@ export interface Ticket {
   timeSpent: number | null; // Sekunden
   webUrl: string | null;
   assignees: TicketAssignee[];
+  pinned: boolean;
   syncedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -88,6 +89,8 @@ export interface TicketFilter {
   // User-ID hält der Filter NICHT — sie kommt im Repository als zweiter Parameter
   // vom Service (Single Source: settings.getCurrentUser).
   assignedToMe?: boolean;
+  // Lokaler Pin-Status (nicht aus GitLab gesynct) — nur gepinnte Tickets.
+  pinned?: boolean;
 }
 
 // ── Projects (aus GitLab gesynct; fullPath kodiert die Gruppenhierarchie) ──────
@@ -202,6 +205,9 @@ export interface AppRPCType {
       deleteEntry: { params: { id: number }; response: RpcResponse<void> };
       getTickets: { params: TicketFilter; response: RpcResponse<Ticket[]> };
       getRecentTickets: { params: { limit: number }; response: RpcResponse<Ticket[]> };
+      pinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
+      unpinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
+      getPinnedTickets: { params: Record<string, never>; response: RpcResponse<Ticket[]> };
       getProjects: { params: Record<string, never>; response: RpcResponse<Project[]> };
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       removeTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };

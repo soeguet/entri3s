@@ -22,6 +22,9 @@ export const assignTicket = vi.fn(voidResp);
 export const removeTicket = vi.fn(voidResp);
 export const getTickets = vi.fn(() => okResp(fixtures.tickets));
 export const getRecentTickets = vi.fn(() => okResp(fixtures.tickets));
+export const pinTicket = vi.fn(voidResp);
+export const unpinTicket = vi.fn(voidResp);
+export const getPinnedTickets = vi.fn(() => okResp([]));
 export const getProjects = vi.fn(() => okResp(fixtures.projects));
 export const getCurrentUser = vi.fn(() =>
   okResp({ id: 1, username: "mockuser", name: "Mock User" }),

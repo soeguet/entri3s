@@ -41,7 +41,7 @@ export interface TicketUpsert {
   webUrl: string | null;
 }
 
-function toTicket(row: TicketRow, assignees: TicketAssignee[]): Ticket {
+function toTicket(row: TicketRow, assignees: TicketAssignee[], pinned: boolean): Ticket {
   return {
     id: row.id,
     gitlabIid: row.gitlab_iid,
@@ -54,6 +54,7 @@ function toTicket(row: TicketRow, assignees: TicketAssignee[]): Ticket {
     timeSpent: row.time_spent,
     webUrl: row.web_url,
     assignees,
+    pinned,
     syncedAt: row.synced_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -84,14 +85,33 @@ export function createTicketRepository(db: Database) {
     return grouped;
   }
 
+  /**
+   * Lädt die gepinnten ticket_ids für mehrere Tickets GEBÜNDELT (eine Query) —
+   * analog zu loadAssignees, kein N+1 über die Ergebnisliste.
+   */
+  function loadPinned(ticketIds: number[]): Set<number> {
+    const pinned = new Set<number>();
+    if (ticketIds.length === 0) return pinned;
+    const placeholders = ticketIds.map(() => "?").join(", ");
+    const rows = db
+      .query<{ ticket_id: number }, number[]>(
+        `SELECT ticket_id FROM ticket_pins WHERE ticket_id IN (${placeholders})`,
+      )
+      .all(...ticketIds);
+    for (const r of rows) pinned.add(r.ticket_id);
+    return pinned;
+  }
+
   function mapRows(rows: TicketRow[]): Ticket[] {
     const byTicket = loadAssignees(rows.map((r) => r.id));
-    return rows.map((row) => toTicket(row, byTicket.get(row.id) ?? []));
+    const pinned = loadPinned(rows.map((r) => r.id));
+    return rows.map((row) => toTicket(row, byTicket.get(row.id) ?? [], pinned.has(row.id)));
   }
 
   function mapRow(row: TicketRow | null): Ticket | null {
     if (!row) return null;
-    return toTicket(row, loadAssignees([row.id]).get(row.id) ?? []);
+    const pinned = loadPinned([row.id]);
+    return toTicket(row, loadAssignees([row.id]).get(row.id) ?? [], pinned.has(row.id));
   }
 
   return {
@@ -141,6 +161,9 @@ export function createTicketRepository(db: Database) {
           "EXISTS (SELECT 1 FROM ticket_assignees ta WHERE ta.ticket_id = tickets.id AND ta.gitlab_user_id = ?)",
         );
         params.push(currentUserId);
+      }
+      if (filter.pinned) {
+        where.push("EXISTS (SELECT 1 FROM ticket_pins tp WHERE tp.ticket_id = tickets.id)");
       }
       const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
       const rows = db
@@ -237,6 +260,25 @@ export function createTicketRepository(db: Database) {
         new Date().toISOString(),
         id,
       ]);
+    },
+
+    pin(ticketId: number): void {
+      db.run("INSERT OR IGNORE INTO ticket_pins (ticket_id) VALUES (?)", [ticketId]);
+    },
+
+    unpin(ticketId: number): void {
+      db.run("DELETE FROM ticket_pins WHERE ticket_id = ?", [ticketId]);
+    },
+
+    /** Aktive gepinnte Tickets, jüngst gepinnte zuerst. */
+    listPinned(): Ticket[] {
+      const rows = db
+        .query<TicketRow, []>(
+          `SELECT t.* FROM tickets t JOIN ticket_pins p ON p.ticket_id = t.id
+           WHERE t.status = 'active' ORDER BY p.pinned_at DESC`,
+        )
+        .all();
+      return mapRows(rows);
     },
   };
 }

@@ -118,3 +118,46 @@ test("list ignores assignedToMe when no currentUserId is given", () => {
   // Ohne userId greift der Filter nicht → alle Tickets.
   expect(repo.tickets.list({ assignedToMe: true })).toHaveLength(2);
 });
+
+test("pin and unpin toggle the pinned flag (idempotent)", () => {
+  const id = upsert(1);
+  expect(repo.tickets.getById(id)?.pinned).toBe(false);
+
+  repo.tickets.pin(id);
+  expect(repo.tickets.getById(id)?.pinned).toBe(true);
+
+  // pin ist idempotent — zweiter Aufruf wirft nicht und bleibt gepinnt.
+  expect(() => repo.tickets.pin(id)).not.toThrow();
+  expect(repo.tickets.getById(id)?.pinned).toBe(true);
+
+  repo.tickets.unpin(id);
+  expect(repo.tickets.getById(id)?.pinned).toBe(false);
+});
+
+test("listPinned returns only pinned active tickets, newest pin first", () => {
+  const a = upsert(1);
+  const b = upsert(2);
+  repo.tickets.pin(a);
+  repo.tickets.pin(b);
+  // pinned_at hat 1s-Auflösung (CURRENT_TIMESTAMP) → für deterministische
+  // Reihenfolge das pinned_at direkt setzen.
+  db.run("UPDATE ticket_pins SET pinned_at = ? WHERE ticket_id = ?", ["2024-01-10 08:00:00", a]);
+  db.run("UPDATE ticket_pins SET pinned_at = ? WHERE ticket_id = ?", ["2024-01-20 08:00:00", b]);
+
+  // b wurde später gepinnt → zuerst.
+  expect(repo.tickets.listPinned().map((t) => t.id)).toEqual([b, a]);
+
+  // Orphaned Tickets sind ausgeschlossen, auch wenn gepinnt.
+  const c = upsert(3);
+  repo.tickets.setStatus(c, "orphaned");
+  repo.tickets.pin(c);
+  expect(repo.tickets.listPinned().map((t) => t.id)).not.toContain(c);
+});
+
+test("list with pinned filter returns only pinned tickets", () => {
+  const a = upsert(1);
+  upsert(2);
+  repo.tickets.pin(a);
+
+  expect(repo.tickets.list({ pinned: true }).map((t) => t.id)).toEqual([a]);
+});

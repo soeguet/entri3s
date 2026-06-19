@@ -17,6 +17,7 @@ export const keys = {
   tickets: (filter?: TicketFilter) =>
     (filter === undefined ? ["tickets"] : ["tickets", filter]) as readonly unknown[],
   recentTickets: () => ["recentTickets"] as const,
+  pinnedTickets: () => ["pinnedTickets"] as const,
   projects: () => ["projects"] as const,
   currentUser: () => ["currentUser"] as const,
   tags: () => ["tags"] as const,

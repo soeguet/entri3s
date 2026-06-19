@@ -15,6 +15,8 @@ export const ticketFixtures: Ticket[] = [
     // Dem Mock-Current-User (id 1, mockuser) zugewiesen → "Mir zugewiesen"-Filter
     // wird im Dev-Modus sichtbar.
     assignees: [{ gitlabUserId: 1, username: "mockuser", name: "Mock User" }],
+    // Vorgepinnt im Dev-Modus, damit die „Gepinnt"-Sektion/Filter sichtbar ist.
+    pinned: true,
     syncedAt: "2024-01-15T08:00:00.000Z",
     createdAt: "2024-01-10T08:00:00.000Z",
     updatedAt: "2024-01-15T08:00:00.000Z",
@@ -31,6 +33,7 @@ export const ticketFixtures: Ticket[] = [
     timeSpent: 0,
     webUrl: "https://gitlab.example.com/group/proj/-/issues/102",
     assignees: [{ gitlabUserId: 2, username: "kollegin", name: "Kim Kollegin" }],
+    pinned: false,
     syncedAt: "2024-01-15T08:00:00.000Z",
     createdAt: "2024-01-12T08:00:00.000Z",
     updatedAt: "2024-01-15T08:00:00.000Z",
@@ -47,6 +50,7 @@ export const ticketFixtures: Ticket[] = [
     timeSpent: 1800,
     webUrl: "https://gitlab.example.com/group/proj/-/issues/99",
     assignees: [],
+    pinned: false,
     syncedAt: "2024-01-15T08:00:00.000Z",
     createdAt: "2024-01-02T08:00:00.000Z",
     updatedAt: "2024-01-15T08:00:00.000Z",
@@ -65,6 +69,7 @@ export const ticketFixtures: Ticket[] = [
     timeSpent: 0,
     webUrl: "https://gitlab.example.com/acme/backend/worker/-/issues/1",
     assignees: [{ gitlabUserId: 3, username: "dev3", name: "Dana Drei" }],
+    pinned: false,
     syncedAt: "2024-01-15T08:00:00.000Z",
     createdAt: "2024-01-11T08:00:00.000Z",
     updatedAt: "2024-01-15T08:00:00.000Z",
@@ -82,6 +87,7 @@ export const ticketFixtures: Ticket[] = [
     webUrl: "https://gitlab.example.com/acme/frontend/web-app/-/issues/1",
     // Zweites dem Mock-Current-User zugewiesenes Ticket (anderes Projekt).
     assignees: [{ gitlabUserId: 1, username: "mockuser", name: "Mock User" }],
+    pinned: true,
     syncedAt: "2024-01-15T08:00:00.000Z",
     createdAt: "2024-01-13T08:00:00.000Z",
     updatedAt: "2024-01-15T08:00:00.000Z",
@@ -98,6 +104,7 @@ export const ticketFixtures: Ticket[] = [
     timeSpent: 0,
     webUrl: "https://gitlab.example.com/acme/frontend/web-app/-/issues/2",
     assignees: [],
+    pinned: false,
     syncedAt: "2024-01-15T08:00:00.000Z",
     createdAt: "2024-01-14T08:00:00.000Z",
     updatedAt: "2024-01-15T08:00:00.000Z",

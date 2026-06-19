@@ -165,6 +165,7 @@ export const getTickets = (filter: TicketFilter) => {
   if (filter.assignedToMe) {
     result = result.filter((t) => t.assignees.some((a) => a.gitlabUserId === store.currentUser.id));
   }
+  if (filter.pinned) result = result.filter((t) => t.pinned);
   return ok([...result]);
 };
 
@@ -172,6 +173,18 @@ export const getRecentTickets = (limit: number) =>
   ok(store.tickets.filter((t) => t.status === "active").slice(0, limit));
 
 export const getProjects = () => ok([...store.projects]);
+
+export const pinTicket = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  if (t) t.pinned = true;
+  return ok(undefined as void);
+};
+export const unpinTicket = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  if (t) t.pinned = false;
+  return ok(undefined as void);
+};
+export const getPinnedTickets = () => ok(store.tickets.filter((t) => t.pinned === true));
 
 export const bookEntry = (entryId: number) => {
   const entry = store.entries.find((e) => e.id === entryId);

@@ -19,6 +19,7 @@ function ticket(id: number, projectId: number, gitlabIid: number): Ticket {
     timeSpent: null,
     webUrl: null,
     assignees: [],
+    pinned: false,
     syncedAt: null,
     createdAt: "",
     updatedAt: "",

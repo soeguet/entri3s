@@ -8,7 +8,14 @@ import type {
   TicketState,
   TicketStatus,
 } from "../../../../../shared/types";
-import { getTickets, getProjects, triggerSync, getCurrentUser } from "../../api";
+import {
+  getTickets,
+  getProjects,
+  triggerSync,
+  getCurrentUser,
+  pinTicket,
+  unpinTicket,
+} from "../../api";
 import { keys } from "../../lib/queryKeys";
 import type { SyncStatus } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
@@ -23,6 +30,7 @@ import { Badge } from "../../components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 import { TicketTree } from "./TicketTree";
 import { AssigneeCell } from "./AssigneeCell";
+import { PinButton } from "./PinButton";
 
 function seconds(s: number | null): string {
   return s == null ? "–" : formatDuration(Math.round(s / 60));
@@ -50,7 +58,9 @@ function groupByProject(tickets: Ticket[], byId: Map<number, Project>): Group[] 
   const groups = [...map.entries()].map(([pid, ts]) => ({
     path: byId.get(pid)?.fullPath ?? `Projekt ${pid}`,
     name: byId.get(pid)?.name ?? `Projekt ${pid}`,
-    tickets: [...ts].sort((a, b) => b.gitlabIid - a.gitlabIid),
+    tickets: [...ts].sort((a, b) =>
+      a.pinned === b.pinned ? b.gitlabIid - a.gitlabIid : a.pinned ? -1 : 1,
+    ),
   }));
   groups.sort((a, b) => a.path.localeCompare(b.path));
   return groups;
@@ -63,11 +73,13 @@ export function TicketsPage() {
   const [search, setSearch] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [assignedToMe, setAssignedToMe] = useState(false);
+  const [pinnedOnly, setPinnedOnly] = useState(false);
 
   const filter: TicketFilter = {};
   if (status) filter.status = status;
   if (state) filter.state = state;
   if (assignedToMe) filter.assignedToMe = true;
+  if (pinnedOnly) filter.pinned = true;
 
   const tickets = useQuery({
     queryKey: keys.tickets(filter),
@@ -94,6 +106,15 @@ export function TicketsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.tickets() });
       qc.invalidateQueries({ queryKey: keys.projects() });
+    },
+  });
+
+  const pin = useMutation({
+    mutationFn: async (vars: { id: number; pinned: boolean }) =>
+      unwrap(vars.pinned ? await unpinTicket(vars.id) : await pinTicket(vars.id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.tickets() });
+      qc.invalidateQueries({ queryKey: keys.pinnedTickets() });
     },
   });
 
@@ -192,6 +213,17 @@ export function TicketsPage() {
                 Mir zugewiesen
               </Button>
             </div>
+            <div>
+              <Label htmlFor="t-pinned">Pins</Label>
+              <Button
+                id="t-pinned"
+                type="button"
+                variant={pinnedOnly ? "default" : "outline"}
+                onClick={() => setPinnedOnly((v) => !v)}
+              >
+                Gepinnt
+              </Button>
+            </div>
           </div>
 
           {tickets.isLoading ? (
@@ -212,11 +244,17 @@ export function TicketsPage() {
                   <TH>Estimate</TH>
                   <TH>Gebucht</TH>
                   <TH></TH>
+                  <TH></TH>
                 </TR>
               </THead>
               <TBody>
                 {groups.map((group) => (
-                  <ProjectGroup key={group.path} group={group} />
+                  <ProjectGroup
+                    key={group.path}
+                    group={group}
+                    pinPending={pin.isPending}
+                    onTogglePin={(t) => pin.mutate({ id: t.id, pinned: t.pinned })}
+                  />
                 ))}
               </TBody>
             </Table>
@@ -227,11 +265,15 @@ export function TicketsPage() {
   );
 }
 
-function ProjectGroup(props: { group: Group }) {
+function ProjectGroup(props: {
+  group: Group;
+  pinPending: boolean;
+  onTogglePin: (ticket: Ticket) => void;
+}) {
   return (
     <>
       <TR className="bg-muted">
-        <TD colSpan={8} className="py-1.5">
+        <TD colSpan={9} className="py-1.5">
           <span className="font-medium text-foreground">{props.group.name}</span>
           <span className="ml-2 font-mono text-xs text-muted-foreground">{props.group.path}</span>
         </TD>
@@ -253,6 +295,13 @@ function ProjectGroup(props: { group: Group }) {
           </TD>
           <TD>{seconds(ticket.timeEstimate)}</TD>
           <TD>{seconds(ticket.timeSpent)}</TD>
+          <TD>
+            <PinButton
+              pinned={ticket.pinned}
+              disabled={props.pinPending}
+              onToggle={() => props.onTogglePin(ticket)}
+            />
+          </TD>
           <TD>
             {ticket.webUrl ? (
               <a

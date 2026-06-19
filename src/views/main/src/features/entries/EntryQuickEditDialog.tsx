@@ -6,6 +6,7 @@ import {
   getTickets,
   getProjects,
   getRecentTickets,
+  getPinnedTickets,
   setEntryNotes,
   setEntryTags,
   updateEntry,
@@ -51,6 +52,10 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
   const recent = useQuery({
     queryKey: keys.recentTickets(),
     queryFn: async () => unwrap(await getRecentTickets(8)),
+  });
+  const pinned = useQuery({
+    queryKey: keys.pinnedTickets(),
+    queryFn: async () => unwrap(await getPinnedTickets()),
   });
 
   function invalidate() {
@@ -134,6 +139,7 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
           tickets={activeTickets.data ?? []}
           projects={projects.data ?? []}
           recent={recent.data ?? []}
+          pinned={pinned.data ?? []}
           value={entry.ticketIds[0] ?? null}
           onSelect={(id) => {
             setTicket.mutate({ entry, ticketId: id });

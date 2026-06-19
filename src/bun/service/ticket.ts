@@ -18,6 +18,18 @@ export function createTicketService(repo: Repository) {
     getRecent(limit: number): Ticket[] {
       return repo.tickets.listRecent(limit);
     },
+
+    pin(ticketId: number): void {
+      repo.tickets.pin(ticketId);
+    },
+
+    unpin(ticketId: number): void {
+      repo.tickets.unpin(ticketId);
+    },
+
+    getPinned(): Ticket[] {
+      return repo.tickets.listPinned();
+    },
   };
 }
 
