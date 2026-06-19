@@ -38,8 +38,19 @@ export function createTicketService(repo: Repository) {
     markRead(ticketId: number): void {
       repo.tickets.markRead(ticketId);
     },
-    markAllRead(): void {
-      repo.tickets.markAllRead();
+    markAllRead(filter: TicketFilter = {}): void {
+      // currentUserId genau wie getAll() ermitteln, damit assignedToMe identisch
+      // gefiltert wird (Single Source: settings.getCurrentUser).
+      if (filter.assignedToMe) {
+        const userId = repo.settings.getCurrentUser()?.id;
+        if (userId === undefined) return;
+        repo.tickets.markAllRead(filter, userId);
+        return;
+      }
+      repo.tickets.markAllRead(filter);
+    },
+    getUnreadCount(): number {
+      return repo.tickets.countUnread();
     },
   };
 }

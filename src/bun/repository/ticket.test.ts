@@ -193,6 +193,61 @@ test("markAllRead marks all active tickets as read", () => {
   expect(repo.tickets.getById(b)?.unread).toBe(false);
 });
 
+test("markAllRead with a state filter only marks matching tickets, others stay unread", () => {
+  const opened = upsert(1, { notesCount: 2, state: "opened" });
+  const closed = upsert(2, { notesCount: 3, state: "closed" });
+
+  repo.tickets.markAllRead({ state: "opened" });
+
+  // Nur das zum Filter passende Ticket wird gelesen; das andere bleibt unread.
+  expect(repo.tickets.getById(opened)?.unread).toBe(false);
+  expect(repo.tickets.getById(closed)?.unread).toBe(true);
+});
+
+test("markAllRead with assignedToMe only marks the user's tickets, others stay unread", () => {
+  const mine = upsert(1, { notesCount: 2 });
+  const other = upsert(2, { notesCount: 3 });
+  repo.tickets.setAssignees(mine, [{ gitlabUserId: 42, username: "me", name: "Me" }]);
+  repo.tickets.setAssignees(other, [{ gitlabUserId: 99, username: "you", name: "You" }]);
+
+  repo.tickets.markAllRead({ assignedToMe: true }, 42);
+
+  expect(repo.tickets.getById(mine)?.unread).toBe(false);
+  expect(repo.tickets.getById(other)?.unread).toBe(true);
+});
+
+test("countUnread counts a ticket without read-state as unread", () => {
+  upsert(1, { notesCount: 2 });
+  expect(repo.tickets.countUnread()).toBe(1);
+});
+
+test("countUnread counts a ticket whose notesCount grew past the read count", () => {
+  const id = upsert(1, { notesCount: 2 });
+  repo.tickets.markRead(id);
+  expect(repo.tickets.countUnread()).toBe(0);
+
+  upsert(1, { notesCount: 5 });
+  expect(repo.tickets.countUnread()).toBe(1);
+});
+
+test("countUnread does not count read tickets", () => {
+  const a = upsert(1, { notesCount: 2 });
+  upsert(2, { notesCount: 3 });
+  repo.tickets.markRead(a);
+
+  // a gelesen, b ungelesen → genau 1.
+  expect(repo.tickets.countUnread()).toBe(1);
+});
+
+test("countUnread ignores non-active (orphaned) tickets", () => {
+  upsert(1, { notesCount: 2 });
+  const orphan = upsert(2, { notesCount: 3 });
+  repo.tickets.setStatus(orphan, "orphaned");
+
+  // Orphaned bleibt ungezählt, obwohl ohne read-state.
+  expect(repo.tickets.countUnread()).toBe(1);
+});
+
 test("list with unread filter returns only unread tickets", () => {
   const read = upsert(1, { notesCount: 2 });
   const unread = upsert(2, { notesCount: 3 });

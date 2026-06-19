@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import type {
   Project,
@@ -17,6 +17,7 @@ import {
   pinTicket,
   unpinTicket,
   markAllTicketsRead,
+  getUnreadCount,
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import type { SyncStatus } from "../../lib/queryKeys";
@@ -69,6 +70,7 @@ function groupByProject(tickets: Ticket[], byId: Map<number, Project>): Group[] 
 
 export function TicketsPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [status, setStatus] = useState<TicketStatus | "">("active");
   const [state, setState] = useState<TicketState | "">("");
   const [search, setSearch] = useState("");
@@ -96,6 +98,11 @@ export function TicketsPage() {
     queryKey: keys.currentUser(),
     queryFn: async () => unwrap(await getCurrentUser()),
   });
+  // Globaler ungelesen-Zähler (ungefiltert) für das Badge am Sync-Button.
+  const unreadCount = useQuery({
+    queryKey: keys.unreadCount(),
+    queryFn: async () => unwrap(await getUnreadCount()),
+  });
 
   const syncStatus = useQuery({
     queryKey: keys.syncStatus(),
@@ -109,13 +116,15 @@ export function TicketsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.tickets() });
       qc.invalidateQueries({ queryKey: keys.projects() });
+      qc.invalidateQueries({ queryKey: keys.unreadCount() });
     },
   });
 
   const markAllRead = useMutation({
-    mutationFn: async () => unwrap(await markAllTicketsRead()),
+    mutationFn: async () => unwrap(await markAllTicketsRead(filter)),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.tickets() });
+      qc.invalidateQueries({ queryKey: keys.unreadCount() });
     },
   });
 
@@ -152,10 +161,21 @@ export function TicketsPage() {
         title="Tickets"
         description="Aus GitLab synchronisierte Issues (read-only)"
         actions={
-          <Button disabled={sync.isPending} onClick={() => sync.mutate()}>
-            <RefreshCw className={"h-4 w-4 " + (sync.isPending ? "animate-spin" : "")} />
-            Sync
-          </Button>
+          <div className="flex items-center gap-2">
+            {unreadCount.data ? (
+              <Badge
+                variant="secondary"
+                className="bg-info-surface text-info-accent"
+                aria-label={`${unreadCount.data} ungelesen`}
+              >
+                {unreadCount.data} ungelesen
+              </Badge>
+            ) : null}
+            <Button disabled={sync.isPending} onClick={() => sync.mutate()}>
+              <RefreshCw className={"h-4 w-4 " + (sync.isPending ? "animate-spin" : "")} />
+              Sync
+            </Button>
+          </div>
         }
       />
 
@@ -218,6 +238,9 @@ export function TicketsPage() {
                     group={group}
                     pinPending={pin.isPending}
                     onTogglePin={(t) => pin.mutate({ id: t.id, pinned: t.pinned })}
+                    onOpen={(t) =>
+                      navigate({ to: "/tickets/$ticketId", params: { ticketId: String(t.id) } })
+                    }
                   />
                 ))}
               </TBody>
@@ -233,6 +256,7 @@ function ProjectGroup(props: {
   group: Group;
   pinPending: boolean;
   onTogglePin: (ticket: Ticket) => void;
+  onOpen: (ticket: Ticket) => void;
 }) {
   return (
     <>
@@ -243,7 +267,15 @@ function ProjectGroup(props: {
         </TD>
       </TR>
       {props.group.tickets.map((ticket) => (
-        <TR key={ticket.id} className={ticket.status === "orphaned" ? "opacity-50" : ""}>
+        <TR
+          key={ticket.id}
+          // Ganze Zeile klickbar: navigiert zum Ticket-Detail. Interaktive Kinder
+          // (Pin, GitLab-Link) schirmen sich per stopPropagation selbst ab.
+          onClick={() => props.onOpen(ticket)}
+          className={
+            "cursor-pointer hover:bg-muted" + (ticket.status === "orphaned" ? " opacity-50" : "")
+          }
+        >
           <TD className="font-mono">
             {ticket.unread ? (
               <span
@@ -260,7 +292,15 @@ function ProjectGroup(props: {
               #{ticket.gitlabIid}
             </Link>
           </TD>
-          <TD>{ticket.title}</TD>
+          <TD>
+            <Link
+              to="/tickets/$ticketId"
+              params={{ ticketId: String(ticket.id) }}
+              className="hover:underline"
+            >
+              {ticket.title}
+            </Link>
+          </TD>
           <TD>
             {ticket.status === "orphaned" ? (
               <Badge variant="destructive">Archiviert</Badge>
@@ -274,7 +314,7 @@ function ProjectGroup(props: {
           </TD>
           <TD>{seconds(ticket.timeEstimate)}</TD>
           <TD>{seconds(ticket.timeSpent)}</TD>
-          <TD>
+          <TD onClick={(e) => e.stopPropagation()}>
             <PinButton
               pinned={ticket.pinned}
               disabled={props.pinPending}
@@ -287,6 +327,7 @@ function ProjectGroup(props: {
                 href={ticket.webUrl}
                 target="_blank"
                 rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
                 className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
               >
                 <ExternalLink className="h-4 w-4" />

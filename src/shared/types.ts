@@ -229,7 +229,8 @@ export interface AppRPCType {
       pinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
       unpinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
       markTicketRead: { params: { ticketId: number }; response: RpcResponse<void> };
-      markAllTicketsRead: { params: Record<string, never>; response: RpcResponse<void> };
+      markAllTicketsRead: { params: { filter: TicketFilter }; response: RpcResponse<void> };
+      getUnreadCount: { params: Record<string, never>; response: RpcResponse<number> };
       getPinnedTickets: { params: Record<string, never>; response: RpcResponse<Ticket[]> };
       getTicketComments: { params: { ticketId: number }; response: RpcResponse<TicketComment[]> };
       getTicket: { params: { ticketId: number }; response: RpcResponse<Ticket | null> };

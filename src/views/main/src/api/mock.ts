@@ -195,10 +195,22 @@ export const markTicketRead = (ticketId: number) => {
   if (t) t.unread = false;
   return ok(undefined as void);
 };
-export const markAllTicketsRead = () => {
-  for (const t of store.tickets) t.unread = false;
+// Markiert nur die zum Filter passenden Tickets als gelesen (gleiche
+// Filter-Logik wie getTickets), analog zum Backend.
+export const markAllTicketsRead = (filter: TicketFilter) => {
+  let result = store.tickets;
+  if (filter.status) result = result.filter((t) => t.status === filter.status);
+  if (filter.state) result = result.filter((t) => t.state === filter.state);
+  if (filter.assignedToMe) {
+    result = result.filter((t) => t.assignees.some((a) => a.gitlabUserId === store.currentUser.id));
+  }
+  if (filter.pinned) result = result.filter((t) => t.pinned);
+  if (filter.unread) result = result.filter((t) => t.unread);
+  for (const t of result) t.unread = false;
   return ok(undefined as void);
 };
+export const getUnreadCount = () =>
+  ok(store.tickets.filter((t) => t.status === "active" && t.unread).length);
 
 export const bookEntry = (entryId: number) => {
   const entry = store.entries.find((e) => e.id === entryId);

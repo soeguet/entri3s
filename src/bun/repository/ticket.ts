@@ -107,6 +107,44 @@ export function createTicketRepository(db: Database) {
     );
   }
 
+  /**
+   * Baut die WHERE-Klausel für die Ticket-Filterung. Wird von list() UND
+   * markAllRead() genutzt, damit beide garantiert identisch filtern.
+   * `currentUserId` ergänzt `filter.assignedToMe` (siehe list()-Doc).
+   */
+  function buildFilterClause(
+    filter: TicketFilter,
+    currentUserId?: number,
+  ): { clause: string; params: (string | number)[] } {
+    const where: string[] = [];
+    const params: (string | number)[] = [];
+    if (filter.status) {
+      where.push("status = ?");
+      params.push(filter.status);
+    }
+    if (filter.state) {
+      where.push("state = ?");
+      params.push(filter.state);
+    }
+    if (filter.assignedToMe && currentUserId !== undefined) {
+      where.push(
+        "EXISTS (SELECT 1 FROM ticket_assignees ta WHERE ta.ticket_id = tickets.id AND ta.gitlab_user_id = ?)",
+      );
+      params.push(currentUserId);
+    }
+    if (filter.pinned) {
+      where.push("EXISTS (SELECT 1 FROM ticket_pins tp WHERE tp.ticket_id = tickets.id)");
+    }
+    if (filter.unread) {
+      where.push(
+        `(NOT EXISTS (SELECT 1 FROM ticket_read_state r WHERE r.ticket_id = tickets.id)
+      OR tickets.notes_count > (SELECT last_comment_count FROM ticket_read_state r WHERE r.ticket_id = tickets.id))`,
+      );
+    }
+    const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+    return { clause, params };
+  }
+
   return {
     getById(id: number): Ticket | null {
       return mapRow(db.query<TicketRow, [number]>("SELECT * FROM tickets WHERE id = ?").get(id));
@@ -139,32 +177,7 @@ export function createTicketRepository(db: Database) {
      * Der Filter-Typ bleibt sauber (keine assigneeId im shared TicketFilter).
      */
     list(filter: TicketFilter = {}, currentUserId?: number): Ticket[] {
-      const where: string[] = [];
-      const params: (string | number)[] = [];
-      if (filter.status) {
-        where.push("status = ?");
-        params.push(filter.status);
-      }
-      if (filter.state) {
-        where.push("state = ?");
-        params.push(filter.state);
-      }
-      if (filter.assignedToMe && currentUserId !== undefined) {
-        where.push(
-          "EXISTS (SELECT 1 FROM ticket_assignees ta WHERE ta.ticket_id = tickets.id AND ta.gitlab_user_id = ?)",
-        );
-        params.push(currentUserId);
-      }
-      if (filter.pinned) {
-        where.push("EXISTS (SELECT 1 FROM ticket_pins tp WHERE tp.ticket_id = tickets.id)");
-      }
-      if (filter.unread) {
-        where.push(
-          `(NOT EXISTS (SELECT 1 FROM ticket_read_state r WHERE r.ticket_id = tickets.id)
-      OR tickets.notes_count > (SELECT last_comment_count FROM ticket_read_state r WHERE r.ticket_id = tickets.id))`,
-        );
-      }
-      const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
+      const { clause, params } = buildFilterClause(filter, currentUserId);
       const rows = db
         .query<TicketRow, (string | number)[]>(
           `SELECT * FROM tickets ${clause} ORDER BY gitlab_iid DESC`,
@@ -282,15 +295,41 @@ export function createTicketRepository(db: Database) {
       );
     },
 
-    markAllRead(): void {
+    /**
+     * Markiert NUR die zum Filter passenden Tickets als gelesen — dieselbe
+     * WHERE-Logik wie list() (via buildFilterClause), damit "Alle als gelesen"
+     * exakt den aktiven Filter respektiert.
+     */
+    markAllRead(filter: TicketFilter = {}, currentUserId?: number): void {
+      const { clause, params } = buildFilterClause(filter, currentUserId);
+      // Fallback "WHERE 1=1" bei leerem Filter: ohne ein Token zwischen
+      // `FROM tickets` und `ON CONFLICT` deutet SQLite das ON als JOIN ("near DO").
+      const whereClause = clause === "" ? "WHERE 1=1" : clause;
       db.run(
         `INSERT INTO ticket_read_state (ticket_id, last_viewed_at, last_comment_count)
-         SELECT id, ?, notes_count FROM tickets WHERE status = 'active'
+         SELECT id, ?, notes_count FROM tickets ${whereClause}
          ON CONFLICT(ticket_id) DO UPDATE SET
            last_viewed_at = excluded.last_viewed_at,
            last_comment_count = excluded.last_comment_count`,
-        [new Date().toISOString()],
+        [new Date().toISOString(), ...params],
       );
+    },
+
+    /**
+     * GLOBALE Anzahl ungelesener aktiver Tickets (ungefiltert, echter
+     * Gesamtstand für das Badge neben dem Sync-Button). "Ungelesen" exakt wie
+     * der unread-Filter in list(): kein read-state ODER notes_count gewachsen.
+     */
+    countUnread(): number {
+      const row = db
+        .query<{ n: number }, []>(
+          `SELECT COUNT(*) AS n FROM tickets
+           WHERE status = 'active'
+             AND (NOT EXISTS (SELECT 1 FROM ticket_read_state r WHERE r.ticket_id = tickets.id)
+               OR tickets.notes_count > (SELECT last_comment_count FROM ticket_read_state r WHERE r.ticket_id = tickets.id))`,
+        )
+        .get();
+      return row?.n ?? 0;
     },
 
     /**
