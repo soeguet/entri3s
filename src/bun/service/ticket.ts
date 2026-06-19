@@ -30,6 +30,13 @@ export function createTicketService(repo: Repository) {
     getPinned(): Ticket[] {
       return repo.tickets.listPinned();
     },
+
+    markRead(ticketId: number): void {
+      repo.tickets.markRead(ticketId);
+    },
+    markAllRead(): void {
+      repo.tickets.markAllRead();
+    },
   };
 }
 

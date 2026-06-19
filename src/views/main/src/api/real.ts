@@ -78,6 +78,8 @@ export const getProjects = () => r.getProjects({});
 export const pinTicket = (ticketId: number) => r.pinTicket({ ticketId });
 export const unpinTicket = (ticketId: number) => r.unpinTicket({ ticketId });
 export const getPinnedTickets = () => r.getPinnedTickets({});
+export const markTicketRead = (ticketId: number) => r.markTicketRead({ ticketId });
+export const markAllTicketsRead = () => r.markAllTicketsRead({});
 export const bookEntry = (entryId: number) => r.bookEntry({ entryId });
 export const deleteBooking = (bookingId: number) => r.deleteBooking({ bookingId });
 export const getBookingsForEntry = (entryId: number) => r.getBookingsForEntry({ entryId });

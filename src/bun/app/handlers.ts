@@ -40,6 +40,8 @@ export function createRpc(svc: Services) {
         getRecentTickets: (p) => wrap(() => svc.ticket.getRecent(p.limit)),
         pinTicket: (p) => wrap(() => svc.ticket.pin(p.ticketId)),
         unpinTicket: (p) => wrap(() => svc.ticket.unpin(p.ticketId)),
+        markTicketRead: (p) => wrap(() => svc.ticket.markRead(p.ticketId)),
+        markAllTicketsRead: () => wrap(() => svc.ticket.markAllRead()),
         getPinnedTickets: () => wrap(() => svc.ticket.getPinned()),
         getProjects: () => wrap(() => svc.project.getAll()),
 

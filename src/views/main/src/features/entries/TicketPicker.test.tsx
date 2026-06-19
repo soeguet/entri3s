@@ -23,6 +23,7 @@ function ticket(id: number, iid: number, projectId: number, title: string): Tick
     webUrl: null,
     assignees: [],
     pinned: false,
+    unread: false,
     notesCount: 0,
     syncedAt: null,
     createdAt: "",

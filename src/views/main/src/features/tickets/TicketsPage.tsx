@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ExternalLink, RefreshCw, Search } from "lucide-react";
+import { ExternalLink, RefreshCw } from "lucide-react";
 import type {
   Project,
   Ticket,
@@ -15,6 +15,7 @@ import {
   getCurrentUser,
   pinTicket,
   unpinTicket,
+  markAllTicketsRead,
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import type { SyncStatus } from "../../lib/queryKeys";
@@ -24,11 +25,10 @@ import { Button } from "../../components/ui/button";
 import { formatDuration } from "../../lib/dates";
 import { PageHeader } from "../../components/PageHeader";
 import { ErrorNote } from "../../components/ErrorNote";
-import { Select } from "../../components/ui/select";
-import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 import { TicketTree } from "./TicketTree";
+import { TicketsToolbar } from "./TicketsToolbar";
 import { AssigneeCell } from "./AssigneeCell";
 import { PinButton } from "./PinButton";
 
@@ -74,12 +74,14 @@ export function TicketsPage() {
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [assignedToMe, setAssignedToMe] = useState(false);
   const [pinnedOnly, setPinnedOnly] = useState(false);
+  const [unreadOnly, setUnreadOnly] = useState(false);
 
   const filter: TicketFilter = {};
   if (status) filter.status = status;
   if (state) filter.state = state;
   if (assignedToMe) filter.assignedToMe = true;
   if (pinnedOnly) filter.pinned = true;
+  if (unreadOnly) filter.unread = true;
 
   const tickets = useQuery({
     queryKey: keys.tickets(filter),
@@ -106,6 +108,13 @@ export function TicketsPage() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.tickets() });
       qc.invalidateQueries({ queryKey: keys.projects() });
+    },
+  });
+
+  const markAllRead = useMutation({
+    mutationFn: async () => unwrap(await markAllTicketsRead()),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.tickets() });
     },
   });
 
@@ -162,69 +171,23 @@ export function TicketsPage() {
         </aside>
 
         <div className="min-w-0 flex-1">
-          <div className="mb-4 flex flex-wrap items-end gap-3">
-            <div className="min-w-48 flex-1">
-              <Label htmlFor="t-search">Suche</Label>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <input
-                  id="t-search"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="#IID, Titel oder Projekt…"
-                  className="h-9 w-full rounded-md border border-input bg-card pl-8 pr-3 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="t-status">Status</Label>
-              <Select
-                id="t-status"
-                value={status}
-                onChange={(e) => setStatus(e.target.value as TicketStatus | "")}
-              >
-                <option value="">Alle</option>
-                <option value="active">Aktiv</option>
-                <option value="orphaned">Archiviert</option>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="t-state">GitLab-State</Label>
-              <Select
-                id="t-state"
-                value={state}
-                onChange={(e) => setState(e.target.value as TicketState | "")}
-              >
-                <option value="">Alle</option>
-                <option value="opened">opened</option>
-                <option value="closed">closed</option>
-                <option value="locked">locked</option>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="t-mine">Zuweisung</Label>
-              <Button
-                id="t-mine"
-                type="button"
-                variant={assignedToMe ? "default" : "outline"}
-                disabled={!currentUser.data}
-                onClick={() => setAssignedToMe((v) => !v)}
-              >
-                Mir zugewiesen
-              </Button>
-            </div>
-            <div>
-              <Label htmlFor="t-pinned">Pins</Label>
-              <Button
-                id="t-pinned"
-                type="button"
-                variant={pinnedOnly ? "default" : "outline"}
-                onClick={() => setPinnedOnly((v) => !v)}
-              >
-                Gepinnt
-              </Button>
-            </div>
-          </div>
+          <TicketsToolbar
+            search={search}
+            setSearch={setSearch}
+            status={status}
+            setStatus={setStatus}
+            state={state}
+            setState={setState}
+            assignedToMe={assignedToMe}
+            setAssignedToMe={setAssignedToMe}
+            currentUserAvailable={Boolean(currentUser.data)}
+            pinnedOnly={pinnedOnly}
+            setPinnedOnly={setPinnedOnly}
+            unreadOnly={unreadOnly}
+            setUnreadOnly={setUnreadOnly}
+            onMarkAllRead={() => markAllRead.mutate()}
+            markAllReadPending={markAllRead.isPending}
+          />
 
           {tickets.isLoading ? (
             <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>
@@ -280,7 +243,16 @@ function ProjectGroup(props: {
       </TR>
       {props.group.tickets.map((ticket) => (
         <TR key={ticket.id} className={ticket.status === "orphaned" ? "opacity-50" : ""}>
-          <TD className="font-mono">#{ticket.gitlabIid}</TD>
+          <TD className="font-mono">
+            {ticket.unread ? (
+              <span
+                className="mr-1.5 inline-block h-2 w-2 rounded-full bg-info-accent align-middle"
+                aria-label="Ungelesen"
+                title="Ungelesen"
+              />
+            ) : null}
+            #{ticket.gitlabIid}
+          </TD>
           <TD>{ticket.title}</TD>
           <TD>
             {ticket.status === "orphaned" ? (

@@ -166,6 +166,7 @@ export const getTickets = (filter: TicketFilter) => {
     result = result.filter((t) => t.assignees.some((a) => a.gitlabUserId === store.currentUser.id));
   }
   if (filter.pinned) result = result.filter((t) => t.pinned);
+  if (filter.unread) result = result.filter((t) => t.unread);
   return ok([...result]);
 };
 
@@ -185,6 +186,16 @@ export const unpinTicket = (ticketId: number) => {
   return ok(undefined as void);
 };
 export const getPinnedTickets = () => ok(store.tickets.filter((t) => t.pinned === true));
+
+export const markTicketRead = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  if (t) t.unread = false;
+  return ok(undefined as void);
+};
+export const markAllTicketsRead = () => {
+  for (const t of store.tickets) t.unread = false;
+  return ok(undefined as void);
+};
 
 export const bookEntry = (entryId: number) => {
   const entry = store.entries.find((e) => e.id === entryId);

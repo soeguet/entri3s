@@ -77,6 +77,8 @@ export interface Ticket {
   webUrl: string | null;
   assignees: TicketAssignee[];
   pinned: boolean;
+  // Ungelesen: kein read-state-Eintrag (neues Ticket) ODER notesCount > zuletzt gesehener Count.
+  unread: boolean;
   // Anzahl der GitLab-Kommentare (userNotesCount), nur im Issue-Sync aktualisiert
   notesCount: number;
   syncedAt: string | null;
@@ -93,6 +95,8 @@ export interface TicketFilter {
   assignedToMe?: boolean;
   // Lokaler Pin-Status (nicht aus GitLab gesynct) — nur gepinnte Tickets.
   pinned?: boolean;
+  // Nur Tickets mit ungelesenen Kommentaren.
+  unread?: boolean;
 }
 
 // ── Projects (aus GitLab gesynct; fullPath kodiert die Gruppenhierarchie) ──────
@@ -209,6 +213,8 @@ export interface AppRPCType {
       getRecentTickets: { params: { limit: number }; response: RpcResponse<Ticket[]> };
       pinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
       unpinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
+      markTicketRead: { params: { ticketId: number }; response: RpcResponse<void> };
+      markAllTicketsRead: { params: Record<string, never>; response: RpcResponse<void> };
       getPinnedTickets: { params: Record<string, never>; response: RpcResponse<Ticket[]> };
       getProjects: { params: Record<string, never>; response: RpcResponse<Project[]> };
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };

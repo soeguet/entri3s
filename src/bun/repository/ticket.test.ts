@@ -162,3 +162,41 @@ test("list with pinned filter returns only pinned tickets", () => {
 
   expect(repo.tickets.list({ pinned: true }).map((t) => t.id)).toEqual([a]);
 });
+
+test("a new ticket without read-state is unread", () => {
+  const id = upsert(1, { notesCount: 2 });
+  expect(repo.tickets.getById(id)?.unread).toBe(true);
+});
+
+test("markRead clears the unread flag", () => {
+  const id = upsert(1, { notesCount: 2 });
+  repo.tickets.markRead(id);
+  expect(repo.tickets.getById(id)?.unread).toBe(false);
+});
+
+test("a ticket becomes unread again when notesCount grows past the read count", () => {
+  const id = upsert(1, { notesCount: 2 });
+  repo.tickets.markRead(id);
+  expect(repo.tickets.getById(id)?.unread).toBe(false);
+
+  // Gleiche iid → gleiche id (ON CONFLICT(gitlab_iid, project_id)), nun mehr Kommentare.
+  upsert(1, { notesCount: 5 });
+  expect(repo.tickets.getById(id)?.unread).toBe(true);
+});
+
+test("markAllRead marks all active tickets as read", () => {
+  const a = upsert(1, { notesCount: 2 });
+  const b = upsert(2, { notesCount: 3 });
+
+  repo.tickets.markAllRead();
+  expect(repo.tickets.getById(a)?.unread).toBe(false);
+  expect(repo.tickets.getById(b)?.unread).toBe(false);
+});
+
+test("list with unread filter returns only unread tickets", () => {
+  const read = upsert(1, { notesCount: 2 });
+  const unread = upsert(2, { notesCount: 3 });
+  repo.tickets.markRead(read);
+
+  expect(repo.tickets.list({ unread: true }).map((t) => t.id)).toEqual([unread]);
+});

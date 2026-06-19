@@ -43,7 +43,12 @@ export interface TicketUpsert {
   notesCount: number;
 }
 
-function toTicket(row: TicketRow, assignees: TicketAssignee[], pinned: boolean): Ticket {
+function toTicket(
+  row: TicketRow,
+  assignees: TicketAssignee[],
+  pinned: boolean,
+  unread: boolean,
+): Ticket {
   return {
     id: row.id,
     gitlabIid: row.gitlab_iid,
@@ -58,6 +63,7 @@ function toTicket(row: TicketRow, assignees: TicketAssignee[], pinned: boolean):
     notesCount: row.notes_count,
     assignees,
     pinned,
+    unread,
     syncedAt: row.synced_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -105,16 +111,40 @@ export function createTicketRepository(db: Database) {
     return pinned;
   }
 
+  /**
+   * Lädt den read-state (last_comment_count) für mehrere Tickets GEBÜNDELT
+   * (eine Query) — analog zu loadPinned, kein N+1.
+   */
+  function loadReadState(ticketIds: number[]): Map<number, number> {
+    const state = new Map<number, number>();
+    if (ticketIds.length === 0) return state;
+    const placeholders = ticketIds.map(() => "?").join(", ");
+    const rows = db
+      .query<{ ticket_id: number; last_comment_count: number }, number[]>(
+        `SELECT ticket_id, last_comment_count FROM ticket_read_state WHERE ticket_id IN (${placeholders})`,
+      )
+      .all(...ticketIds);
+    for (const r of rows) state.set(r.ticket_id, r.last_comment_count);
+    return state;
+  }
+
   function mapRows(rows: TicketRow[]): Ticket[] {
     const byTicket = loadAssignees(rows.map((r) => r.id));
     const pinned = loadPinned(rows.map((r) => r.id));
-    return rows.map((row) => toTicket(row, byTicket.get(row.id) ?? [], pinned.has(row.id)));
+    const readState = loadReadState(rows.map((r) => r.id));
+    return rows.map((row) => {
+      const lc = readState.get(row.id);
+      const unread = lc === undefined ? true : row.notes_count > lc;
+      return toTicket(row, byTicket.get(row.id) ?? [], pinned.has(row.id), unread);
+    });
   }
 
   function mapRow(row: TicketRow | null): Ticket | null {
     if (!row) return null;
     const pinned = loadPinned([row.id]);
-    return toTicket(row, loadAssignees([row.id]).get(row.id) ?? [], pinned.has(row.id));
+    const lc = loadReadState([row.id]).get(row.id);
+    const unread = lc === undefined ? true : row.notes_count > lc;
+    return toTicket(row, loadAssignees([row.id]).get(row.id) ?? [], pinned.has(row.id), unread);
   }
 
   return {
@@ -167,6 +197,12 @@ export function createTicketRepository(db: Database) {
       }
       if (filter.pinned) {
         where.push("EXISTS (SELECT 1 FROM ticket_pins tp WHERE tp.ticket_id = tickets.id)");
+      }
+      if (filter.unread) {
+        where.push(
+          `(NOT EXISTS (SELECT 1 FROM ticket_read_state r WHERE r.ticket_id = tickets.id)
+      OR tickets.notes_count > (SELECT last_comment_count FROM ticket_read_state r WHERE r.ticket_id = tickets.id))`,
+        );
       }
       const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
       const rows = db
@@ -273,6 +309,28 @@ export function createTicketRepository(db: Database) {
 
     unpin(ticketId: number): void {
       db.run("DELETE FROM ticket_pins WHERE ticket_id = ?", [ticketId]);
+    },
+
+    markRead(ticketId: number): void {
+      db.run(
+        `INSERT INTO ticket_read_state (ticket_id, last_viewed_at, last_comment_count)
+         VALUES (?, ?, (SELECT notes_count FROM tickets WHERE id = ?))
+         ON CONFLICT(ticket_id) DO UPDATE SET
+           last_viewed_at = excluded.last_viewed_at,
+           last_comment_count = excluded.last_comment_count`,
+        [ticketId, new Date().toISOString(), ticketId],
+      );
+    },
+
+    markAllRead(): void {
+      db.run(
+        `INSERT INTO ticket_read_state (ticket_id, last_viewed_at, last_comment_count)
+         SELECT id, ?, notes_count FROM tickets WHERE status = 'active'
+         ON CONFLICT(ticket_id) DO UPDATE SET
+           last_viewed_at = excluded.last_viewed_at,
+           last_comment_count = excluded.last_comment_count`,
+        [new Date().toISOString()],
+      );
     },
 
     /** Aktive gepinnte Tickets, jüngst gepinnte zuerst. */
