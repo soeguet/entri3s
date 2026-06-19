@@ -1,14 +1,7 @@
-import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ExternalLink, RefreshCw } from "lucide-react";
-import type {
-  Project,
-  Ticket,
-  TicketFilter,
-  TicketState,
-  TicketStatus,
-} from "../../../../../shared/types";
+import { useNavigate } from "@tanstack/react-router";
+import { RefreshCw } from "lucide-react";
+import type { Project, Ticket, TicketFilter } from "../../../../../shared/types";
 import {
   getTickets,
   getProjects,
@@ -24,19 +17,27 @@ import type { SyncStatus } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { buildProjectTree } from "../../lib/projectTree";
 import { Button } from "../../components/ui/button";
-import { formatDuration } from "../../lib/dates";
 import { PageHeader } from "../../components/PageHeader";
 import { ErrorNote } from "../../components/ErrorNote";
 import { Badge } from "../../components/ui/badge";
-import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
+import { Table, THead, TBody, TR, TH } from "../../components/ui/table";
 import { TicketTree } from "./TicketTree";
 import { TicketsToolbar } from "./TicketsToolbar";
-import { AssigneeCell } from "./AssigneeCell";
-import { PinButton } from "./PinButton";
+import { ProjectGroup, type Group } from "./ProjectGroup";
+import { SortableTH } from "./SortableTH";
+import { sortTickets, type TicketSortBy, type TicketSortDir } from "./ticketsSort";
+import { useTicketsSearch } from "./useTicketsSearch";
 
-function seconds(s: number | null): string {
-  return s == null ? "–" : formatDuration(Math.round(s / 60));
-}
+// Tabellenkopf: by=null → nicht sortierbar (Assignee bewusst ohne Sortierung).
+const SORT_COLUMNS: { by: TicketSortBy | null; label: string }[] = [
+  { by: "iid", label: "IID" },
+  { by: "title", label: "Titel" },
+  { by: "status", label: "Status" },
+  { by: "state", label: "State" },
+  { by: null, label: "Zugewiesen" },
+  { by: "estimate", label: "Estimate" },
+  { by: "spent", label: "Gebucht" },
+];
 
 /** Projekt-Pfad gehört zur Auswahl (exakt = Projektblatt, Prefix = Gruppe). */
 function inSelection(projectPath: string, selectedPath: string | null): boolean {
@@ -44,13 +45,12 @@ function inSelection(projectPath: string, selectedPath: string | null): boolean 
   return projectPath === selectedPath || projectPath.startsWith(`${selectedPath}/`);
 }
 
-interface Group {
-  path: string;
-  name: string;
-  tickets: Ticket[];
-}
-
-function groupByProject(tickets: Ticket[], byId: Map<number, Project>): Group[] {
+function groupByProject(
+  tickets: Ticket[],
+  byId: Map<number, Project>,
+  sortBy: TicketSortBy,
+  sortDir: TicketSortDir,
+): Group[] {
   const map = new Map<number, Ticket[]>();
   for (const t of tickets) {
     const list = map.get(t.projectId) ?? [];
@@ -60,9 +60,7 @@ function groupByProject(tickets: Ticket[], byId: Map<number, Project>): Group[] 
   const groups = [...map.entries()].map(([pid, ts]) => ({
     path: byId.get(pid)?.fullPath ?? `Projekt ${pid}`,
     name: byId.get(pid)?.name ?? `Projekt ${pid}`,
-    tickets: [...ts].sort((a, b) =>
-      a.pinned === b.pinned ? b.gitlabIid - a.gitlabIid : a.pinned ? -1 : 1,
-    ),
+    tickets: sortTickets(ts, sortBy, sortDir),
   }));
   groups.sort((a, b) => a.path.localeCompare(b.path));
   return groups;
@@ -71,20 +69,16 @@ function groupByProject(tickets: Ticket[], byId: Map<number, Project>): Group[] 
 export function TicketsPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const [status, setStatus] = useState<TicketStatus | "">("active");
-  const [state, setState] = useState<TicketState | "">("");
-  const [search, setSearch] = useState("");
-  const [selectedPath, setSelectedPath] = useState<string | null>(null);
-  const [assignedToMe, setAssignedToMe] = useState(false);
-  const [pinnedOnly, setPinnedOnly] = useState(false);
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  // Filter/Suche/Auswahl/Sortierung kommen aus den URL-Search-Params (siehe router.tsx),
+  // damit sie beim Zurücknavigieren aus der Detailseite erhalten bleiben.
+  const { search: params, update, toggleSort } = useTicketsSearch();
 
   const filter: TicketFilter = {};
-  if (status) filter.status = status;
-  if (state) filter.state = state;
-  if (assignedToMe) filter.assignedToMe = true;
-  if (pinnedOnly) filter.pinned = true;
-  if (unreadOnly) filter.unread = true;
+  if (params.status) filter.status = params.status;
+  if (params.state) filter.state = params.state;
+  if (params.assignedToMe) filter.assignedToMe = true;
+  if (params.pinnedOnly) filter.pinned = true;
+  if (params.unreadOnly) filter.unread = true;
 
   const tickets = useQuery({
     queryKey: keys.tickets(filter),
@@ -146,14 +140,14 @@ export function TicketsPage() {
   for (const t of allTickets) counts.set(t.projectId, (counts.get(t.projectId) ?? 0) + 1);
   const tree = buildProjectTree(projectList, counts);
 
-  const q = search.trim().toLowerCase();
+  const q = params.search.trim().toLowerCase();
   const visible = allTickets.filter((t) => {
     const path = byId.get(t.projectId)?.fullPath ?? "";
-    if (!inSelection(path, selectedPath)) return false;
+    if (!inSelection(path, params.selectedPath)) return false;
     if (!q) return true;
     return `#${t.gitlabIid} ${t.title} ${path}`.toLowerCase().includes(q);
   });
-  const groups = groupByProject(visible, byId);
+  const groups = groupByProject(visible, byId, params.sortBy, params.sortDir);
 
   return (
     <div>
@@ -188,24 +182,28 @@ export function TicketsPage() {
           <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
             Projekte & Gruppen
           </p>
-          <TicketTree nodes={tree} selectedPath={selectedPath} onSelect={setSelectedPath} />
+          <TicketTree
+            nodes={tree}
+            selectedPath={params.selectedPath}
+            onSelect={(p) => update({ selectedPath: p })}
+          />
         </aside>
 
         <div className="min-w-0 flex-1">
           <TicketsToolbar
-            search={search}
-            setSearch={setSearch}
-            status={status}
-            setStatus={setStatus}
-            state={state}
-            setState={setState}
-            assignedToMe={assignedToMe}
-            setAssignedToMe={setAssignedToMe}
+            search={params.search}
+            setSearch={(v) => update({ search: v })}
+            status={params.status}
+            setStatus={(v) => update({ status: v })}
+            state={params.state}
+            setState={(v) => update({ state: v })}
+            assignedToMe={params.assignedToMe}
+            setAssignedToMe={(v) => update({ assignedToMe: v })}
             currentUserAvailable={Boolean(currentUser.data)}
-            pinnedOnly={pinnedOnly}
-            setPinnedOnly={setPinnedOnly}
-            unreadOnly={unreadOnly}
-            setUnreadOnly={setUnreadOnly}
+            pinnedOnly={params.pinnedOnly}
+            setPinnedOnly={(v) => update({ pinnedOnly: v })}
+            unreadOnly={params.unreadOnly}
+            setUnreadOnly={(v) => update({ unreadOnly: v })}
             onMarkAllRead={() => markAllRead.mutate()}
             markAllReadPending={markAllRead.isPending}
           />
@@ -220,13 +218,20 @@ export function TicketsPage() {
             <Table>
               <THead>
                 <TR>
-                  <TH>IID</TH>
-                  <TH>Titel</TH>
-                  <TH>Status</TH>
-                  <TH>State</TH>
-                  <TH>Zugewiesen</TH>
-                  <TH>Estimate</TH>
-                  <TH>Gebucht</TH>
+                  {SORT_COLUMNS.map((col) =>
+                    col.by ? (
+                      <SortableTH
+                        key={col.label}
+                        by={col.by}
+                        label={col.label}
+                        activeBy={params.sortBy}
+                        dir={params.sortDir}
+                        onSort={toggleSort}
+                      />
+                    ) : (
+                      <TH key={col.label}>{col.label}</TH>
+                    ),
+                  )}
                   <TH></TH>
                   <TH></TH>
                 </TR>
@@ -249,93 +254,5 @@ export function TicketsPage() {
         </div>
       </div>
     </div>
-  );
-}
-
-function ProjectGroup(props: {
-  group: Group;
-  pinPending: boolean;
-  onTogglePin: (ticket: Ticket) => void;
-  onOpen: (ticket: Ticket) => void;
-}) {
-  return (
-    <>
-      <TR className="bg-muted">
-        <TD colSpan={9} className="py-1.5">
-          <span className="font-medium text-foreground">{props.group.name}</span>
-          <span className="ml-2 font-mono text-xs text-muted-foreground">{props.group.path}</span>
-        </TD>
-      </TR>
-      {props.group.tickets.map((ticket) => (
-        <TR
-          key={ticket.id}
-          // Ganze Zeile klickbar: navigiert zum Ticket-Detail. Interaktive Kinder
-          // (Pin, GitLab-Link) schirmen sich per stopPropagation selbst ab.
-          onClick={() => props.onOpen(ticket)}
-          className={
-            "cursor-pointer hover:bg-muted" + (ticket.status === "orphaned" ? " opacity-50" : "")
-          }
-        >
-          <TD className="font-mono">
-            {ticket.unread ? (
-              <span
-                className="mr-1.5 inline-block h-2 w-2 rounded-full bg-info-accent align-middle"
-                aria-label="Ungelesen"
-                title="Ungelesen"
-              />
-            ) : null}
-            <Link
-              to="/tickets/$ticketId"
-              params={{ ticketId: String(ticket.id) }}
-              className="text-info-accent hover:underline"
-            >
-              #{ticket.gitlabIid}
-            </Link>
-          </TD>
-          <TD>
-            <Link
-              to="/tickets/$ticketId"
-              params={{ ticketId: String(ticket.id) }}
-              className="hover:underline"
-            >
-              {ticket.title}
-            </Link>
-          </TD>
-          <TD>
-            {ticket.status === "orphaned" ? (
-              <Badge variant="destructive">Archiviert</Badge>
-            ) : (
-              <Badge variant="success">Aktiv</Badge>
-            )}
-          </TD>
-          <TD>{ticket.state}</TD>
-          <TD>
-            <AssigneeCell assignees={ticket.assignees} />
-          </TD>
-          <TD>{seconds(ticket.timeEstimate)}</TD>
-          <TD>{seconds(ticket.timeSpent)}</TD>
-          <TD onClick={(e) => e.stopPropagation()}>
-            <PinButton
-              pinned={ticket.pinned}
-              disabled={props.pinPending}
-              onToggle={() => props.onTogglePin(ticket)}
-            />
-          </TD>
-          <TD>
-            {ticket.webUrl ? (
-              <a
-                href={ticket.webUrl}
-                target="_blank"
-                rel="noreferrer"
-                onClick={(e) => e.stopPropagation()}
-                className="inline-flex items-center gap-1 text-muted-foreground hover:text-foreground"
-              >
-                <ExternalLink className="h-4 w-4" />
-              </a>
-            ) : null}
-          </TD>
-        </TR>
-      ))}
-    </>
   );
 }

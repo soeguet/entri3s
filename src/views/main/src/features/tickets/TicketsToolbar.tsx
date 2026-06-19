@@ -1,4 +1,3 @@
-import type { Dispatch, SetStateAction } from "react";
 import { Search } from "lucide-react";
 import type { TicketState, TicketStatus } from "../../../../../shared/types";
 import { Button } from "../../components/ui/button";
@@ -7,18 +6,18 @@ import { Label } from "../../components/ui/label";
 
 export function TicketsToolbar(props: {
   search: string;
-  setSearch: Dispatch<SetStateAction<string>>;
+  setSearch: (value: string) => void;
   status: TicketStatus | "";
-  setStatus: Dispatch<SetStateAction<TicketStatus | "">>;
+  setStatus: (value: TicketStatus | "") => void;
   state: TicketState | "";
-  setState: Dispatch<SetStateAction<TicketState | "">>;
+  setState: (value: TicketState | "") => void;
   assignedToMe: boolean;
-  setAssignedToMe: Dispatch<SetStateAction<boolean>>;
+  setAssignedToMe: (value: boolean) => void;
   currentUserAvailable: boolean;
   pinnedOnly: boolean;
-  setPinnedOnly: Dispatch<SetStateAction<boolean>>;
+  setPinnedOnly: (value: boolean) => void;
   unreadOnly: boolean;
-  setUnreadOnly: Dispatch<SetStateAction<boolean>>;
+  setUnreadOnly: (value: boolean) => void;
   onMarkAllRead: () => void;
   markAllReadPending: boolean;
 }) {
@@ -69,7 +68,7 @@ export function TicketsToolbar(props: {
           type="button"
           variant={props.assignedToMe ? "default" : "outline"}
           disabled={!props.currentUserAvailable}
-          onClick={() => props.setAssignedToMe((v) => !v)}
+          onClick={() => props.setAssignedToMe(!props.assignedToMe)}
         >
           Mir zugewiesen
         </Button>
@@ -80,7 +79,7 @@ export function TicketsToolbar(props: {
           id="t-pinned"
           type="button"
           variant={props.pinnedOnly ? "default" : "outline"}
-          onClick={() => props.setPinnedOnly((v) => !v)}
+          onClick={() => props.setPinnedOnly(!props.pinnedOnly)}
         >
           Gepinnt
         </Button>
@@ -91,7 +90,7 @@ export function TicketsToolbar(props: {
           id="t-unread"
           type="button"
           variant={props.unreadOnly ? "default" : "outline"}
-          onClick={() => props.setUnreadOnly((v) => !v)}
+          onClick={() => props.setUnreadOnly(!props.unreadOnly)}
         >
           Ungelesen
         </Button>
