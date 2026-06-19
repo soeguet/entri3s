@@ -57,6 +57,13 @@ export interface EntryFilter {
 export type TicketState = "opened" | "closed" | "locked";
 export type TicketStatus = "active" | "orphaned";
 
+// Assignee eines Tickets — denormalisiert pro Ticket gespeichert (kein users-Table).
+export interface TicketAssignee {
+  gitlabUserId: number;
+  username: string;
+  name: string;
+}
+
 export interface Ticket {
   id: number;
   gitlabIid: number;
@@ -68,6 +75,7 @@ export interface Ticket {
   timeEstimate: number | null; // Sekunden
   timeSpent: number | null; // Sekunden
   webUrl: string | null;
+  assignees: TicketAssignee[];
   syncedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -76,6 +84,10 @@ export interface Ticket {
 export interface TicketFilter {
   status?: TicketStatus;
   state?: TicketState;
+  // Nur Tickets, die dem aktuellen GitLab-User zugewiesen sind. Die konkrete
+  // User-ID hält der Filter NICHT — sie kommt im Repository als zweiter Parameter
+  // vom Service (Single Source: settings.getCurrentUser).
+  assignedToMe?: boolean;
 }
 
 // ── Projects (aus GitLab gesynct; fullPath kodiert die Gruppenhierarchie) ──────

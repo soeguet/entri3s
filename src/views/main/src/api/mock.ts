@@ -162,6 +162,9 @@ export const getTickets = (filter: TicketFilter) => {
   let result = store.tickets;
   if (filter.status) result = result.filter((t) => t.status === filter.status);
   if (filter.state) result = result.filter((t) => t.state === filter.state);
+  if (filter.assignedToMe) {
+    result = result.filter((t) => t.assignees.some((a) => a.gitlabUserId === store.currentUser.id));
+  }
   return ok([...result]);
 };
 

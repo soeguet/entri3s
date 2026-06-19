@@ -8,7 +8,7 @@ import type {
   TicketState,
   TicketStatus,
 } from "../../../../../shared/types";
-import { getTickets, getProjects, triggerSync } from "../../api";
+import { getTickets, getProjects, triggerSync, getCurrentUser } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import type { SyncStatus } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
@@ -22,6 +22,7 @@ import { Label } from "../../components/ui/label";
 import { Badge } from "../../components/ui/badge";
 import { Table, THead, TBody, TR, TH, TD } from "../../components/ui/table";
 import { TicketTree } from "./TicketTree";
+import { AssigneeCell } from "./AssigneeCell";
 
 function seconds(s: number | null): string {
   return s == null ? "–" : formatDuration(Math.round(s / 60));
@@ -61,10 +62,12 @@ export function TicketsPage() {
   const [state, setState] = useState<TicketState | "">("");
   const [search, setSearch] = useState("");
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
+  const [assignedToMe, setAssignedToMe] = useState(false);
 
   const filter: TicketFilter = {};
   if (status) filter.status = status;
   if (state) filter.state = state;
+  if (assignedToMe) filter.assignedToMe = true;
 
   const tickets = useQuery({
     queryKey: keys.tickets(filter),
@@ -73,6 +76,10 @@ export function TicketsPage() {
   const projects = useQuery({
     queryKey: keys.projects(),
     queryFn: async () => unwrap(await getProjects()),
+  });
+  const currentUser = useQuery({
+    queryKey: keys.currentUser(),
+    queryFn: async () => unwrap(await getCurrentUser()),
   });
 
   const syncStatus = useQuery({
@@ -173,6 +180,18 @@ export function TicketsPage() {
                 <option value="locked">locked</option>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="t-mine">Zuweisung</Label>
+              <Button
+                id="t-mine"
+                type="button"
+                variant={assignedToMe ? "default" : "outline"}
+                disabled={!currentUser.data}
+                onClick={() => setAssignedToMe((v) => !v)}
+              >
+                Mir zugewiesen
+              </Button>
+            </div>
           </div>
 
           {tickets.isLoading ? (
@@ -189,6 +208,7 @@ export function TicketsPage() {
                   <TH>Titel</TH>
                   <TH>Status</TH>
                   <TH>State</TH>
+                  <TH>Zugewiesen</TH>
                   <TH>Estimate</TH>
                   <TH>Gebucht</TH>
                   <TH></TH>
@@ -211,7 +231,7 @@ function ProjectGroup(props: { group: Group }) {
   return (
     <>
       <TR className="bg-muted">
-        <TD colSpan={7} className="py-1.5">
+        <TD colSpan={8} className="py-1.5">
           <span className="font-medium text-foreground">{props.group.name}</span>
           <span className="ml-2 font-mono text-xs text-muted-foreground">{props.group.path}</span>
         </TD>
@@ -228,6 +248,9 @@ function ProjectGroup(props: { group: Group }) {
             )}
           </TD>
           <TD>{ticket.state}</TD>
+          <TD>
+            <AssigneeCell assignees={ticket.assignees} />
+          </TD>
           <TD>{seconds(ticket.timeEstimate)}</TD>
           <TD>{seconds(ticket.timeSpent)}</TD>
           <TD>

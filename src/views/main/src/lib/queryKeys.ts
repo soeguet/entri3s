@@ -18,6 +18,7 @@ export const keys = {
     (filter === undefined ? ["tickets"] : ["tickets", filter]) as readonly unknown[],
   recentTickets: () => ["recentTickets"] as const,
   projects: () => ["projects"] as const,
+  currentUser: () => ["currentUser"] as const,
   tags: () => ["tags"] as const,
   templates: () => ["templates"] as const,
   commits: (date: string) => ["commits", date] as const,

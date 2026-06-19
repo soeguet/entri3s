@@ -1,5 +1,11 @@
 import type { Database } from "bun:sqlite";
-import type { Ticket, TicketFilter, TicketState, TicketStatus } from "../../shared/types";
+import type {
+  Ticket,
+  TicketAssignee,
+  TicketFilter,
+  TicketState,
+  TicketStatus,
+} from "../../shared/types";
 
 interface TicketRow {
   id: number;
@@ -17,6 +23,13 @@ interface TicketRow {
   updated_at: string;
 }
 
+interface AssigneeRow {
+  ticket_id: number;
+  gitlab_user_id: number;
+  username: string;
+  name: string;
+}
+
 export interface TicketUpsert {
   gitlabIid: number;
   gitlabGlobalId: number | null;
@@ -28,7 +41,7 @@ export interface TicketUpsert {
   webUrl: string | null;
 }
 
-function toTicket(row: TicketRow): Ticket {
+function toTicket(row: TicketRow, assignees: TicketAssignee[]): Ticket {
   return {
     id: row.id,
     gitlabIid: row.gitlab_iid,
@@ -40,6 +53,7 @@ function toTicket(row: TicketRow): Ticket {
     timeEstimate: row.time_estimate,
     timeSpent: row.time_spent,
     webUrl: row.web_url,
+    assignees,
     syncedAt: row.synced_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -47,10 +61,42 @@ function toTicket(row: TicketRow): Ticket {
 }
 
 export function createTicketRepository(db: Database) {
+  /**
+   * Lädt Assignees für mehrere Tickets GEBÜNDELT (eine Query, dann in JS nach
+   * ticket_id gruppieren) — kein N+1 über die Ergebnisliste.
+   */
+  function loadAssignees(ticketIds: number[]): Map<number, TicketAssignee[]> {
+    const grouped = new Map<number, TicketAssignee[]>();
+    if (ticketIds.length === 0) return grouped;
+    const placeholders = ticketIds.map(() => "?").join(", ");
+    const rows = db
+      .query<AssigneeRow, number[]>(
+        `SELECT ticket_id, gitlab_user_id, username, name
+         FROM ticket_assignees WHERE ticket_id IN (${placeholders})
+         ORDER BY name`,
+      )
+      .all(...ticketIds);
+    for (const r of rows) {
+      const list = grouped.get(r.ticket_id) ?? [];
+      list.push({ gitlabUserId: r.gitlab_user_id, username: r.username, name: r.name });
+      grouped.set(r.ticket_id, list);
+    }
+    return grouped;
+  }
+
+  function mapRows(rows: TicketRow[]): Ticket[] {
+    const byTicket = loadAssignees(rows.map((r) => r.id));
+    return rows.map((row) => toTicket(row, byTicket.get(row.id) ?? []));
+  }
+
+  function mapRow(row: TicketRow | null): Ticket | null {
+    if (!row) return null;
+    return toTicket(row, loadAssignees([row.id]).get(row.id) ?? []);
+  }
+
   return {
     getById(id: number): Ticket | null {
-      const row = db.query<TicketRow, [number]>("SELECT * FROM tickets WHERE id = ?").get(id);
-      return row ? toTicket(row) : null;
+      return mapRow(db.query<TicketRow, [number]>("SELECT * FROM tickets WHERE id = ?").get(id));
     },
 
     /** Erstes einem Entry zugewiesenes Ticket (für Buchungen). */
@@ -62,7 +108,7 @@ export function createTicketRepository(db: Database) {
            WHERE et.entry_id = ? ORDER BY t.id LIMIT 1`,
         )
         .get(entryId);
-      return row ? toTicket(row) : null;
+      return mapRow(row);
     },
 
     getByGitLabIid(gitlabIid: number, projectId: number): Ticket | null {
@@ -71,10 +117,15 @@ export function createTicketRepository(db: Database) {
           "SELECT * FROM tickets WHERE gitlab_iid = ? AND project_id = ?",
         )
         .get(gitlabIid, projectId);
-      return row ? toTicket(row) : null;
+      return mapRow(row);
     },
 
-    list(filter: TicketFilter = {}): Ticket[] {
+    /**
+     * `currentUserId` ist optional und ergänzt `filter.assignedToMe`: nur wenn beide
+     * vorliegen, wird auf Tickets mit diesem Assignee eingeschränkt (EXISTS-Subquery).
+     * Der Filter-Typ bleibt sauber (keine assigneeId im shared TicketFilter).
+     */
+    list(filter: TicketFilter = {}, currentUserId?: number): Ticket[] {
       const where: string[] = [];
       const params: (string | number)[] = [];
       if (filter.status) {
@@ -85,13 +136,19 @@ export function createTicketRepository(db: Database) {
         where.push("state = ?");
         params.push(filter.state);
       }
+      if (filter.assignedToMe && currentUserId !== undefined) {
+        where.push(
+          "EXISTS (SELECT 1 FROM ticket_assignees ta WHERE ta.ticket_id = tickets.id AND ta.gitlab_user_id = ?)",
+        );
+        params.push(currentUserId);
+      }
       const clause = where.length > 0 ? `WHERE ${where.join(" AND ")}` : "";
-      return db
+      const rows = db
         .query<TicketRow, (string | number)[]>(
           `SELECT * FROM tickets ${clause} ORDER BY gitlab_iid DESC`,
         )
-        .all(...params)
-        .map(toTicket);
+        .all(...params);
+      return mapRows(rows);
     },
 
     /**
@@ -100,7 +157,7 @@ export function createTicketRepository(db: Database) {
      * Ticket-Auswahl im EntryForm.
      */
     listRecent(limit: number): Ticket[] {
-      return db
+      const rows = db
         .query<TicketRow, [number]>(
           `SELECT t.* FROM tickets t
            JOIN entry_tickets et ON et.ticket_id = t.id
@@ -110,8 +167,22 @@ export function createTicketRepository(db: Database) {
            ORDER BY MAX(e.updated_at) DESC
            LIMIT ?`,
         )
-        .all(limit)
-        .map(toTicket);
+        .all(limit);
+      return mapRows(rows);
+    },
+
+    /**
+     * Ersetzt die Assignees eines Tickets vollständig (Replace-Strategie, da
+     * GitLab pro Sync die komplette Liste liefert).
+     */
+    setAssignees(ticketId: number, assignees: TicketAssignee[]): void {
+      db.run("DELETE FROM ticket_assignees WHERE ticket_id = ?", [ticketId]);
+      for (const a of assignees) {
+        db.run(
+          "INSERT INTO ticket_assignees (ticket_id, gitlab_user_id, username, name) VALUES (?, ?, ?, ?)",
+          [ticketId, a.gitlabUserId, a.username, a.name],
+        );
+      }
     },
 
     upsert(input: TicketUpsert): void {

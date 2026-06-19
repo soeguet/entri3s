@@ -17,6 +17,7 @@ function issueNode(iid: string, extra: Record<string, unknown> = {}) {
     updatedAt: "2024-06-17T10:00:00.000Z",
     timeEstimate: 3600,
     totalTimeSpent: 1800,
+    assignees: { nodes: [] },
     ...extra,
   };
 }
@@ -79,11 +80,36 @@ test("iterates member projects and maps issues per project with injected project
     state: "opened",
     web_url: "https://gl.example.com/-/issues/1",
     updated_at: "2024-06-17T10:00:00.000Z",
+    assignees: [],
     time_stats: { time_estimate: 3600, total_time_spent: 1800 },
   });
   // Issue aus dem zweiten Projekt trägt dessen project_id.
   expect(issues[2].iid).toBe(3);
   expect(issues[2].project_id).toBe(456);
+});
+
+test("maps assignees, parsing their user id from the GID", async () => {
+  const client = fakeClient([], [{ id: "gid://gitlab/Project/7", fullPath: "grp/a" }], {
+    "grp/a:start": {
+      project: {
+        issues: page([
+          issueNode("1", {
+            assignees: {
+              nodes: [
+                { id: "gid://gitlab/User/42", username: "alice", name: "Alice" },
+                { id: "gid://gitlab/User/43", username: "bob", name: "Bob" },
+              ],
+            },
+          }),
+        ]),
+      },
+    },
+  });
+  const issues = await fetchIssues(client);
+  expect(issues[0].assignees).toEqual([
+    { id: 42, username: "alice", name: "Alice" },
+    { id: 43, username: "bob", name: "Bob" },
+  ]);
 });
 
 test("follows cursor pagination within a project", async () => {

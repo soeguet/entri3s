@@ -71,3 +71,50 @@ test("listRecent dedupes a ticket used by multiple entries", () => {
 
   expect(repo.tickets.listRecent(10).map((t) => t.id)).toEqual([a]);
 });
+
+test("setAssignees replaces the existing assignees of a ticket", () => {
+  const id = upsert(1);
+  repo.tickets.setAssignees(id, [
+    { gitlabUserId: 7, username: "alice", name: "Alice" },
+    { gitlabUserId: 8, username: "bob", name: "Bob" },
+  ]);
+  expect(repo.tickets.getById(id)?.assignees).toHaveLength(2);
+
+  // Replace: alte Assignees verschwinden, nur die neue Liste bleibt.
+  repo.tickets.setAssignees(id, [{ gitlabUserId: 9, username: "carol", name: "Carol" }]);
+  expect(repo.tickets.getById(id)?.assignees).toEqual([
+    { gitlabUserId: 9, username: "carol", name: "Carol" },
+  ]);
+});
+
+test("list and getById populate assignees", () => {
+  const id = upsert(1);
+  repo.tickets.setAssignees(id, [{ gitlabUserId: 7, username: "alice", name: "Alice" }]);
+
+  expect(repo.tickets.getById(id)?.assignees).toEqual([
+    { gitlabUserId: 7, username: "alice", name: "Alice" },
+  ]);
+  expect(repo.tickets.list().find((t) => t.id === id)?.assignees).toEqual([
+    { gitlabUserId: 7, username: "alice", name: "Alice" },
+  ]);
+});
+
+test("list with assignedToMe filters to tickets assigned to the given user", () => {
+  const mine = upsert(1);
+  const other = upsert(2);
+  upsert(3); // ohne Assignee
+  repo.tickets.setAssignees(mine, [{ gitlabUserId: 42, username: "me", name: "Me" }]);
+  repo.tickets.setAssignees(other, [{ gitlabUserId: 99, username: "you", name: "You" }]);
+
+  const result = repo.tickets.list({ assignedToMe: true }, 42);
+  expect(result.map((t) => t.id)).toEqual([mine]);
+});
+
+test("list ignores assignedToMe when no currentUserId is given", () => {
+  const mine = upsert(1);
+  repo.tickets.setAssignees(mine, [{ gitlabUserId: 42, username: "me", name: "Me" }]);
+  upsert(2);
+
+  // Ohne userId greift der Filter nicht → alle Tickets.
+  expect(repo.tickets.list({ assignedToMe: true })).toHaveLength(2);
+});

@@ -17,7 +17,7 @@ beforeEach(() => {
   svc = createSyncService(repo, gl, noopEmitter);
 });
 
-function issue(iid: number, state: string): GitLabIssue {
+function issue(iid: number, state: string, assignees: GitLabIssue["assignees"] = []): GitLabIssue {
   return {
     iid,
     globalId: 5000 + iid,
@@ -26,6 +26,7 @@ function issue(iid: number, state: string): GitLabIssue {
     state,
     web_url: `https://gl/issues/${iid}`,
     updated_at: "2024-01-15T10:00:00.000Z",
+    assignees,
     time_stats: { time_estimate: 3600, total_time_spent: 1800 },
   };
 }
@@ -104,6 +105,22 @@ test("syncIssues persists the current user", async () => {
     username: "testuser",
     name: "Test User",
   });
+});
+
+test("syncIssues persists assignees of an issue", async () => {
+  gl.issuesToReturn = [
+    issue(1, "opened", [
+      { id: 7, username: "alice", name: "Alice" },
+      { id: 8, username: "bob", name: "Bob" },
+    ]),
+  ];
+  await svc.syncIssues();
+
+  const ticket = repo.tickets.getByGitLabIid(1, PROJECT_ID);
+  expect(ticket?.assignees).toEqual([
+    { gitlabUserId: 7, username: "alice", name: "Alice" },
+    { gitlabUserId: 8, username: "bob", name: "Bob" },
+  ]);
 });
 
 test("syncIssues does not overwrite an existing current user", async () => {

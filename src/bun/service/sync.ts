@@ -70,6 +70,17 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
       let orphaned = 0;
       for (const issue of issues) {
         repo.tickets.upsert(toUpsert(issue));
+        const ticket = repo.tickets.getByGitLabIid(issue.iid, issue.project_id);
+        if (ticket) {
+          repo.tickets.setAssignees(
+            ticket.id,
+            issue.assignees.map((a) => ({
+              gitlabUserId: a.id,
+              username: a.username,
+              name: a.name,
+            })),
+          );
+        }
         if (isOrphanState(issue.state)) {
           repo.tickets.markOrphaned(issue.iid, issue.project_id);
           orphaned++;

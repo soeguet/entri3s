@@ -23,6 +23,9 @@ export const removeTicket = vi.fn(voidResp);
 export const getTickets = vi.fn(() => okResp(fixtures.tickets));
 export const getRecentTickets = vi.fn(() => okResp(fixtures.tickets));
 export const getProjects = vi.fn(() => okResp(fixtures.projects));
+export const getCurrentUser = vi.fn(() =>
+  okResp({ id: 1, username: "mockuser", name: "Mock User" }),
+);
 export const bookEntry = vi.fn(voidResp);
 export const deleteBooking = vi.fn(voidResp);
 export const getBookingsForEntry = vi.fn(() => okResp(fixtures.bookings));

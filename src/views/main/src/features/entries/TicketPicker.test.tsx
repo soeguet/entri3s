@@ -21,6 +21,7 @@ function ticket(id: number, iid: number, projectId: number, title: string): Tick
     timeEstimate: null,
     timeSpent: null,
     webUrl: null,
+    assignees: [],
     syncedAt: null,
     createdAt: "",
     updatedAt: "",

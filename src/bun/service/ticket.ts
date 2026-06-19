@@ -4,6 +4,13 @@ import type { Repository } from "../repository";
 export function createTicketService(repo: Repository) {
   return {
     getAll(filter: TicketFilter = {}): Ticket[] {
+      if (filter.assignedToMe) {
+        const userId = repo.settings.getCurrentUser()?.id;
+        // Kein Current User bekannt → es gibt kein „mir": leere Liste statt aller
+        // Tickets (bewusste Wahl, damit der Filter nie versehentlich alles zeigt).
+        if (userId === undefined) return [];
+        return repo.tickets.list(filter, userId);
+      }
       return repo.tickets.list(filter);
     },
 

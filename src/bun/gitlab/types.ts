@@ -9,6 +9,7 @@ export interface GitLabIssue {
   state: string; // "opened" | "closed"
   web_url: string;
   updated_at: string;
+  assignees: Array<{ id: number; username: string; name: string }>;
   time_stats?: {
     time_estimate: number; // Sekunden
     total_time_spent: number; // Sekunden
