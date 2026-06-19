@@ -35,6 +35,25 @@ Arbeitsweise.
   über Subagents (z.B. Backend + Frontend parallel), Abnahme durch den Supervisor
   mit `mise run check` (lint + tests) und manuellem Diff-Review.
 
+### Harte Regeln für den Umgang mit Subagents
+
+- **Der Supervisor bleibt immer der Supervisor.** Er schreibt keinen Produktivcode,
+  sondern plant, delegiert, evaluiert und nimmt ab.
+- **Der Supervisor kann und soll Subagents losschicken** und deren Arbeit kritisch
+  evaluieren — nicht der Behauptung glauben, sondern den tatsächlichen Stand prüfen.
+- **Der Supervisor wartet IMMER vollständig auf jeden Subagent**, bevor er weitermacht
+  oder committed. Kein vorzeitiges Handeln.
+- **Subagents dürfen NIEMALS schreibende Git-Tools verwenden** — kein `commit`,
+  kein `push`, kein `git add`, kein Branch-Wechsel, kein Stash. Nur lesende
+  Git-Operationen (z.B. `git status`, `git diff`, `git log`) sind erlaubt.
+  Committen und Pushen macht ausschließlich der Supervisor.
+- **Subagents dürfen keine weiteren schreibenden Subagents losschicken.** Idealerweise
+  starten Subagents generell keine weiteren Subagents — nur mit gutem Grund und
+  niemals für Schreibarbeit.
+- **Subagents müssen den Supervisor informieren**, wenn sie merken, dass ihre Aufgabe
+  größer oder wichtiger ist als angenommen (Scope-Ausweitung, Architektur-Impact,
+  unerwartete Risiken), damit der Supervisor Bescheid weiß und gegensteuern kann.
+
 ## Schnellstart
 
 ```bash
