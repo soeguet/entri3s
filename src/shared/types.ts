@@ -104,6 +104,18 @@ export interface Booking {
 
 export type BookingInsert = Omit<Booking, "id" | "bookedAt">;
 
+// ── Commits (on-demand von GitLab, nicht persistiert) ────────────────────────
+
+export interface Commit {
+  hash: string;
+  shortHash: string;
+  title: string;
+  authorName: string;
+  createdAt: string; // ISO-UTC
+  webUrl: string;
+  projectId: number;
+}
+
 // ── Tags & Templates ─────────────────────────────────────────────────────────
 
 export interface Tag {
@@ -178,6 +190,7 @@ export interface AppRPCType {
       bookEntry: { params: { entryId: number }; response: RpcResponse<void> };
       deleteBooking: { params: { bookingId: number }; response: RpcResponse<void> };
       getBookingsForEntry: { params: { entryId: number }; response: RpcResponse<Booking[]> };
+      getCommitsForDate: { params: { date: string }; response: RpcResponse<Commit[]> };
       getDeadEvents: { params: Record<string, never>; response: RpcResponse<AppEvent[]> };
       retryDeadEvent: { params: { eventId: number }; response: RpcResponse<void> };
       discardDeadEvent: { params: { eventId: number }; response: RpcResponse<void> };

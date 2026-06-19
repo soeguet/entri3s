@@ -31,6 +31,16 @@ export interface TimelogTarget {
   issueGlobalId: number;
 }
 
+/** Rohe GitLab-Commit-Form (REST /repository/commits Endpoint). */
+export interface GitLabCommit {
+  id: string; // volles SHA
+  short_id: string;
+  title: string;
+  author_name: string;
+  created_at: string;
+  web_url: string;
+}
+
 export interface GitLabClient {
   /** Projektübergreifend: alle für den Token erreichbaren Issues. */
   fetchIssues(since?: Date): Promise<GitLabIssue[]>;
@@ -53,6 +63,8 @@ export interface GitLabClient {
   ): Promise<number | null>;
   /** Entfernt einen Timelog wieder (für Korrektur-Buchungen). */
   deleteTimelog(timelogId: number): Promise<void>;
+  /** Commits eines Projekts im Zeitfenster (REST). */
+  fetchCommits(projectId: number, since: string, until: string): Promise<GitLabCommit[]>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
@@ -77,6 +89,7 @@ export class FakeGitLabClient implements GitLabClient {
   projectsToReturn: GitLabProject[] = [];
   createShouldThrow: Error | null = null;
   deleteShouldThrow: Error | null = null;
+  commitsToReturn: GitLabCommit[] = [];
   nextTimelogId = 500;
 
   async fetchIssues(): Promise<GitLabIssue[]> {
@@ -132,5 +145,9 @@ export class FakeGitLabClient implements GitLabClient {
     if (this.deleteShouldThrow) throw this.deleteShouldThrow;
     this.deleteCalls.push(timelogId);
     this.timelogs = this.timelogs.filter((t) => t.timelogId !== timelogId);
+  }
+
+  async fetchCommits(): Promise<GitLabCommit[]> {
+    return this.commitsToReturn;
   }
 }

@@ -3,6 +3,7 @@ import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
 import { createLogger } from "../lib/logger";
 import { fetchIssue } from "./fetch";
+import { fetchCommits as restFetchCommits } from "./commits";
 import { fetchIssues as gqlFetchIssues, fetchProjects as gqlFetchProjects } from "./graphql";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
 
@@ -191,5 +192,6 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     findTimelog: (target, durationMinutes, spentAt, summary) =>
       findTimelog(gqlClient, target, durationMinutes, spentAt, summary),
     deleteTimelog: (timelogId) => deleteTimelog(gqlClient, timelogId),
+    fetchCommits: (projectId, since, until) => restFetchCommits(client, projectId, since, until),
   };
 }

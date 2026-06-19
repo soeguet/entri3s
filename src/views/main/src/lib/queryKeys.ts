@@ -20,6 +20,7 @@ export const keys = {
   projects: () => ["projects"] as const,
   tags: () => ["tags"] as const,
   templates: () => ["templates"] as const,
+  commits: (date: string) => ["commits", date] as const,
   deadEvents: () => ["deadEvents"] as const,
   settings: () => ["settings"] as const,
   // Letzter Sync-Status. triggerSync ist Fire-and-Forget — das Ergebnis kommt
