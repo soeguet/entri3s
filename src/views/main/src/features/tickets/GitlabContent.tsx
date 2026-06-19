@@ -95,15 +95,40 @@ function absoluteUrl(src: string, gitlabUrl: string): string {
   }
 }
 
+/**
+ * Echte Bildquelle bestimmen. GitLab lazy-loaded Bilder: `src` ist nur ein
+ * 1×1-`data:`-Platzhalter-GIF, die reale URL steht in `data-src` (Fallback
+ * `data-canonical-src`). Bevorzugung dieser Attribute filtert den Platzhalter
+ * automatisch heraus; erst wenn keines existiert, gilt das normale `src`.
+ */
+function realImageSrc(img: HTMLImageElement): string {
+  return (
+    img.getAttribute("data-src") ??
+    img.getAttribute("data-canonical-src") ??
+    img.getAttribute("src") ??
+    ""
+  );
+}
+
 function processImage(img: HTMLImageElement, gitlabUrl: string, isCancelled: () => boolean) {
   const origin = gitlabOrigin(gitlabUrl);
-  const original = img.getAttribute("src") ?? "";
+  const original = realImageSrc(img);
   if (!needsProxy(original, origin)) return;
 
   const targetUrl = absoluteUrl(original, gitlabUrl);
   const alt = img.getAttribute("alt") ?? "";
+
+  // GitLab wickelt Upload-Bilder in einen <a> (relativer href). Enthält der
+  // Anker genau dieses eine Bild, ersetzen wir den Anker statt das <img> —
+  // sonst entstünde beim Erfolg ein verschachteltes <a><a>…</a></a> und der
+  // relative href bliebe defekt. makeImageLink/makeFallbackLink liefern selbst
+  // den (absoluten) Anker.
+  const parent = img.parentElement;
+  const target: Element =
+    parent && parent.tagName === "A" && parent.childElementCount === 1 ? parent : img;
+
   const placeholder = makePlaceholder();
-  img.replaceWith(placeholder);
+  target.replaceWith(placeholder);
 
   void (async () => {
     try {

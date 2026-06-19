@@ -45,6 +45,40 @@ test("zeigt kompakten Fallback-Link, wenn der Proxy scheitert", async () => {
   expect(link.getAttribute("href")).toBe("https://gitlab.example.com/uploads/x/shot.png");
 });
 
+test("löst lazy-loaded Bild (data-src) auf und entschachtelt den Anker", async () => {
+  vi.mocked(api.getGitlabImage).mockResolvedValue({
+    data: "data:image/png;base64,BBB",
+    error: null,
+  });
+
+  renderWithClient(
+    <GitlabContent
+      html={
+        '<p><a href="/-/project/5/uploads/x/image.png" target="_blank">' +
+        '<img src="data:image/gif;base64,R0lGODlhAQABAAAA..." ' +
+        'data-src="/-/project/5/uploads/x/image.png" class="lazy" alt="image"></a></p>'
+      }
+    />,
+  );
+
+  // Nach Erfolg: gerendertes <img> trägt die Proxy-data-URL (nicht den GIF-Platzhalter).
+  await waitFor(() => {
+    const img = screen.getByAltText("image");
+    expect(img.getAttribute("src")).toBe("data:image/png;base64,BBB");
+  });
+
+  // getGitlabImage wurde mit der echten data-src-URL aufgerufen.
+  expect(api.getGitlabImage).toHaveBeenCalledWith("/-/project/5/uploads/x/image.png");
+
+  // Genau ein umschließender Anker, absolute URL, keine Verschachtelung.
+  const img = screen.getByAltText("image");
+  const anchor = img.closest("a");
+  expect(anchor?.getAttribute("href")).toBe(
+    "https://gitlab.example.com/-/project/5/uploads/x/image.png",
+  );
+  expect(anchor?.parentElement?.closest("a")).toBeNull();
+});
+
 test("lässt externe Bilder unangetastet (kein Proxy)", async () => {
   renderWithClient(
     <GitlabContent html='<img src="https://other.example.org/pic.png" alt="Ext">' />,
