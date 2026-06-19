@@ -1,6 +1,7 @@
 import type {
   AppEvent,
   Booking,
+  Commit,
   Entry,
   EntryCreate,
   EntryFilter,
@@ -251,3 +252,33 @@ export const saveSettings = (s: Settings) => {
 };
 export const setGitLabToken = (_token: string) => ok(undefined as void);
 export const backupDatabase = (_destPath: string) => ok(undefined as void);
+export const getCommitsForDate = (_date: string): Promise<RpcResponse<Commit[]>> =>
+  ok([
+    {
+      hash: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+      shortHash: "a1b2c3d4",
+      title: "Fix login validation for edge cases",
+      authorName: "Max Mustermann",
+      createdAt: "2026-06-19T14:30:00Z",
+      webUrl: "https://gitlab.example.com/acme/frontend/-/commit/a1b2c3d4",
+      projectId: 1,
+    },
+    {
+      hash: "b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3",
+      shortHash: "b2c3d4e5",
+      title: "Add unit tests for auth module",
+      authorName: "Max Mustermann",
+      createdAt: "2026-06-19T11:15:00Z",
+      webUrl: "https://gitlab.example.com/acme/frontend/-/commit/b2c3d4e5",
+      projectId: 1,
+    },
+    {
+      hash: "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4",
+      shortHash: "c3d4e5f6",
+      title: "Update API documentation",
+      authorName: "Max Mustermann",
+      createdAt: "2026-06-19T09:45:00Z",
+      webUrl: "https://gitlab.example.com/acme/backend/-/commit/c3d4e5f6",
+      projectId: 2,
+    },
+  ]);

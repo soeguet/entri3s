@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown, GitCommitHorizontal } from "lucide-react";
 import type { Entry } from "../../../../../shared/types";
 import {
   createEntry,
@@ -23,6 +23,7 @@ import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Select } from "../../components/ui/select";
 import { TicketPicker } from "./TicketPicker";
+import { CommitPicker } from "./CommitPicker";
 import {
   entrySchema,
   emptyFormValues,
@@ -100,6 +101,8 @@ export function EntryForm(props: EntryFormProps) {
   });
 
   const [picking, setPicking] = useState(false);
+  const [pickingCommits, setPickingCommits] = useState(false);
+
   const selectedTags = form.watch("tagIds");
   const ticketId = form.watch("ticketId");
 
@@ -123,9 +126,24 @@ export function EntryForm(props: EntryFormProps) {
       open={props.open}
       onClose={props.onClose}
       size="lg"
-      title={picking ? undefined : props.entry ? "Entry bearbeiten" : "Neuer Entry"}
+      title={
+        picking || pickingCommits ? undefined : props.entry ? "Entry bearbeiten" : "Neuer Entry"
+      }
     >
-      {picking ? (
+      {pickingCommits ? (
+        <CommitPicker
+          date={form.watch("date")}
+          projects={projects.data ?? []}
+          onApply={(messages) => {
+            const current = form.getValues("notes") ?? "";
+            const append = messages.map((m) => `- ${m}`).join("\n");
+            const next = current ? `${current}\n${append}` : append;
+            form.setValue("notes", next);
+            setPickingCommits(false);
+          }}
+          onCancel={() => setPickingCommits(false)}
+        />
+      ) : picking ? (
         <TicketPicker
           tickets={tickets.data ?? []}
           projects={projects.data ?? []}
@@ -193,6 +211,20 @@ export function EntryForm(props: EntryFormProps) {
             <Label htmlFor="notes">Notizen</Label>
             <Textarea id="notes" {...form.register("notes")} />
           </div>
+
+          {(projects.data ?? []).length > 0 ? (
+            <div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setPickingCommits(true)}
+                className="w-full justify-start gap-2 text-muted-foreground"
+              >
+                <GitCommitHorizontal className="h-4 w-4" />
+                Commits anzeigen
+              </Button>
+            </div>
+          ) : null}
 
           <div>
             <Label htmlFor="ticket">Ticket</Label>

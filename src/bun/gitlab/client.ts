@@ -3,6 +3,7 @@ import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
 import { createLogger } from "../lib/logger";
 import { fetchIssue } from "./fetch";
+import { fetchCommits as restFetchCommits } from "./commits";
 import { fetchIssues as gqlFetchIssues, fetchProjects as gqlFetchProjects } from "./graphql";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
 
@@ -109,6 +110,7 @@ function toNetworkError(label: string, url: string, cause: unknown): AppErrorErr
  */
 export function createGitLabClient(token: string, getSettings: () => Settings): GitLabClient {
   const limiter = createRateLimiter(5); // 5 req/s
+  let cachedUsername: string | null = null;
 
   async function apiRequest(path: string, options?: RequestInit): Promise<Response> {
     await limiter.throttle();
@@ -179,6 +181,14 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     return json.data;
   }
 
+  async function fetchCurrentUser(): Promise<string> {
+    if (cachedUsername) return cachedUsername;
+    const res = await apiRequest("/user");
+    const user = (await res.json()) as { username: string };
+    cachedUsername = user.username;
+    return cachedUsername;
+  }
+
   const client: ApiClient = { apiRequest };
   const gqlClient: GqlClient = { gqlRequest };
 
@@ -191,5 +201,8 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     findTimelog: (target, durationMinutes, spentAt, summary) =>
       findTimelog(gqlClient, target, durationMinutes, spentAt, summary),
     deleteTimelog: (timelogId) => deleteTimelog(gqlClient, timelogId),
+    fetchCommits: (projectId, since, until, author) =>
+      restFetchCommits(client, projectId, since, until, author),
+    fetchCurrentUser,
   };
 }
