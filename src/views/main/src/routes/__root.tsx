@@ -20,7 +20,7 @@ function RootLayout() {
         <div className="px-5 py-5">
           <span className="text-lg font-bold tracking-tight">entries</span>
         </div>
-        <nav className="flex flex-col gap-1 px-3">
+        <nav className="flex-1 flex-col gap-1 px-3">
           {NAV.map((item) => (
             <Link
               key={item.to}
