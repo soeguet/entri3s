@@ -11,6 +11,7 @@ import { startScheduler } from "./scheduler/scheduler";
 import { getToken } from "./keychain/keychain";
 import { resolveDataDir } from "./lib/paths";
 import { resolveViewUrl } from "./lib/window-url";
+import { parseWindowFrame } from "./lib/window-frame";
 
 const dataDir = resolveDataDir();
 const db = openDatabase(dataDir);
@@ -30,20 +31,7 @@ const DEFAULT_FRAME = { width: 1280, height: 800, x: 200, y: 200 };
 const BOUNDS_KEY = "windowBounds";
 
 function loadFrame(): { width: number; height: number; x: number; y: number } {
-  const raw = repo.settings.get(BOUNDS_KEY);
-  if (!raw) return DEFAULT_FRAME;
-  try {
-    const parsed = JSON.parse(raw);
-    if (
-      typeof parsed.width === "number" &&
-      typeof parsed.height === "number" &&
-      typeof parsed.x === "number" &&
-      typeof parsed.y === "number"
-    ) {
-      return { width: parsed.width, height: parsed.height, x: parsed.x, y: parsed.y };
-    }
-  } catch {}
-  return DEFAULT_FRAME;
+  return parseWindowFrame(repo.settings.get(BOUNDS_KEY), DEFAULT_FRAME);
 }
 
 win = new BrowserWindow({
