@@ -200,3 +200,10 @@ test("list with unread filter returns only unread tickets", () => {
 
   expect(repo.tickets.list({ unread: true }).map((t) => t.id)).toEqual([unread]);
 });
+
+test("getById liefert lastViewedAt erst nach markRead", () => {
+  const id = upsert(1, { notesCount: 2 });
+  expect(repo.tickets.getById(id)?.lastViewedAt).toBeNull();
+  repo.tickets.markRead(id);
+  expect(repo.tickets.getById(id)?.lastViewedAt).not.toBeNull();
+});

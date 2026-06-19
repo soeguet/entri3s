@@ -102,3 +102,4 @@ export const getCommitsForDate = (date: string) => r.getCommitsForDate({ date })
 export const getCurrentUser = () => r.getCurrentUser({});
 export const getTicketComments = (ticketId: number) => r.getTicketComments({ ticketId });
 export const syncTicketComments = (ticketId: number) => r.syncTicketComments({ ticketId });
+export const getTicket = (ticketId: number) => r.getTicket({ ticketId });

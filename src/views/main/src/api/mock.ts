@@ -282,6 +282,10 @@ export const getCurrentUser = () => ok(store.currentUser);
 export const getTicketComments = (ticketId: number) =>
   ok(store.comments.filter((c) => c.ticketId === ticketId));
 export const syncTicketComments = (_ticketId: number) => ok(undefined as void);
+export const getTicket = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  return t ? ok(t) : fail<Ticket | null>("NOT_FOUND", `Ticket ${ticketId} nicht gefunden`);
+};
 export const saveSettings = (s: Settings) => {
   store.settings = { ...s };
   return ok(undefined as void);

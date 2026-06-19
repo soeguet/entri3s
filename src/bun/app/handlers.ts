@@ -44,6 +44,7 @@ export function createRpc(svc: Services) {
         markAllTicketsRead: () => wrap(() => svc.ticket.markAllRead()),
         getPinnedTickets: () => wrap(() => svc.ticket.getPinned()),
         getTicketComments: (p) => wrap(() => svc.comment.getComments(p.ticketId)),
+        getTicket: (p) => wrap(() => svc.ticket.getById(p.ticketId)),
         syncTicketComments: (p) => wrap(() => svc.comment.syncComments(p.ticketId)),
         getProjects: () => wrap(() => svc.project.getAll()),
 

@@ -24,6 +24,7 @@ function ticket(id: number, iid: number, projectId: number, title: string): Tick
     assignees: [],
     pinned: false,
     unread: false,
+    lastViewedAt: null,
     notesCount: 0,
     syncedAt: null,
     createdAt: "",

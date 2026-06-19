@@ -209,3 +209,49 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Styling für aus GitLab gerendertes Kommentar-HTML (dangerouslySetInnerHTML).
+   Bewusst auf .gitlab-content gescopet, damit es nichts anderes beeinflusst. */
+.gitlab-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.gitlab-content pre,
+.gitlab-content code {
+  background: var(--muted);
+  border-radius: 4px;
+}
+
+.gitlab-content pre {
+  padding: 0.75rem;
+  overflow-x: auto;
+}
+
+.gitlab-content code {
+  padding: 0.1rem 0.3rem;
+}
+
+.gitlab-content a {
+  color: var(--info-accent);
+  text-decoration: underline;
+}
+
+.gitlab-content p,
+.gitlab-content ul,
+.gitlab-content ol,
+.gitlab-content h1,
+.gitlab-content h2,
+.gitlab-content h3,
+.gitlab-content table {
+  margin: 0.5rem 0;
+}
+
+.gitlab-content ul,
+.gitlab-content ol {
+  padding-left: 1.5rem;
+}
+
+.gitlab-content table {
+  border-collapse: collapse;
+}

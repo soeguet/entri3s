@@ -6,6 +6,7 @@ import type {
   TicketState,
   TicketStatus,
 } from "../../shared/types";
+import { loadAssignees, loadPinned, loadReadState } from "./ticket-relations";
 
 interface TicketRow {
   id: number;
@@ -22,13 +23,6 @@ interface TicketRow {
   synced_at: string | null;
   created_at: string;
   updated_at: string;
-}
-
-interface AssigneeRow {
-  ticket_id: number;
-  gitlab_user_id: number;
-  username: string;
-  name: string;
 }
 
 export interface TicketUpsert {
@@ -48,6 +42,7 @@ function toTicket(
   assignees: TicketAssignee[],
   pinned: boolean,
   unread: boolean,
+  lastViewedAt: string | null,
 ): Ticket {
   return {
     id: row.id,
@@ -64,6 +59,7 @@ function toTicket(
     assignees,
     pinned,
     unread,
+    lastViewedAt,
     syncedAt: row.synced_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
@@ -71,80 +67,44 @@ function toTicket(
 }
 
 export function createTicketRepository(db: Database) {
-  /**
-   * Lädt Assignees für mehrere Tickets GEBÜNDELT (eine Query, dann in JS nach
-   * ticket_id gruppieren) — kein N+1 über die Ergebnisliste.
-   */
-  function loadAssignees(ticketIds: number[]): Map<number, TicketAssignee[]> {
-    const grouped = new Map<number, TicketAssignee[]>();
-    if (ticketIds.length === 0) return grouped;
-    const placeholders = ticketIds.map(() => "?").join(", ");
-    const rows = db
-      .query<AssigneeRow, number[]>(
-        `SELECT ticket_id, gitlab_user_id, username, name
-         FROM ticket_assignees WHERE ticket_id IN (${placeholders})
-         ORDER BY name`,
-      )
-      .all(...ticketIds);
-    for (const r of rows) {
-      const list = grouped.get(r.ticket_id) ?? [];
-      list.push({ gitlabUserId: r.gitlab_user_id, username: r.username, name: r.name });
-      grouped.set(r.ticket_id, list);
-    }
-    return grouped;
-  }
-
-  /**
-   * Lädt die gepinnten ticket_ids für mehrere Tickets GEBÜNDELT (eine Query) —
-   * analog zu loadAssignees, kein N+1 über die Ergebnisliste.
-   */
-  function loadPinned(ticketIds: number[]): Set<number> {
-    const pinned = new Set<number>();
-    if (ticketIds.length === 0) return pinned;
-    const placeholders = ticketIds.map(() => "?").join(", ");
-    const rows = db
-      .query<{ ticket_id: number }, number[]>(
-        `SELECT ticket_id FROM ticket_pins WHERE ticket_id IN (${placeholders})`,
-      )
-      .all(...ticketIds);
-    for (const r of rows) pinned.add(r.ticket_id);
-    return pinned;
-  }
-
-  /**
-   * Lädt den read-state (last_comment_count) für mehrere Tickets GEBÜNDELT
-   * (eine Query) — analog zu loadPinned, kein N+1.
-   */
-  function loadReadState(ticketIds: number[]): Map<number, number> {
-    const state = new Map<number, number>();
-    if (ticketIds.length === 0) return state;
-    const placeholders = ticketIds.map(() => "?").join(", ");
-    const rows = db
-      .query<{ ticket_id: number; last_comment_count: number }, number[]>(
-        `SELECT ticket_id, last_comment_count FROM ticket_read_state WHERE ticket_id IN (${placeholders})`,
-      )
-      .all(...ticketIds);
-    for (const r of rows) state.set(r.ticket_id, r.last_comment_count);
-    return state;
-  }
-
   function mapRows(rows: TicketRow[]): Ticket[] {
-    const byTicket = loadAssignees(rows.map((r) => r.id));
-    const pinned = loadPinned(rows.map((r) => r.id));
-    const readState = loadReadState(rows.map((r) => r.id));
+    const byTicket = loadAssignees(
+      db,
+      rows.map((r) => r.id),
+    );
+    const pinned = loadPinned(
+      db,
+      rows.map((r) => r.id),
+    );
+    const readState = loadReadState(
+      db,
+      rows.map((r) => r.id),
+    );
     return rows.map((row) => {
-      const lc = readState.get(row.id);
-      const unread = lc === undefined ? true : row.notes_count > lc;
-      return toTicket(row, byTicket.get(row.id) ?? [], pinned.has(row.id), unread);
+      const rs = readState.get(row.id);
+      const unread = rs === undefined ? true : row.notes_count > rs.count;
+      return toTicket(
+        row,
+        byTicket.get(row.id) ?? [],
+        pinned.has(row.id),
+        unread,
+        rs?.viewedAt ?? null,
+      );
     });
   }
 
   function mapRow(row: TicketRow | null): Ticket | null {
     if (!row) return null;
-    const pinned = loadPinned([row.id]);
-    const lc = loadReadState([row.id]).get(row.id);
-    const unread = lc === undefined ? true : row.notes_count > lc;
-    return toTicket(row, loadAssignees([row.id]).get(row.id) ?? [], pinned.has(row.id), unread);
+    const pinned = loadPinned(db, [row.id]);
+    const rs = loadReadState(db, [row.id]).get(row.id);
+    const unread = rs === undefined ? true : row.notes_count > rs.count;
+    return toTicket(
+      row,
+      loadAssignees(db, [row.id]).get(row.id) ?? [],
+      pinned.has(row.id),
+      unread,
+      rs?.viewedAt ?? null,
+    );
   }
 
   return {

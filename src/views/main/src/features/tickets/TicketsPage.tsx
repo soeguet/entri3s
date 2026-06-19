@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import { ExternalLink, RefreshCw } from "lucide-react";
 import type {
   Project,
@@ -251,7 +252,13 @@ function ProjectGroup(props: {
                 title="Ungelesen"
               />
             ) : null}
-            #{ticket.gitlabIid}
+            <Link
+              to="/tickets/$ticketId"
+              params={{ ticketId: String(ticket.id) }}
+              className="text-info-accent hover:underline"
+            >
+              #{ticket.gitlabIid}
+            </Link>
           </TD>
           <TD>{ticket.title}</TD>
           <TD>

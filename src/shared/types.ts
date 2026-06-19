@@ -79,6 +79,7 @@ export interface Ticket {
   pinned: boolean;
   // Ungelesen: kein read-state-Eintrag (neues Ticket) ODER notesCount > zuletzt gesehener Count.
   unread: boolean;
+  lastViewedAt: string | null; // ISO-UTC des letzten "Als gelesen markieren"; null = nie als gelesen markiert
   // Anzahl der GitLab-Kommentare (userNotesCount), nur im Issue-Sync aktualisiert
   notesCount: number;
   syncedAt: string | null;
@@ -231,6 +232,7 @@ export interface AppRPCType {
       markAllTicketsRead: { params: Record<string, never>; response: RpcResponse<void> };
       getPinnedTickets: { params: Record<string, never>; response: RpcResponse<Ticket[]> };
       getTicketComments: { params: { ticketId: number }; response: RpcResponse<TicketComment[]> };
+      getTicket: { params: { ticketId: number }; response: RpcResponse<Ticket | null> };
       syncTicketComments: { params: { ticketId: number }; response: RpcResponse<void> };
       getProjects: { params: Record<string, never>; response: RpcResponse<Project[]> };
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };

@@ -32,6 +32,7 @@ export const getCurrentUser = vi.fn(() =>
   okResp({ id: 1, username: "mockuser", name: "Mock User" }),
 );
 export const getTicketComments = vi.fn(() => okResp(fixtures.comments));
+export const getTicket = vi.fn(() => okResp(fixtures.tickets[0]));
 export const syncTicketComments = vi.fn(voidResp);
 export const bookEntry = vi.fn(voidResp);
 export const deleteBooking = vi.fn(voidResp);

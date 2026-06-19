@@ -90,9 +90,11 @@ test("syncPinnedAndAssigned covers a pinned and an assigned ticket", async () =>
   repo.settings.setCurrentUser({ id: 1, username: "me", name: "Me" });
   repo.tickets.setAssignees(assignedId, [{ gitlabUserId: 1, username: "me", name: "Me" }]);
 
-  // GitLab-Note-IDs sind global eindeutig (UNIQUE-Constraint) — pro Issue echte
-  // eigene Notes liefern, abhängig von der iid des angefragten Tickets.
-  gl.fetchTicketComments = async (_fullPath: string, iid: number) => [note(100 + iid)];
+  // GitLab-Note-IDs sind global eindeutig (UNIQUE-Constraint) — daher liefert der
+  // Fake je Aufruf eine eigene Note (sonst kollidieren beide Tickets auf derselben
+  // gitlab_note_id). Die Reihenfolge der Aufrufe ist hier nebensächlich.
+  const queue = [[note(101)], [note(102)]];
+  gl.fetchTicketComments = async () => queue.shift() ?? [];
   await svc.syncPinnedAndAssigned();
 
   expect(svc.getComments(pinnedId)).toHaveLength(1);
