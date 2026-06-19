@@ -96,6 +96,23 @@ test("getImage builds a data URL from the fetched upload", async () => {
   expect(await svc.getImage("/uploads/abc/bild.png")).toBe("data:image/png;base64,QUJD");
 });
 
+test("getImage rewrites the internal /-/project/<id>/uploads URL to the namespace route", async () => {
+  repo.projects.upsert({ id: 5, fullPath: "acme/web", name: "Web" });
+  gl.uploadToReturn = { contentType: "image/png", base64: "QUJD" };
+
+  expect(await svc.getImage("/-/project/5/uploads/abc/image.png")).toBe(
+    "data:image/png;base64,QUJD",
+  );
+  expect(gl.uploadCalls).toEqual(["/acme/web/uploads/abc/image.png"]);
+});
+
+test("getImage passes a non-matching URL through unchanged", async () => {
+  gl.uploadToReturn = { contentType: "image/png", base64: "QUJD" };
+
+  await svc.getImage("/uploads/abc/image.png");
+  expect(gl.uploadCalls).toEqual(["/uploads/abc/image.png"]);
+});
+
 test("syncPinnedAndAssigned covers a pinned and an assigned ticket", async () => {
   const pinnedId = seedTicket(7);
   const assignedId = seedTicket(8);

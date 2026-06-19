@@ -137,6 +137,8 @@ export class FakeGitLabClient implements GitLabClient {
   clearCurrentUserCacheCalls = 0;
   uploadToReturn: { contentType: string; base64: string } | null = null;
   uploadShouldThrow: Error | null = null;
+  /** Zeichnet die an fetchUpload übergebenen src-Argumente auf (Tests). */
+  uploadCalls: string[] = [];
 
   async fetchIssues(): Promise<GitLabIssue[]> {
     return this.issuesToReturn;
@@ -214,7 +216,8 @@ export class FakeGitLabClient implements GitLabClient {
     return this.commentsToReturn;
   }
 
-  async fetchUpload(): Promise<{ contentType: string; base64: string }> {
+  async fetchUpload(src: string): Promise<{ contentType: string; base64: string }> {
+    this.uploadCalls.push(src);
     if (this.uploadShouldThrow) throw this.uploadShouldThrow;
     if (!this.uploadToReturn) throw new Error("FakeGitLabClient: uploadToReturn nicht gesetzt");
     return this.uploadToReturn;
