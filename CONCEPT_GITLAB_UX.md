@@ -95,6 +95,48 @@ Tickets sollen NICHT automatisch als gelesen markiert werden nur weil man sie ö
 Stattdessen: expliziter "Als gelesen markieren"-Button. Man will ein Ticket oft nur kurz
 ansehen ohne den Unread-Status zu verlieren.
 
+## Review-Ergebnis (zwei unabhängige Subagents)
+
+Beide Agents bestätigen: Alle User-Entscheidungen korrekt und vollständig wiedergegeben.
+Die folgenden technischen Lücken wurden identifiziert und ins Konzept eingearbeitet:
+
+1. **GID-Parsing für User-IDs**: GitLab liefert User-IDs als GID-String
+   (`"gid://gitlab/User/123"`). Der bestehende `parseGid()` löst das — muss konsistent
+   für alle neuen User-ID-Felder (Assignees, currentUser) angewandt werden.
+
+2. **Ticket-Liste vs. Detail-Route**: Klarstellung: Die Ticket-Liste bleibt auf der
+   bestehenden Seite. Nur die Ticket-Detail-Ansicht (Kommentar-Thread) bekommt eine
+   eigene Route.
+
+3. **Standalone-Attachments (Datei-Uploads an Kommentaren)**: Werden in v1 nicht
+   gesondert behandelt — sie erscheinen als Download-Links im `bodyHtml`. Inline-Bilder
+   brauchen Authentifizierung und werden in v1 als "In GitLab öffnen"-Links dargestellt.
+   Attachment-Proxy ist bewusst auf Later verschoben.
+
+4. **`updatedAfter` existiert nicht auf GitLab Notes-Connection**: Inkrementeller
+   Kommentar-Sync kann NICHT serverseitig gefiltert werden. Stattdessen: alle Notes
+   fetchen, lokal gegen `MAX(updated_at)` abgleichen, nur neue/geänderte speichern.
+   Bei Tickets mit sehr vielen Kommentaren (500+) wird der erste Fetch teuer, danach
+   ist der lokale Cache aktuell.
+
+5. **Gelöschte Kommentare**: Wenn ein Kommentar in GitLab gelöscht wird, bleibt er
+   lokal bestehen. Lösung: Beim Full-Fetch die lokalen `gitlab_note_id`s gegen die
+   gefetchten abgleichen und fehlende löschen (Diff-Strategie).
+
+6. **Rate-Limiting bei paginierten Kommentaren**: Die ursprüngliche Schätzung (20
+   Tickets = 4 Sekunden) gilt nur wenn jedes Ticket ≤100 Kommentare hat. Tickets mit
+   200+ Kommentaren brauchen Pagination (2+ Requests pro Ticket). Realistischere
+   Schätzung: 20 gepinnte Tickets mit durchschnittlich 150 Kommentaren ≈ 8-12 Sekunden.
+   Immer noch vertretbar, aber bei Extremfällen relevant.
+
+7. **`GitLabClient`-Interface erweitern**: `fetchCurrentUser()` und
+   `fetchTicketComments(projectFullPath, issueIid)` müssen zum Interface hinzu.
+   `FakeGitLabClient` (Test-Double) muss entsprechend ergänzt werden.
+
+8. **Kommentar-Sync als eigener Schedule**: Der `comment_sync`-Eintrag gehört in die
+   `schedules`-Table (analog `gitlab_sync` und `orphan_check`), nicht in `settings`.
+   Neuer Seed in einer Migration.
+
 ## Technisches Konzept
 
 ### Dreistufige Sync-Architektur für Kommentare
@@ -112,16 +154,43 @@ zusätzliches Integer-Feld, keinen Kommentar-Content.
 
 Inline-Attachments (Bilder in Kommentaren) werden via `bodyHtml` als `<img src="...">`
 gerendert. Die URLs zeigen auf GitLab-Uploads und brauchen Authentifizierung.
+Standalone-Attachments (Datei-Uploads an Kommentaren) erscheinen als Download-Links
+im `bodyHtml`.
 
-Für v1: Bilder als Links darstellen ("Anhang anzeigen" -> öffnet im Browser). Ein
-Bun-seitiger Proxy der die Bilder mit Token fetcht und lokal bereitstellt kann später
-nachgerüstet werden.
+Für v1: Sowohl Bilder als auch Datei-Attachments werden als "In GitLab öffnen"-Links
+dargestellt. Ein Bun-seitiger Proxy der die Dateien mit Token fetcht und lokal
+bereitstellt kann später nachgerüstet werden (siehe "Mögliche spätere Erweiterungen").
 
 ### Rate-Limiting-Überlegung
 
-Der bestehende 5 req/s Limiter ist shared. Bei 20 gepinnten Tickets, jedes mit eigenem
-GraphQL-Call, dauert der Hintergrund-Sync ~4 Sekunden. Vertretbar. Bei 100+ gepinnten
-Tickets müsste man ggf. batchen — aber das ist kein realistisches Szenario.
+Der bestehende 5 req/s Limiter ist shared. Bei 20 gepinnten Tickets mit je ≤100
+Kommentaren dauert der Hintergrund-Sync ~4 Sekunden. Bei Tickets mit 200+ Kommentaren
+steigt der Aufwand durch Pagination (2+ Requests pro Ticket). Realistischere Schätzung
+für 20 gepinnte Tickets mit durchschnittlich 150 Kommentaren: 8-12 Sekunden. Immer noch
+vertretbar, aber bei Extremfällen (viele gepinnte Tickets mit sehr vielen Kommentaren)
+kann der Sync länger dauern. Ggf. Parallelisierung oder Batching als spätere
+Optimierung.
+
+### Inkrementeller Kommentar-Sync
+
+GitLab GraphQL bietet KEIN `updatedAfter`-Argument auf der Notes-Connection. Der
+inkrementelle Sync muss daher client-seitig gelöst werden:
+- Alle Notes für ein Ticket fetchen (Cursor-Pagination)
+- Lokal gegen bestehende `gitlab_note_id`s abgleichen
+- Neue Notes einfügen, geänderte (anhand `updated_at`) aktualisieren
+- Notes die in GitLab gelöscht wurden (lokal vorhanden, remote nicht mehr) löschen
+
+Der erste Fetch für ein Ticket mit vielen Kommentaren ist teuer, danach ist der lokale
+Cache aktuell und der Abgleich schnell.
+
+### GID-Parsing
+
+GitLab GraphQL liefert alle IDs als GID-Strings (`"gid://gitlab/User/123"`,
+`"gid://gitlab/Note/456"`). Der bestehende `parseGid()` extrahiert die numerische ID.
+Dieses Pattern muss konsistent für alle neuen ID-Felder angewandt werden:
+- `currentUser.id` -> `gitlab_user_id` in Settings
+- `assignees[].id` -> `gitlab_user_id` in `ticket_assignees`
+- `notes[].id` -> `gitlab_note_id` in `ticket_comments`
 
 ## TODOs (Implementierungsreihenfolge)
 
@@ -133,10 +202,13 @@ User-ID als Referenzpunkt.
 **Umsetzung:**
 - Beim ersten erfolgreichen Sync (oder Token-Änderung): GraphQL-Query
   `currentUser { id username name }` ausführen
+- `id` ist ein GID-String — mit `parseGid()` zu numerischer ID wandeln
 - In `settings`-Table persistieren: `gitlab_user_id`, `gitlab_username`
   (key-value wie `gitlabUrl`)
 - Einmalig + bei Token-Änderung refreshen — kein Overhead pro Sync-Cycle
 - Neuer RPC: `getCurrentUser`
+- `GitLabClient`-Interface erweitern um `fetchCurrentUser()`, inkl.
+  `FakeGitLabClient`-Ergänzung
 
 ### TODO 2: Assignee-Sync + Filter
 
@@ -282,12 +354,23 @@ notes(first: 100, after: $notesAfter) {
    zugewiesene Tickets
 3. **Regulärer Issue-Sync** bleibt unverändert (nur `userNotesCount`)
 
-Inkrementell: `updatedAfter` auf dem Notes-Query, nur neue/geänderte Kommentare
-nachziehen.
+Inkrementell: Client-seitiger Abgleich (kein serverseitiges `updatedAfter` auf Notes
+verfügbar). Alle Notes fetchen, lokal gegen `gitlab_note_id` + `updated_at` mergen,
+gelöschte Notes per Diff entfernen.
+
+Neuer Schedule-Eintrag in der `schedules`-Table (analog `gitlab_sync`/`orphan_check`):
+```sql
+INSERT INTO schedules (name, interval_sec) VALUES ('comment_sync', 900);
+```
+
+`GitLabClient`-Interface erweitern um `fetchTicketComments(projectFullPath, issueIid)`,
+inkl. `FakeGitLabClient`-Ergänzung.
 
 ### TODO 7: Ticket-Detail-Ansicht (Frontend)
 
-Eigene Page/Route für Ticket-Details. Bündelt alles aus TODO 1-6:
+Eigene Page/Route für Ticket-Details. Die Ticket-LISTE bleibt auf der bestehenden
+Ticket-Seite — nur die Detail-Ansicht (Kommentar-Thread) bekommt eine neue Route.
+Bündelt alles aus TODO 1-6:
 
 - Kommentar-Thread: `bodyHtml` rendern mit CSS-Scoping (`.gitlab-content`-Container)
 - System-Notes visuell abgesetzt (Timeline-Style, grau, kompakter)
