@@ -114,14 +114,12 @@ Die folgenden technischen Lücken wurden identifiziert und ins Konzept eingearbe
    Attachment-Proxy ist bewusst auf Later verschoben.
 
 4. **`updatedAfter` existiert nicht auf GitLab Notes-Connection**: Inkrementeller
-   Kommentar-Sync kann NICHT serverseitig gefiltert werden. Stattdessen: alle Notes
-   fetchen, lokal gegen `MAX(updated_at)` abgleichen, nur neue/geänderte speichern.
-   Bei Tickets mit sehr vielen Kommentaren (500+) wird der erste Fetch teuer, danach
-   ist der lokale Cache aktuell.
+   Kommentar-Sync kann NICHT serverseitig gefiltert werden. Lösung: Replace-Strategie
+   (alle Notes fetchen, lokal komplett ersetzen) statt komplexem Diff-Abgleich. Hash
+   über die Notes vermeidet unnötige DB-Writes wenn sich nichts geändert hat.
 
-5. **Gelöschte Kommentare**: Wenn ein Kommentar in GitLab gelöscht wird, bleibt er
-   lokal bestehen. Lösung: Beim Full-Fetch die lokalen `gitlab_note_id`s gegen die
-   gefetchten abgleichen und fehlende löschen (Diff-Strategie).
+5. **Gelöschte Kommentare**: Durch die Replace-Strategie automatisch gelöst — was in
+   GitLab nicht mehr existiert, taucht nach dem nächsten Sync lokal auch nicht mehr auf.
 
 6. **Rate-Limiting bei paginierten Kommentaren**: Die ursprüngliche Schätzung (20
    Tickets = 4 Sekunden) gilt nur wenn jedes Ticket ≤100 Kommentare hat. Tickets mit
@@ -171,17 +169,26 @@ vertretbar, aber bei Extremfällen (viele gepinnte Tickets mit sehr vielen Komme
 kann der Sync länger dauern. Ggf. Parallelisierung oder Batching als spätere
 Optimierung.
 
-### Inkrementeller Kommentar-Sync
+### Kommentar-Sync-Strategie: Replace statt Diff
 
-GitLab GraphQL bietet KEIN `updatedAfter`-Argument auf der Notes-Connection. Der
-inkrementelle Sync muss daher client-seitig gelöst werden:
-- Alle Notes für ein Ticket fetchen (Cursor-Pagination)
-- Lokal gegen bestehende `gitlab_note_id`s abgleichen
-- Neue Notes einfügen, geänderte (anhand `updated_at`) aktualisieren
-- Notes die in GitLab gelöscht wurden (lokal vorhanden, remote nicht mehr) löschen
+GitLab GraphQL bietet KEIN `updatedAfter`-Argument auf der Notes-Connection. Statt
+eines komplexen client-seitigen Diff-Abgleichs (neue einfügen, geänderte updaten,
+gelöschte erkennen) wird eine einfache **Replace-Strategie** verwendet:
 
-Der erste Fetch für ein Ticket mit vielen Kommentaren ist teuer, danach ist der lokale
-Cache aktuell und der Abgleich schnell.
+1. Alle Notes für ein Ticket fetchen (Cursor-Pagination)
+2. Lokale Kommentare für das Ticket komplett löschen (`DELETE WHERE ticket_id = ?`)
+3. Alle gefetchten Notes neu einfügen
+
+Das löst automatisch auch das Problem gelöschter Kommentare — was in GitLab nicht mehr
+existiert, taucht nach dem nächsten Sync lokal auch nicht mehr auf.
+
+**Optimierung via Hash:** Um unnötige DB-Writes zu vermeiden, kann ein Hash über die
+gefetchten Notes gebildet werden (z.B. SHA-256 über sortierte `gitlab_note_id`s +
+`updated_at`-Timestamps). Dieser Hash wird pro Ticket gespeichert. Beim nächsten Sync:
+Hash vergleichen — nur bei Unterschied die Replace-Strategie ausführen. So wird bei
+unverändertem Kommentar-Stand kein einziger DB-Write ausgelöst.
+
+Spalte in `tickets`-Table: `comments_hash TEXT` (nullable, null = noch nie gesynct).
 
 ### GID-Parsing
 
@@ -354,9 +361,8 @@ notes(first: 100, after: $notesAfter) {
    zugewiesene Tickets
 3. **Regulärer Issue-Sync** bleibt unverändert (nur `userNotesCount`)
 
-Inkrementell: Client-seitiger Abgleich (kein serverseitiges `updatedAfter` auf Notes
-verfügbar). Alle Notes fetchen, lokal gegen `gitlab_note_id` + `updated_at` mergen,
-gelöschte Notes per Diff entfernen.
+**Sync-Strategie:** Replace statt Diff (siehe Abschnitt "Kommentar-Sync-Strategie").
+Alle Notes fetchen, Hash vergleichen, bei Änderung lokal komplett ersetzen.
 
 Neuer Schedule-Eintrag in der `schedules`-Table (analog `gitlab_sync`/`orphan_check`):
 ```sql
@@ -373,6 +379,11 @@ Ticket-Seite — nur die Detail-Ansicht (Kommentar-Thread) bekommt eine neue Rou
 Bündelt alles aus TODO 1-6:
 
 - Kommentar-Thread: `bodyHtml` rendern mit CSS-Scoping (`.gitlab-content`-Container)
+- **Neueste Kommentare zuerst** (oder: neueste unten mit Auto-Scroll — bei Impl. entscheiden)
+- **"Neu seit letztem Besuch"-Markierung**: Kommentare deren `created_at` nach
+  `ticket_read_state.last_viewed_at` liegt, werden visuell hervorgehoben (farbiger
+  Rand, Badge "Neu", o.ä.). So ist auf einen Blick erkennbar, welche Kommentare seit
+  dem letzten "Als gelesen markieren" dazugekommen sind.
 - System-Notes visuell abgesetzt (Timeline-Style, grau, kompakter)
 - Assignee-Anzeige
 - Pin-Toggle
