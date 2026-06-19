@@ -13,11 +13,14 @@ import { createEventService } from "./events";
 import { createSettingsService } from "./settings";
 import { createCommitService } from "./commit";
 import { createCommentService } from "./comment";
+import { createBackgroundService } from "./background";
 
 export function createService(repo: Repository, gl: GitLabClient, db: Database, emit: AppEmitter) {
+  // Sync zuerst, da der Background-Service dessen In-Memory-Status (isSyncing) liest.
+  const sync = createSyncService(repo, gl, emit);
   return {
     entry: createEntryService(repo),
-    sync: createSyncService(repo, gl, emit),
+    sync,
     booking: createBookingService(repo),
     tag: createTagService(repo),
     template: createTemplateService(repo),
@@ -27,6 +30,7 @@ export function createService(repo: Repository, gl: GitLabClient, db: Database, 
     settings: createSettingsService(repo, db, gl),
     commit: createCommitService(repo, gl),
     comment: createCommentService(repo, gl),
+    background: createBackgroundService(repo, sync),
   };
 }
 

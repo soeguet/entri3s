@@ -79,3 +79,21 @@ test("discardDead ignores a non-dead event", () => {
   repo.resetStuck();
   expect(repo.claimNext()).not.toBeNull(); // unangetastet
 });
+
+test("counts returns zeros on an empty queue", () => {
+  expect(repo.counts()).toEqual({ pending: 0, processing: 0, dead: 0 });
+});
+
+test("counts aggregates pending, processing and dead in one query", () => {
+  // 2 pending bleiben unangetastet, 1 wird processing, 1 wird dead.
+  repo.enqueue("a", {});
+  repo.enqueue("b", {});
+  repo.enqueue("c", {});
+  const toProcess = repo.claimNext()!; // a → processing (FIFO: ältestes zuerst)
+  expect(toProcess.type).toBe("a");
+  const toFail = repo.claimNext()!; // b → processing
+  for (let i = 0; i < 3; i++) repo.fail(toFail.id, "boom"); // b → dead nach 3 Fehlversuchen
+
+  // Übrig: a=processing, b=dead, c=pending
+  expect(repo.counts()).toEqual({ pending: 1, processing: 1, dead: 1 });
+});

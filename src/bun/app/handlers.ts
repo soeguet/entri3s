@@ -73,6 +73,7 @@ export function createRpc(svc: Services) {
         // Sync: stösst den Hintergrund-Sync an und kehrt sofort zurück
         // (Ergebnis kommt über syncCompleted/syncFailed-Events).
         triggerSync: () => wrap(() => svc.sync.triggerSync()),
+        getBackgroundStatus: () => wrap(() => svc.background.getStatus()),
 
         // Settings
         getSettings: () => wrap(() => svc.settings.get()),

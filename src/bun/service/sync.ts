@@ -110,6 +110,11 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
   return {
     syncIssues,
 
+    /** Read-only: ob gerade ein Sync läuft (In-Memory-Flag) — für die Statusanzeige. */
+    isSyncing(): boolean {
+      return syncing;
+    },
+
     /**
      * Manueller Sync: stösst den Sync im Hintergrund an und kehrt sofort zurück,
      * damit der RPC-Call nicht über sein Timeout läuft. Ergebnis/Fehler kommen

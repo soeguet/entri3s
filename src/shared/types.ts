@@ -201,6 +201,23 @@ export interface AppEvent {
   createdAt: string;
 }
 
+// ── Background Status (read-only Anzeige der Hintergrundprozesse) ─────────────
+
+// Status eines automatischen Schedulers-Jobs (read-only Anzeige).
+export interface ScheduleStatus {
+  name: string; // z.B. "gitlab_sync", "orphan_check", "comment_sync"
+  intervalSec: number;
+  lastRunAt: string | null; // ISO-UTC; null = noch nie gelaufen
+  nextRunAt: string | null; // ISO-UTC, berechnet (lastRun + interval); null = sofort fällig
+}
+
+// Aggregierter Status aller Hintergrundprozesse für die UI-Anzeige.
+export interface BackgroundStatus {
+  syncRunning: boolean; // GitLab-Sync läuft gerade (In-Memory-Flag des Sync-Service)
+  schedules: ScheduleStatus[];
+  queue: { pending: number; processing: number; dead: number }; // Booking-Event-Queue
+}
+
 // ── Settings ─────────────────────────────────────────────────────────────────
 
 export interface Settings {
@@ -271,6 +288,10 @@ export interface AppRPCType {
       updateTemplate: { params: Template; response: RpcResponse<void> };
       deleteTemplate: { params: { id: number }; response: RpcResponse<void> };
       triggerSync: { params: Record<string, never>; response: RpcResponse<void> };
+      getBackgroundStatus: {
+        params: Record<string, never>;
+        response: RpcResponse<BackgroundStatus>;
+      };
       getSettings: { params: Record<string, never>; response: RpcResponse<Settings> };
       getCurrentUser: { params: Record<string, never>; response: RpcResponse<CurrentUser | null> };
       saveSettings: { params: Settings; response: RpcResponse<void> };

@@ -34,6 +34,14 @@ export function createScheduleRepository(db: Database) {
       return row ? toSchedule(row) : null;
     },
 
+    /** Alle Schedules — für die read-only Hintergrund-Statusanzeige. */
+    list(): Schedule[] {
+      return db
+        .query<ScheduleRow, []>("SELECT name, interval_sec, last_run, config FROM schedules")
+        .all()
+        .map(toSchedule);
+    },
+
     /** Fällige Schedules: noch nie gelaufen oder Intervall seit last_run überschritten. */
     getDue(now: Date = new Date()): Schedule[] {
       const rows = db
