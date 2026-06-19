@@ -24,6 +24,11 @@ Arbeitsweise.
 - **Der Supervisor haftet** für die Arbeit aller Subagents. Was er abnimmt,
   verantwortet er — im Zweifel lieber eine weitere Iteration als eine schwache
   Abnahme.
+- **Geduld ist Pflicht.** Der Supervisor wartet **immer vollständig** auf jeden
+  Subagent, bis dessen Ergebnis vorliegt. Kein vorzeitiges Committen, kein
+  paralleles Editieren derselben Dateien, kein „wird schon passen". Erst wenn
+  alle Subagents fertig sind UND der Supervisor das Ergebnis geprüft hat, wird
+  committed. Race-Conditions durch Ungeduld sind inakzeptabel.
 - **Konzeptarbeit:** Bei größeren Features zuerst Konzept erarbeiten, dann von
   2 kritischen Review-Subagents (UX/Frontend + Backend/Architektur) prüfen lassen,
   Feedback synthetisieren, und erst dann implementieren. Implementierung wieder

@@ -64,11 +64,19 @@ export interface GitLabClient {
   /** Entfernt einen Timelog wieder (für Korrektur-Buchungen). */
   deleteTimelog(timelogId: number): Promise<void>;
   /** Commits eines Projekts im Zeitfenster (REST). */
-  fetchCommits(projectId: number, since: string, until: string): Promise<GitLabCommit[]>;
+  fetchCommits(
+    projectId: number,
+    since: string,
+    until: string,
+    author: string,
+  ): Promise<GitLabCommit[]>;
+  /** Gibt den Username des Token-Besitzers zurueck (gecacht). */
+  fetchCurrentUser(): Promise<string>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
 export class FakeGitLabClient implements GitLabClient {
+  currentUsername = "testuser";
   createCalls: Array<{
     target: TimelogTarget;
     durationMinutes: number;
@@ -147,7 +155,16 @@ export class FakeGitLabClient implements GitLabClient {
     this.timelogs = this.timelogs.filter((t) => t.timelogId !== timelogId);
   }
 
-  async fetchCommits(): Promise<GitLabCommit[]> {
+  async fetchCommits(
+    _projectId: number,
+    _since: string,
+    _until: string,
+    _author: string,
+  ): Promise<GitLabCommit[]> {
     return this.commitsToReturn;
+  }
+
+  async fetchCurrentUser(): Promise<string> {
+    return this.currentUsername;
   }
 }

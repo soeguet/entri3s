@@ -6,10 +6,12 @@ export async function fetchCommits(
   projectId: number,
   since: string,
   until: string,
+  author: string,
 ): Promise<GitLabCommit[]> {
   const params = new URLSearchParams({
     since,
     until,
+    author,
     per_page: "20",
     order: "default",
   });
