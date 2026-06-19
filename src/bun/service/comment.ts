@@ -81,20 +81,9 @@ export function createCommentService(repo: Repository, gl: GitLabClient) {
    * anzeigen kann.
    */
   async function getImage(src: string): Promise<string> {
-    // Lazy-loaded GitLab-Bilder liefern eine interne `data-src`-URL der Form
-    // `/-/project/<id>/uploads/<secret>/<datei>` — diese Route ist NICHT
-    // servierbar und antwortet mit 404. Die token-authentifizierte Upload-Route
-    // ist die Projekt-Namespace-Form `/<fullPath>/uploads/<secret>/<datei>`.
-    // Deshalb übersetzen wir die ID via Repo-Lookup (id → fullPath) zur
-    // Namespace-URL. Passt das Muster nicht oder ist das Projekt unbekannt,
-    // bleibt `src` unverändert (Fallback).
-    const match = src.match(/^\/-\/project\/(\d+)\/uploads\/(.+)$/);
-    let resolvedSrc = src;
-    if (match) {
-      const project = repo.projects.getById(Number(match[1]));
-      if (project) resolvedSrc = `/${project.fullPath}/uploads/${match[2]}`;
-    }
-    const { contentType, base64 } = await gl.fetchUpload(resolvedSrc);
+    // Die Routing-Entscheidung (REST-API vs. same-origin Fallback) liegt im
+    // GitLab-Client; hier wird die original `src` unverändert durchgereicht.
+    const { contentType, base64 } = await gl.fetchUpload(src);
     return `data:${contentType};base64,${base64}`;
   }
 

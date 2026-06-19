@@ -34,3 +34,22 @@ export function resolveUploadUrl(gitlabUrl: string, src: string): string | null 
   if (resolved.origin !== base.origin) return null;
   return resolved.toString();
 }
+
+/**
+ * Übersetzt die interne `data-src`-Form lazy-geladener GitLab-Bilder
+ * (`/-/project/<id>/uploads/<secret>/<datei>`) in den REST-API-Pfad
+ * `/projects/<id>/uploads/<secret>/<datei>`.
+ *
+ * WARUM (nicht-normale Entscheidung): Die Web-Namespace-Route
+ * `/<fullPath>/uploads/...` ignoriert den PRIVATE-TOKEN-Header und leitet auf
+ * die Login-Seite um — der Proxy bekäme HTML statt Bild. Die REST-Route
+ * `GET /api/v4/projects/:id/uploads/:secret/:filename` (GitLab ≥16.6) honoriert
+ * den Token korrekt. Liefert `null`, wenn die `src` nicht diesem Muster folgt
+ * (z. B. System-/Public-Uploads `/uploads/-/system/...`) — dann greift weiterhin
+ * `resolveUploadUrl` als Fallback.
+ */
+export function projectUploadApiPath(src: string): string | null {
+  const match = src.match(/^\/-\/project\/(\d+)\/uploads\/(.+)$/);
+  if (!match) return null;
+  return `/projects/${match[1]}/uploads/${match[2]}`;
+}

@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test";
-import { resolveUploadUrl } from "./upload";
+import { resolveUploadUrl, projectUploadApiPath } from "./upload";
 
 const BASE = "https://gitlab.example.com";
 
@@ -38,4 +38,17 @@ test("resolveUploadUrl returns null for an empty or invalid gitlabUrl", () => {
 
 test("resolveUploadUrl returns null for an unparseable src", () => {
   expect(resolveUploadUrl(BASE, "http://[bad")).toBeNull();
+});
+
+test("projectUploadApiPath maps the internal /-/project URL to the REST path", () => {
+  expect(projectUploadApiPath("/-/project/5/uploads/72ee06abc/image.png")).toBe(
+    "/projects/5/uploads/72ee06abc/image.png",
+  );
+});
+
+test("projectUploadApiPath returns null for non-matching URLs", () => {
+  expect(projectUploadApiPath("/uploads/abc/x.png")).toBeNull();
+  expect(projectUploadApiPath("/uploads/-/system/personal_snippet/1/abc/x.png")).toBeNull();
+  expect(projectUploadApiPath("https://host/uploads/abc/x.png")).toBeNull();
+  expect(projectUploadApiPath("/-/project/abc/uploads/x.png")).toBeNull();
 });
