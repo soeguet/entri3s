@@ -298,6 +298,11 @@ export const getTicket = (ticketId: number) => {
   const t = store.tickets.find((x) => x.id === ticketId);
   return t ? ok(t) : fail<Ticket | null>("NOT_FOUND", `Ticket ${ticketId} nicht gefunden`);
 };
+// Inline gerenderter grauer SVG-Placeholder (400x200, "Bild (Mock)"), damit der
+// Inline-Bild-Pfad im Dev-Modus (vite --mode mock) sichtbar ist.
+const MOCK_IMAGE_DATA_URL =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMjAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjY2NjYyIvPjx0ZXh0IHg9IjIwMCIgeT0iMTA1IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QmlsZCAoTW9jayk8L3RleHQ+PC9zdmc+";
+export const getGitlabImage = (_url: string) => ok(MOCK_IMAGE_DATA_URL);
 export const saveSettings = (s: Settings) => {
   store.settings = { ...s };
   return ok(undefined as void);

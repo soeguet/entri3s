@@ -91,6 +91,11 @@ test("syncComments returns silently when the ticket does not exist", async () =>
   expect(svc.getComments(9999)).toEqual([]);
 });
 
+test("getImage builds a data URL from the fetched upload", async () => {
+  gl.uploadToReturn = { contentType: "image/png", base64: "QUJD" };
+  expect(await svc.getImage("/uploads/abc/bild.png")).toBe("data:image/png;base64,QUJD");
+});
+
 test("syncPinnedAndAssigned covers a pinned and an assigned ticket", async () => {
   const pinnedId = seedTicket(7);
   const assignedId = seedTicket(8);

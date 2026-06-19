@@ -252,6 +252,7 @@ export interface AppRPCType {
       getTicketComments: { params: { ticketId: number }; response: RpcResponse<TicketComment[]> };
       getTicket: { params: { ticketId: number }; response: RpcResponse<Ticket | null> };
       syncTicketComments: { params: { ticketId: number }; response: RpcResponse<void> };
+      getGitlabImage: { params: { url: string }; response: RpcResponse<string> };
       getProjects: { params: Record<string, never>; response: RpcResponse<Project[]> };
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       removeTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };

@@ -7,6 +7,7 @@ import { fetchCommits as restFetchCommits } from "./commits";
 import { fetchIssues as gqlFetchIssues, fetchProjects as gqlFetchProjects } from "./graphql";
 import { fetchTicketComments as commentsFetch } from "./comments";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
+import { resolveUploadUrl } from "./upload";
 
 const log = createLogger("gitlab");
 
@@ -192,6 +193,38 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     return cachedCurrentUser;
   }
 
+  /**
+   * Lädt eine GitLab-Upload-Datei (Bild) direkt — KEIN /api/v4-Prefix, da
+   * `/uploads/...`-Pfade nicht unter der REST-API liegen. Der PRIVATE-TOKEN wird
+   * nur geschickt, wenn `resolveUploadUrl` die URL als same-origin freigibt.
+   */
+  async function fetchUpload(src: string): Promise<{ contentType: string; base64: string }> {
+    await limiter.throttle();
+    const url = resolveUploadUrl(getSettings().gitlabUrl, src);
+    if (url === null) {
+      throw new AppErrorError({
+        code: "NOT_FOUND",
+        message: `Bild-URL nicht proxybar (nicht same-origin): ${src}`,
+        retry: false,
+      });
+    }
+    log.info(`UPLOAD → GET ${src}`);
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: { "PRIVATE-TOKEN": token } });
+    } catch (e) {
+      throw toNetworkError(`UPLOAD ${src}`, url, e);
+    }
+    if (!res.ok) {
+      const body = await res.text();
+      log.error(`UPLOAD GET ${src} → HTTP ${res.status}`, { body: body.slice(0, 500) });
+      throw toApiError(res.status, body);
+    }
+    const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+    const buf = await res.arrayBuffer();
+    return { contentType, base64: Buffer.from(buf).toString("base64") };
+  }
+
   const client: ApiClient = { apiRequest };
   const gqlClient: GqlClient = { gqlRequest };
 
@@ -213,5 +246,6 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
       cachedCurrentUser = null;
     },
     fetchTicketComments: (fullPath, iid) => commentsFetch(gqlClient, fullPath, iid),
+    fetchUpload,
   };
 }
