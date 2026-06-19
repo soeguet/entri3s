@@ -17,7 +17,12 @@ beforeEach(() => {
   svc = createSyncService(repo, gl, noopEmitter);
 });
 
-function issue(iid: number, state: string, assignees: GitLabIssue["assignees"] = []): GitLabIssue {
+function issue(
+  iid: number,
+  state: string,
+  assignees: GitLabIssue["assignees"] = [],
+  userNotesCount = 0,
+): GitLabIssue {
   return {
     iid,
     globalId: 5000 + iid,
@@ -26,6 +31,7 @@ function issue(iid: number, state: string, assignees: GitLabIssue["assignees"] =
     state,
     web_url: `https://gl/issues/${iid}`,
     updated_at: "2024-01-15T10:00:00.000Z",
+    userNotesCount,
     assignees,
     time_stats: { time_estimate: 3600, total_time_spent: 1800 },
   };
@@ -64,6 +70,12 @@ test("syncIssues maps time stats and the global issue id", async () => {
   expect(ticket?.timeEstimate).toBe(3600);
   expect(ticket?.timeSpent).toBe(1800);
   expect(ticket?.gitlabGlobalId).toBe(5001);
+});
+
+test("syncIssues persists the user notes count", async () => {
+  gl.issuesToReturn = [issue(1, "opened", [], 7)];
+  await svc.syncIssues();
+  expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.notesCount).toBe(7);
 });
 
 test("syncIssues updates last_run", async () => {

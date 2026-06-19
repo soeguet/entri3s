@@ -77,6 +77,8 @@ export interface Ticket {
   webUrl: string | null;
   assignees: TicketAssignee[];
   pinned: boolean;
+  // Anzahl der GitLab-Kommentare (userNotesCount), nur im Issue-Sync aktualisiert
+  notesCount: number;
   syncedAt: string | null;
   createdAt: string;
   updatedAt: string;

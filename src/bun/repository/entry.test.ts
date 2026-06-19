@@ -22,6 +22,7 @@ function ticket(iid: number, projectId: number): number {
     timeEstimate: null,
     timeSpent: null,
     webUrl: null,
+    notesCount: 0,
   });
   return full.tickets.getByGitLabIid(iid, projectId)!.id;
 }

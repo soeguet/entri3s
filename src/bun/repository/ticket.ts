@@ -18,6 +18,7 @@ interface TicketRow {
   time_estimate: number | null;
   time_spent: number | null;
   web_url: string | null;
+  notes_count: number;
   synced_at: string | null;
   created_at: string;
   updated_at: string;
@@ -39,6 +40,7 @@ export interface TicketUpsert {
   timeEstimate: number | null;
   timeSpent: number | null;
   webUrl: string | null;
+  notesCount: number;
 }
 
 function toTicket(row: TicketRow, assignees: TicketAssignee[], pinned: boolean): Ticket {
@@ -53,6 +55,7 @@ function toTicket(row: TicketRow, assignees: TicketAssignee[], pinned: boolean):
     timeEstimate: row.time_estimate,
     timeSpent: row.time_spent,
     webUrl: row.web_url,
+    notesCount: row.notes_count,
     assignees,
     pinned,
     syncedAt: row.synced_at,
@@ -212,8 +215,8 @@ export function createTicketRepository(db: Database) {
       const now = new Date().toISOString();
       db.run(
         `INSERT INTO tickets
-           (gitlab_iid, gitlab_global_id, project_id, title, state, status, time_estimate, time_spent, web_url, synced_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?)
+           (gitlab_iid, gitlab_global_id, project_id, title, state, status, time_estimate, time_spent, web_url, notes_count, synced_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(gitlab_iid, project_id) DO UPDATE SET
            gitlab_global_id = excluded.gitlab_global_id,
            title = excluded.title,
@@ -221,6 +224,7 @@ export function createTicketRepository(db: Database) {
            time_estimate = excluded.time_estimate,
            time_spent = excluded.time_spent,
            web_url = excluded.web_url,
+           notes_count = excluded.notes_count,
            synced_at = excluded.synced_at,
            updated_at = excluded.updated_at`,
         [
@@ -232,6 +236,7 @@ export function createTicketRepository(db: Database) {
           input.timeEstimate,
           input.timeSpent,
           input.webUrl,
+          input.notesCount,
           now,
           now,
           now,

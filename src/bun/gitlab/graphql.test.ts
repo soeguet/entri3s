@@ -17,6 +17,7 @@ function issueNode(iid: string, extra: Record<string, unknown> = {}) {
     updatedAt: "2024-06-17T10:00:00.000Z",
     timeEstimate: 3600,
     totalTimeSpent: 1800,
+    userNotesCount: 0,
     assignees: { nodes: [] },
     ...extra,
   };
@@ -80,6 +81,7 @@ test("iterates member projects and maps issues per project with injected project
     state: "opened",
     web_url: "https://gl.example.com/-/issues/1",
     updated_at: "2024-06-17T10:00:00.000Z",
+    userNotesCount: 0,
     assignees: [],
     time_stats: { time_estimate: 3600, total_time_spent: 1800 },
   });

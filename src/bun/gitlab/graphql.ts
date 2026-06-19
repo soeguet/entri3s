@@ -14,6 +14,7 @@ interface GqlIssueNode {
   updatedAt: string;
   timeEstimate: number | null;
   totalTimeSpent: number | null;
+  userNotesCount: number;
   assignees: { nodes: Array<{ id: string; username: string; name: string }> };
 }
 
@@ -53,7 +54,7 @@ interface ProjectsResponse {
 const PROJECT_ISSUES_QUERY = `query($fullPath: ID!, $after: String, $since: Time) {
   project(fullPath: $fullPath) {
     issues(first: 100, after: $after, updatedAfter: $since) {
-      nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent assignees { nodes { id username name } } }
+      nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent userNotesCount assignees { nodes { id username name } } }
       pageInfo { hasNextPage endCursor }
     }
   }
@@ -84,6 +85,7 @@ function mapNode(node: GqlIssueNode, projectId: number): GitLabIssue {
     state: node.state,
     web_url: node.webUrl,
     updated_at: node.updatedAt,
+    userNotesCount: node.userNotesCount ?? 0,
     assignees: node.assignees.nodes.map((a) => ({
       id: parseGid(a.id), // User-GID "gid://gitlab/User/123" → 123
       username: a.username,

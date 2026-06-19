@@ -9,6 +9,7 @@ export interface GitLabIssue {
   state: string; // "opened" | "closed"
   web_url: string;
   updated_at: string;
+  userNotesCount: number; // Anzahl der GitLab-Kommentare (REST: user_notes_count)
   assignees: Array<{ id: number; username: string; name: string }>;
   time_stats?: {
     time_estimate: number; // Sekunden

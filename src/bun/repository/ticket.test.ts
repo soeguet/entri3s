@@ -19,6 +19,7 @@ function upsert(iid: number, overrides: Partial<TicketUpsert> = {}): number {
     timeEstimate: null,
     timeSpent: null,
     webUrl: null,
+    notesCount: 0,
     ...overrides,
   });
   return repo.tickets.getByGitLabIid(iid, PROJECT_ID)!.id;

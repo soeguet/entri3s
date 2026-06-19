@@ -35,6 +35,7 @@ function seedBooking(): number {
     timeEstimate: null,
     timeSpent: null,
     webUrl: null,
+    notesCount: 0,
   });
   const ticket = repo.tickets.getByGitLabIid(100, PROJECT_ID)!;
   const entryId = repo.entries.create({
