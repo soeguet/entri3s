@@ -20,6 +20,14 @@ function seedEntry(
     timeSpent: null,
     webUrl: null,
     notesCount: 0,
+    description: null,
+    descriptionHtml: null,
+    authorUsername: null,
+    authorName: null,
+    milestoneTitle: null,
+    labels: [],
+    dueDate: null,
+    issueCreatedAt: null,
   });
   const ticketId = repo.tickets.getByGitLabIid(100, PROJECT_ID)!.id;
   return repo.entries.create({
@@ -97,6 +105,14 @@ test("bookEntry rejects a ticket without a global GitLab id (needs sync)", () =>
     timeSpent: null,
     webUrl: null,
     notesCount: 0,
+    description: null,
+    descriptionHtml: null,
+    authorUsername: null,
+    authorName: null,
+    milestoneTitle: null,
+    labels: [],
+    dueDate: null,
+    issueCreatedAt: null,
   });
   const ticketId = repo.tickets.getByGitLabIid(200, PROJECT_ID)!.id;
   const entryId = repo.entries.create({

@@ -15,6 +15,13 @@ export interface GitLabIssue {
     time_estimate: number; // Sekunden
     total_time_spent: number; // Sekunden
   };
+  description: string | null; // Markdown der Issue-Beschreibung
+  descriptionHtml: string | null; // von GitLab gerendertes HTML der Beschreibung
+  labels: Array<{ title: string; color: string }>;
+  author: { username: string; name: string } | null;
+  milestoneTitle: string | null;
+  dueDate: string | null; // ISO-Date (YYYY-MM-DD) oder null
+  issueCreatedAt: string; // ISO-UTC der Issue-Erstellung in GitLab
 }
 
 /** Rohe GitLab-Projekt-Form (Teilmenge). `fullPath` kodiert die Gruppenhierarchie. */

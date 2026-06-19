@@ -64,6 +64,12 @@ export interface TicketAssignee {
   name: string;
 }
 
+// Ein GitLab-Label eines Tickets (Anzeige als Badge; color ist ein CSS-Hex-Wert).
+export interface TicketLabel {
+  title: string;
+  color: string;
+}
+
 export interface Ticket {
   id: number;
   gitlabIid: number;
@@ -76,6 +82,14 @@ export interface Ticket {
   timeSpent: number | null; // Sekunden
   webUrl: string | null;
   assignees: TicketAssignee[];
+  // GitLab-Issue-Metadaten (read-only, im Issue-Sync gefüllt; null wenn nicht gesetzt).
+  description: string | null; // Markdown
+  descriptionHtml: string | null; // gerendertes HTML von GitLab
+  labels: TicketLabel[];
+  author: { username: string; name: string } | null;
+  milestoneTitle: string | null;
+  dueDate: string | null; // ISO-Date (YYYY-MM-DD)
+  issueCreatedAt: string | null; // ISO-UTC der Issue-Erstellung in GitLab
   pinned: boolean;
   // Ungelesen: kein read-state-Eintrag (neues Ticket) ODER notesCount > zuletzt gesehener Count.
   unread: boolean;

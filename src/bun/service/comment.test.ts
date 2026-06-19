@@ -21,6 +21,14 @@ function seedTicket(iid: number): number {
     timeSpent: null,
     webUrl: null,
     notesCount: 0,
+    description: null,
+    descriptionHtml: null,
+    authorUsername: null,
+    authorName: null,
+    milestoneTitle: null,
+    labels: [],
+    dueDate: null,
+    issueCreatedAt: null,
   });
   return repo.tickets.getByGitLabIid(iid, PROJECT_ID)!.id;
 }

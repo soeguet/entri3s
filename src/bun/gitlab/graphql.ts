@@ -16,6 +16,13 @@ interface GqlIssueNode {
   totalTimeSpent: number | null;
   userNotesCount: number;
   assignees: { nodes: Array<{ id: string; username: string; name: string }> } | null;
+  description: string | null;
+  descriptionHtml: string | null;
+  labels: { nodes: Array<{ title: string; color: string }> } | null;
+  author: { username: string; name: string } | null;
+  milestone: { title: string } | null;
+  dueDate: string | null;
+  createdAt: string | null;
 }
 
 /**
@@ -54,7 +61,7 @@ interface ProjectsResponse {
 const PROJECT_ISSUES_QUERY = `query($fullPath: ID!, $after: String, $since: Time) {
   project(fullPath: $fullPath) {
     issues(first: 100, after: $after, updatedAfter: $since) {
-      nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent userNotesCount assignees { nodes { id username name } } }
+      nodes { id iid title state webUrl updatedAt timeEstimate totalTimeSpent userNotesCount assignees { nodes { id username name } } description descriptionHtml labels { nodes { title color } } author { username name } milestone { title } dueDate createdAt }
       pageInfo { hasNextPage endCursor }
     }
   }
@@ -95,6 +102,15 @@ function mapNode(node: GqlIssueNode, projectId: number): GitLabIssue {
       time_estimate: node.timeEstimate ?? 0,
       total_time_spent: node.totalTimeSpent ?? 0,
     },
+    description: node.description ?? null,
+    descriptionHtml: node.descriptionHtml ?? null,
+    labels: (node.labels?.nodes ?? []).map((l) => ({ title: l.title, color: l.color })),
+    author: node.author ? { username: node.author.username, name: node.author.name } : null,
+    milestoneTitle: node.milestone?.title ?? null,
+    dueDate: node.dueDate ?? null,
+    // createdAt ist im GitLab-Schema nicht-nullbar, wird hier aber defensiv
+    // behandelt (Fallback auf updatedAt), damit ein unerwartetes null nicht crasht.
+    issueCreatedAt: node.createdAt ?? node.updatedAt,
   };
 }
 

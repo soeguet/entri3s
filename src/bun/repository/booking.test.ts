@@ -20,6 +20,14 @@ function seedEntryAndTicket(): { entryId: number; ticketId: number } {
     timeSpent: null,
     webUrl: null,
     notesCount: 0,
+    description: null,
+    descriptionHtml: null,
+    authorUsername: null,
+    authorName: null,
+    milestoneTitle: null,
+    labels: [],
+    dueDate: null,
+    issueCreatedAt: null,
   });
   const ticketId = repo.tickets.getByGitLabIid(100, PROJECT_ID)!.id;
   const entryId = repo.entries.create({

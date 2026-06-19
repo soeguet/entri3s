@@ -23,6 +23,14 @@ function ticket(iid: number, projectId: number): number {
     timeSpent: null,
     webUrl: null,
     notesCount: 0,
+    description: null,
+    descriptionHtml: null,
+    authorUsername: null,
+    authorName: null,
+    milestoneTitle: null,
+    labels: [],
+    dueDate: null,
+    issueCreatedAt: null,
   });
   return full.tickets.getByGitLabIid(iid, projectId)!.id;
 }

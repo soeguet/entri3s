@@ -20,6 +20,14 @@ function upsert(iid: number, overrides: Partial<TicketUpsert> = {}): number {
     timeSpent: null,
     webUrl: null,
     notesCount: 0,
+    description: null,
+    descriptionHtml: null,
+    authorUsername: null,
+    authorName: null,
+    milestoneTitle: null,
+    labels: [],
+    dueDate: null,
+    issueCreatedAt: null,
     ...overrides,
   });
   return repo.tickets.getByGitLabIid(iid, PROJECT_ID)!.id;
@@ -71,6 +79,44 @@ test("listRecent dedupes a ticket used by multiple entries", () => {
   entryUsing(a, "2024-01-20T08:00:00.000Z");
 
   expect(repo.tickets.listRecent(10).map((t) => t.id)).toEqual([a]);
+});
+
+test("upsert stores and toTicket reads back the new metadata incl. labels JSON", () => {
+  const id = upsert(1, {
+    description: "Body **md**",
+    descriptionHtml: "<p>Body</p>",
+    authorUsername: "alice",
+    authorName: "Alice",
+    milestoneTitle: "Sprint 1",
+    labels: [
+      { title: "bug", color: "#ff0000" },
+      { title: "ui", color: "#00ff00" },
+    ],
+    dueDate: "2024-02-01",
+    issueCreatedAt: "2024-01-01T08:00:00.000Z",
+  });
+
+  const t = repo.tickets.getById(id)!;
+  expect(t.description).toBe("Body **md**");
+  expect(t.descriptionHtml).toBe("<p>Body</p>");
+  expect(t.author).toEqual({ username: "alice", name: "Alice" });
+  expect(t.milestoneTitle).toBe("Sprint 1");
+  expect(t.labels).toEqual([
+    { title: "bug", color: "#ff0000" },
+    { title: "ui", color: "#00ff00" },
+  ]);
+  expect(t.dueDate).toBe("2024-02-01");
+  expect(t.issueCreatedAt).toBe("2024-01-01T08:00:00.000Z");
+});
+
+test("toTicket yields null author and empty labels when metadata is absent", () => {
+  const id = upsert(1);
+  const t = repo.tickets.getById(id)!;
+  expect(t.description).toBeNull();
+  expect(t.author).toBeNull();
+  expect(t.labels).toEqual([]);
+  expect(t.milestoneTitle).toBeNull();
+  expect(t.issueCreatedAt).toBeNull();
 });
 
 test("setAssignees replaces the existing assignees of a ticket", () => {

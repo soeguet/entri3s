@@ -21,6 +21,14 @@ beforeEach(() => {
     timeSpent: null,
     webUrl: null,
     notesCount: 0,
+    description: null,
+    descriptionHtml: null,
+    authorUsername: null,
+    authorName: null,
+    milestoneTitle: null,
+    labels: [],
+    dueDate: null,
+    issueCreatedAt: null,
   });
   ticketId = repo.tickets.getByGitLabIid(7, PROJECT_ID)!.id;
 });

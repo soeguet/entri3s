@@ -14,9 +14,9 @@ import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { Button } from "../../components/ui/button";
 import { ErrorNote } from "../../components/ErrorNote";
-import { AssigneeCell } from "./AssigneeCell";
 import { PinButton } from "./PinButton";
 import { CommentThread } from "./CommentThread";
+import { TicketMeta } from "./TicketMeta";
 
 export function TicketDetailPage() {
   const params = useParams({ from: "/tickets/$ticketId" });
@@ -98,9 +98,8 @@ export function TicketDetailPage() {
             <span className="font-mono text-muted-foreground">#{t.gitlabIid}</span>
             <h1 className="text-2xl font-bold tracking-tight">{t.title}</h1>
           </div>
-          <div className="mt-2 flex items-center gap-3">
-            <AssigneeCell assignees={t.assignees} />
-            {t.webUrl ? (
+          {t.webUrl ? (
+            <div className="mt-2">
               <a
                 href={t.webUrl}
                 target="_blank"
@@ -109,8 +108,8 @@ export function TicketDetailPage() {
               >
                 In GitLab öffnen
               </a>
-            ) : null}
-          </div>
+            </div>
+          ) : null}
         </div>
         <PinButton
           pinned={t.pinned}
@@ -138,6 +137,8 @@ export function TicketDetailPage() {
           Kommentare aktualisieren
         </Button>
       </div>
+
+      <TicketMeta ticket={t} />
 
       {markRead.isError ? <ErrorNote error={markRead.error} className="mb-3" /> : null}
       {manualSync.isError ? <ErrorNote error={manualSync.error} className="mb-3" /> : null}

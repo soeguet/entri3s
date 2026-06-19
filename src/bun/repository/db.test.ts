@@ -63,3 +63,33 @@ test("migration 013 nulls gitlab_sync.last_run (assignee resync)", () => {
     .get();
   expect(row?.last_run).toBeNull();
 });
+
+test("migration 014 adds the ticket metadata columns and nulls gitlab_sync.last_run", () => {
+  const db = new Database(":memory:");
+  runMigrations(db);
+
+  const cols = db
+    .query<{ name: string }, []>("PRAGMA table_info(tickets)")
+    .all()
+    .map((c) => c.name);
+  for (const col of [
+    "description",
+    "description_html",
+    "author_username",
+    "author_name",
+    "milestone_title",
+    "labels_json",
+    "due_date",
+    "issue_created_at",
+  ]) {
+    expect(cols).toContain(col);
+  }
+
+  // Voll-Resync erzwungen (siehe Migration 014).
+  const row = db
+    .query<{ last_run: string | null }, []>(
+      "SELECT last_run FROM schedules WHERE name = 'gitlab_sync'",
+    )
+    .get();
+  expect(row?.last_run).toBeNull();
+});

@@ -27,6 +27,14 @@ function toUpsert(issue: GitLabIssue): TicketUpsert {
     timeSpent: issue.time_stats?.total_time_spent ?? null,
     webUrl: issue.web_url,
     notesCount: issue.userNotesCount ?? 0,
+    description: issue.description ?? null,
+    descriptionHtml: issue.descriptionHtml ?? null,
+    authorUsername: issue.author?.username ?? null,
+    authorName: issue.author?.name ?? null,
+    milestoneTitle: issue.milestoneTitle ?? null,
+    labels: issue.labels ?? [],
+    dueDate: issue.dueDate ?? null,
+    issueCreatedAt: issue.issueCreatedAt ?? null,
   };
 }
 

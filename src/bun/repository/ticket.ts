@@ -3,6 +3,7 @@ import type {
   Ticket,
   TicketAssignee,
   TicketFilter,
+  TicketLabel,
   TicketState,
   TicketStatus,
 } from "../../shared/types";
@@ -20,7 +21,17 @@ interface TicketRow {
   time_spent: number | null;
   web_url: string | null;
   notes_count: number;
+  description: string | null;
+  description_html: string | null;
+  author_username: string | null;
+  author_name: string | null;
+  milestone_title: string | null;
+  labels_json: string | null;
+  due_date: string | null;
+  issue_created_at: string | null;
   synced_at: string | null;
+  // created_at/updated_at sind LOKALE Sync-Zeiten der tickets-Tabelle,
+  // NICHT das GitLab-Erstelldatum (das liegt in issue_created_at).
   created_at: string;
   updated_at: string;
 }
@@ -35,6 +46,25 @@ export interface TicketUpsert {
   timeSpent: number | null;
   webUrl: string | null;
   notesCount: number;
+  description: string | null;
+  descriptionHtml: string | null;
+  authorUsername: string | null;
+  authorName: string | null;
+  milestoneTitle: string | null;
+  labels: TicketLabel[];
+  dueDate: string | null;
+  issueCreatedAt: string | null;
+}
+
+/** Liest die als JSON gespeicherten Labels null-sicher zurück (defekt/null → []). */
+function parseLabels(json: string | null): TicketLabel[] {
+  if (!json) return [];
+  try {
+    const parsed = JSON.parse(json);
+    return Array.isArray(parsed) ? (parsed as TicketLabel[]) : [];
+  } catch {
+    return [];
+  }
 }
 
 function toTicket(
@@ -57,6 +87,16 @@ function toTicket(
     webUrl: row.web_url,
     notesCount: row.notes_count,
     assignees,
+    description: row.description,
+    descriptionHtml: row.description_html,
+    labels: parseLabels(row.labels_json),
+    author:
+      row.author_username !== null && row.author_name !== null
+        ? { username: row.author_username, name: row.author_name }
+        : null,
+    milestoneTitle: row.milestone_title,
+    dueDate: row.due_date,
+    issueCreatedAt: row.issue_created_at,
     pinned,
     unread,
     lastViewedAt,
@@ -224,8 +264,10 @@ export function createTicketRepository(db: Database) {
       const now = new Date().toISOString();
       db.run(
         `INSERT INTO tickets
-           (gitlab_iid, gitlab_global_id, project_id, title, state, status, time_estimate, time_spent, web_url, notes_count, synced_at, created_at, updated_at)
-         VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?)
+           (gitlab_iid, gitlab_global_id, project_id, title, state, status, time_estimate, time_spent, web_url, notes_count,
+            description, description_html, author_username, author_name, milestone_title, labels_json, due_date, issue_created_at,
+            synced_at, created_at, updated_at)
+         VALUES (?, ?, ?, ?, ?, 'active', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(gitlab_iid, project_id) DO UPDATE SET
            gitlab_global_id = excluded.gitlab_global_id,
            title = excluded.title,
@@ -234,6 +276,14 @@ export function createTicketRepository(db: Database) {
            time_spent = excluded.time_spent,
            web_url = excluded.web_url,
            notes_count = excluded.notes_count,
+           description = excluded.description,
+           description_html = excluded.description_html,
+           author_username = excluded.author_username,
+           author_name = excluded.author_name,
+           milestone_title = excluded.milestone_title,
+           labels_json = excluded.labels_json,
+           due_date = excluded.due_date,
+           issue_created_at = excluded.issue_created_at,
            synced_at = excluded.synced_at,
            updated_at = excluded.updated_at`,
         [
@@ -246,6 +296,14 @@ export function createTicketRepository(db: Database) {
           input.timeSpent,
           input.webUrl,
           input.notesCount,
+          input.description,
+          input.descriptionHtml,
+          input.authorUsername,
+          input.authorName,
+          input.milestoneTitle,
+          JSON.stringify(input.labels),
+          input.dueDate,
+          input.issueCreatedAt,
           now,
           now,
           now,
