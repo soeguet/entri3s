@@ -1,0 +1,40 @@
+import type { TicketComment } from "../../../../shared/types";
+
+export const commentFixtures: TicketComment[] = [
+  {
+    id: 1,
+    ticketId: 1,
+    gitlabNoteId: 5001,
+    authorUsername: "mockuser",
+    authorName: "Mock User",
+    body: "Ich habe mit der Umsetzung begonnen.",
+    bodyHtml: "<p>Ich habe mit der Umsetzung begonnen.</p>",
+    isSystem: false,
+    createdAt: "2024-01-15T09:00:00.000Z",
+    updatedAt: "2024-01-15T09:00:00.000Z",
+  },
+  {
+    id: 2,
+    ticketId: 1,
+    gitlabNoteId: 5002,
+    authorUsername: "gitlab-bot",
+    authorName: "GitLab",
+    body: "assigned to @mockuser",
+    bodyHtml: "<p>assigned to @mockuser</p>",
+    isSystem: true,
+    createdAt: "2024-01-15T09:05:00.000Z",
+    updatedAt: "2024-01-15T09:05:00.000Z",
+  },
+  {
+    id: 3,
+    ticketId: 1,
+    gitlabNoteId: 5003,
+    authorUsername: "reviewer",
+    authorName: "Review Person",
+    body: "Sieht gut aus, bitte noch Tests ergänzen.",
+    bodyHtml: "<p>Sieht gut aus, bitte noch Tests ergänzen.</p>",
+    isSystem: false,
+    createdAt: "2024-01-15T10:30:00.000Z",
+    updatedAt: "2024-01-15T10:30:00.000Z",
+  },
+];

@@ -99,6 +99,20 @@ export interface TicketFilter {
   unread?: boolean;
 }
 
+// Ein einzelner GitLab-Kommentar (Note) eines Tickets, lokal gespiegelt.
+export interface TicketComment {
+  id: number;
+  ticketId: number;
+  gitlabNoteId: number;
+  authorUsername: string;
+  authorName: string;
+  body: string; // Markdown (für Suche)
+  bodyHtml: string; // gerendertes HTML von GitLab (für Anzeige)
+  isSystem: boolean;
+  createdAt: string; // ISO UTC
+  updatedAt: string; // ISO UTC
+}
+
 // ── Projects (aus GitLab gesynct; fullPath kodiert die Gruppenhierarchie) ──────
 
 export interface Project {
@@ -216,6 +230,8 @@ export interface AppRPCType {
       markTicketRead: { params: { ticketId: number }; response: RpcResponse<void> };
       markAllTicketsRead: { params: Record<string, never>; response: RpcResponse<void> };
       getPinnedTickets: { params: Record<string, never>; response: RpcResponse<Ticket[]> };
+      getTicketComments: { params: { ticketId: number }; response: RpcResponse<TicketComment[]> };
+      syncTicketComments: { params: { ticketId: number }; response: RpcResponse<void> };
       getProjects: { params: Record<string, never>; response: RpcResponse<Project[]> };
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       removeTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };

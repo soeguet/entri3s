@@ -23,6 +23,8 @@ async function runSchedule(
     } else if (name === "orphan_check") {
       const orphaned = await svc.sync.checkOrphans();
       if (orphaned > 0) emit.orphanDetected(orphaned);
+    } else if (name === "comment_sync") {
+      await svc.comment.syncPinnedAndAssigned();
     }
     // last_run nur bei Erfolg vorrücken — sonst würde das inkrementelle
     // updated_after-Fenster das fehlgeschlagene Intervall überspringen.

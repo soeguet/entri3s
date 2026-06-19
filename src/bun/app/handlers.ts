@@ -43,6 +43,8 @@ export function createRpc(svc: Services) {
         markTicketRead: (p) => wrap(() => svc.ticket.markRead(p.ticketId)),
         markAllTicketsRead: () => wrap(() => svc.ticket.markAllRead()),
         getPinnedTickets: () => wrap(() => svc.ticket.getPinned()),
+        getTicketComments: (p) => wrap(() => svc.comment.getComments(p.ticketId)),
+        syncTicketComments: (p) => wrap(() => svc.comment.syncComments(p.ticketId)),
         getProjects: () => wrap(() => svc.project.getAll()),
 
         // Booking

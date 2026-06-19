@@ -35,6 +35,18 @@ export interface TimelogTarget {
   issueGlobalId: number;
 }
 
+/** Rohe GitLab-Kommentar-Form (Note) eines Issues (GraphQL notes-Connection). */
+export interface GitLabComment {
+  noteId: number;
+  authorUsername: string;
+  authorName: string;
+  body: string;
+  bodyHtml: string;
+  system: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 /** Rohe GitLab-Commit-Form (REST /repository/commits Endpoint). */
 export interface GitLabCommit {
   id: string; // volles SHA
@@ -76,6 +88,8 @@ export interface GitLabClient {
   ): Promise<GitLabCommit[]>;
   /** Gibt id/username/name des Token-Besitzers zurueck (gecacht). */
   fetchCurrentUser(): Promise<CurrentUser>;
+  /** Alle Kommentare (Notes) eines Issues (GraphQL, Cursor-Pagination über alle Seiten). */
+  fetchTicketComments(projectFullPath: string, issueIid: number): Promise<GitLabComment[]>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
@@ -102,6 +116,7 @@ export class FakeGitLabClient implements GitLabClient {
   createShouldThrow: Error | null = null;
   deleteShouldThrow: Error | null = null;
   commitsToReturn: GitLabCommit[] = [];
+  commentsToReturn: GitLabComment[] = [];
   nextTimelogId = 500;
 
   async fetchIssues(): Promise<GitLabIssue[]> {
@@ -170,5 +185,9 @@ export class FakeGitLabClient implements GitLabClient {
 
   async fetchCurrentUser(): Promise<CurrentUser> {
     return this.currentUser;
+  }
+
+  async fetchTicketComments(): Promise<GitLabComment[]> {
+    return this.commentsToReturn;
   }
 }

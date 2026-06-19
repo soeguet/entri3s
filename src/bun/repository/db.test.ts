@@ -32,6 +32,7 @@ test("runMigrations seeds the default schedules", () => {
     .all();
 
   expect(schedules).toEqual([
+    { name: "comment_sync", interval_sec: 900 },
     { name: "gitlab_sync", interval_sec: 300 },
     { name: "orphan_check", interval_sec: 3600 },
   ]);
@@ -43,5 +44,5 @@ test("runMigrations is idempotent", () => {
   runMigrations(db);
 
   const count = db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM schedules").get();
-  expect(count?.n).toBe(2);
+  expect(count?.n).toBe(3);
 });

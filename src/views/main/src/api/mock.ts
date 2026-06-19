@@ -13,6 +13,7 @@ import type {
   Tag,
   Template,
   Ticket,
+  TicketComment,
   TicketFilter,
 } from "../../../../shared/types";
 import { entryFixtures } from "../fixtures/entries";
@@ -21,6 +22,7 @@ import { projectFixtures } from "../fixtures/projects";
 import { tagFixtures } from "../fixtures/tags";
 import { templateFixtures } from "../fixtures/templates";
 import { bookingFixtures } from "../fixtures/bookings";
+import { commentFixtures } from "../fixtures/comments";
 
 // In-Memory-Store für den Browser-Dev-Modus (vite --mode mock).
 const store = {
@@ -30,6 +32,7 @@ const store = {
   tags: structuredClone(tagFixtures) as Tag[],
   templates: structuredClone(templateFixtures) as Template[],
   bookings: structuredClone(bookingFixtures) as Booking[],
+  comments: structuredClone(commentFixtures) as TicketComment[],
   deadEvents: [] as AppEvent[],
   settings: {
     gitlabUrl: "https://gitlab.example.com",
@@ -276,6 +279,9 @@ export const deleteTemplate = (id: number) => {
 export const triggerSync = () => ok(undefined as void);
 export const getSettings = () => ok({ ...store.settings });
 export const getCurrentUser = () => ok(store.currentUser);
+export const getTicketComments = (ticketId: number) =>
+  ok(store.comments.filter((c) => c.ticketId === ticketId));
+export const syncTicketComments = (_ticketId: number) => ok(undefined as void);
 export const saveSettings = (s: Settings) => {
   store.settings = { ...s };
   return ok(undefined as void);

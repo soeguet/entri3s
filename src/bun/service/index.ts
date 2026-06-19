@@ -12,6 +12,7 @@ import { createProjectService } from "./project";
 import { createEventService } from "./events";
 import { createSettingsService } from "./settings";
 import { createCommitService } from "./commit";
+import { createCommentService } from "./comment";
 
 export function createService(repo: Repository, gl: GitLabClient, db: Database, emit: AppEmitter) {
   return {
@@ -25,6 +26,7 @@ export function createService(repo: Repository, gl: GitLabClient, db: Database, 
     events: createEventService(repo),
     settings: createSettingsService(repo, db),
     commit: createCommitService(repo, gl),
+    comment: createCommentService(repo, gl),
   };
 }
 

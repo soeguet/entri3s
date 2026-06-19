@@ -333,6 +333,24 @@ export function createTicketRepository(db: Database) {
       );
     },
 
+    /**
+     * Hash über den letzten Kommentar-Stand eines Tickets (interner Sync-Marker,
+     * NICHT Teil des Ticket-Domain-Typs). Erlaubt dem Kommentar-Sync, einen
+     * unveränderten Stand zu erkennen und einen DB-Schreibvorgang zu sparen.
+     */
+    getCommentsHash(ticketId: number): string | null {
+      const row = db
+        .query<{ comments_hash: string | null }, [number]>(
+          "SELECT comments_hash FROM tickets WHERE id = ?",
+        )
+        .get(ticketId);
+      return row?.comments_hash ?? null;
+    },
+
+    setCommentsHash(ticketId: number, hash: string): void {
+      db.run("UPDATE tickets SET comments_hash = ? WHERE id = ?", [hash, ticketId]);
+    },
+
     /** Aktive gepinnte Tickets, jüngst gepinnte zuerst. */
     listPinned(): Ticket[] {
       const rows = db

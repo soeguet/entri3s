@@ -100,3 +100,5 @@ export const setGitLabToken = (token: string) => r.setGitLabToken({ token });
 export const backupDatabase = (destPath: string) => r.backupDatabase({ destPath });
 export const getCommitsForDate = (date: string) => r.getCommitsForDate({ date });
 export const getCurrentUser = () => r.getCurrentUser({});
+export const getTicketComments = (ticketId: number) => r.getTicketComments({ ticketId });
+export const syncTicketComments = (ticketId: number) => r.syncTicketComments({ ticketId });

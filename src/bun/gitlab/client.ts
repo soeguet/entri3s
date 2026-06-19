@@ -5,6 +5,7 @@ import { createLogger } from "../lib/logger";
 import { fetchIssue } from "./fetch";
 import { fetchCommits as restFetchCommits } from "./commits";
 import { fetchIssues as gqlFetchIssues, fetchProjects as gqlFetchProjects } from "./graphql";
+import { fetchTicketComments as commentsFetch } from "./comments";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
 
 const log = createLogger("gitlab");
@@ -206,5 +207,6 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     fetchCommits: (projectId, since, until, author) =>
       restFetchCommits(client, projectId, since, until, author),
     fetchCurrentUser,
+    fetchTicketComments: (fullPath, iid) => commentsFetch(gqlClient, fullPath, iid),
   };
 }
