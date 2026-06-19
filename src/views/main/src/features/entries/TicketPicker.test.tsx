@@ -21,6 +21,18 @@ function ticket(id: number, iid: number, projectId: number, title: string): Tick
     timeEstimate: null,
     timeSpent: null,
     webUrl: null,
+    assignees: [],
+    description: null,
+    descriptionHtml: null,
+    labels: [],
+    author: null,
+    milestoneTitle: null,
+    dueDate: null,
+    issueCreatedAt: null,
+    pinned: false,
+    unread: false,
+    lastViewedAt: null,
+    notesCount: 0,
     syncedAt: null,
     createdAt: "",
     updatedAt: "",
@@ -46,6 +58,21 @@ test("shows the recently-used section first", () => {
     />,
   );
   expect(screen.getByText("Zuletzt verwendet")).toBeInTheDocument();
+});
+
+test("shows the pinned section when pinned tickets are passed", () => {
+  render(
+    <TicketPicker
+      tickets={tickets}
+      projects={projects}
+      recent={[]}
+      pinned={[tickets[0]]}
+      value={null}
+      onSelect={vi.fn()}
+      onCancel={vi.fn()}
+    />,
+  );
+  expect(screen.getByText("Gepinnt")).toBeInTheDocument();
 });
 
 test("groups results by project full path", () => {

@@ -17,7 +17,13 @@ export const keys = {
   tickets: (filter?: TicketFilter) =>
     (filter === undefined ? ["tickets"] : ["tickets", filter]) as readonly unknown[],
   recentTickets: () => ["recentTickets"] as const,
+  ticketComments: (ticketId: number) => ["ticketComments", ticketId] as const,
+  ticketDetail: (id: number) => ["ticketDetail", id] as const,
+  pinnedTickets: () => ["pinnedTickets"] as const,
+  // Globaler ungelesen-Zähler (ungefiltert) für das Badge neben dem Sync-Button.
+  unreadCount: () => ["unreadCount"] as const,
   projects: () => ["projects"] as const,
+  currentUser: () => ["currentUser"] as const,
   tags: () => ["tags"] as const,
   templates: () => ["templates"] as const,
   commits: (date: string) => ["commits", date] as const,

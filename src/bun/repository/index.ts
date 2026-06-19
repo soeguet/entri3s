@@ -1,6 +1,7 @@
 import type { Database } from "bun:sqlite";
 import { createEntryRepository } from "./entry";
 import { createTicketRepository } from "./ticket";
+import { createCommentRepository } from "./comment";
 import { createProjectRepository } from "./project";
 import { createBookingRepository } from "./booking";
 import { createTagRepository } from "./tag";
@@ -14,6 +15,7 @@ export function createRepository(db: Database) {
   return {
     entries: createEntryRepository(db),
     tickets: createTicketRepository(db),
+    comments: createCommentRepository(db),
     projects: createProjectRepository(db),
     bookings: createBookingRepository(db),
     tags: createTagRepository(db),

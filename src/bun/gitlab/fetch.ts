@@ -6,8 +6,9 @@ import type { GitLabIssue } from "./types";
  * Der projektübergreifende Sync-Lesepfad (`fetchIssues`) läuft inzwischen über
  * GraphQL — siehe graphql.ts.
  */
-interface RestIssue extends Omit<GitLabIssue, "globalId"> {
+interface RestIssue extends Omit<GitLabIssue, "globalId" | "assignees" | "userNotesCount"> {
   id: number; // REST liefert die globale Issue-ID als `id`
+  user_notes_count?: number;
 }
 
 export async function fetchIssue(
@@ -17,5 +18,6 @@ export async function fetchIssue(
 ): Promise<GitLabIssue | null> {
   const res = await client.apiRequest(`/projects/${projectId}/issues/${issueIid}`);
   const raw = (await res.json()) as RestIssue;
-  return { ...raw, globalId: raw.id };
+  // Einzel-Issue-REST-Pfad synct keine Assignees (nur Sync-/Buchungslookup) → leer.
+  return { ...raw, globalId: raw.id, assignees: [], userNotesCount: raw.user_notes_count ?? 0 };
 }

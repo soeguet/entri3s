@@ -22,7 +22,19 @@ export const assignTicket = vi.fn(voidResp);
 export const removeTicket = vi.fn(voidResp);
 export const getTickets = vi.fn(() => okResp(fixtures.tickets));
 export const getRecentTickets = vi.fn(() => okResp(fixtures.tickets));
+export const pinTicket = vi.fn(voidResp);
+export const unpinTicket = vi.fn(voidResp);
+export const getPinnedTickets = vi.fn(() => okResp([]));
+export const markTicketRead = vi.fn(voidResp);
+export const markAllTicketsRead = vi.fn(voidResp);
+export const getUnreadCount = vi.fn(() => okResp(0));
 export const getProjects = vi.fn(() => okResp(fixtures.projects));
+export const getCurrentUser = vi.fn(() =>
+  okResp({ id: 1, username: "mockuser", name: "Mock User" }),
+);
+export const getTicketComments = vi.fn(() => okResp(fixtures.comments));
+export const getTicket = vi.fn(() => okResp(fixtures.tickets[0]));
+export const syncTicketComments = vi.fn(voidResp);
 export const bookEntry = vi.fn(voidResp);
 export const deleteBooking = vi.fn(voidResp);
 export const getBookingsForEntry = vi.fn(() => okResp(fixtures.bookings));
@@ -40,6 +52,7 @@ export const triggerSync = vi.fn(voidResp);
 export const getSettings = vi.fn(() =>
   okResp({ gitlabUrl: "https://gitlab.example.com", syncIntervalSec: 300 }),
 );
+export const getGitlabImage = vi.fn(() => okResp("data:image/png;base64,AAA"));
 export const saveSettings = vi.fn(voidResp);
 export const setGitLabToken = vi.fn(voidResp);
 export const backupDatabase = vi.fn(voidResp);

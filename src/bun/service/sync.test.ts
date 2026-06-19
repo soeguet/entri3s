@@ -17,7 +17,12 @@ beforeEach(() => {
   svc = createSyncService(repo, gl, noopEmitter);
 });
 
-function issue(iid: number, state: string): GitLabIssue {
+function issue(
+  iid: number,
+  state: string,
+  assignees: GitLabIssue["assignees"] = [],
+  userNotesCount = 0,
+): GitLabIssue {
   return {
     iid,
     globalId: 5000 + iid,
@@ -26,7 +31,16 @@ function issue(iid: number, state: string): GitLabIssue {
     state,
     web_url: `https://gl/issues/${iid}`,
     updated_at: "2024-01-15T10:00:00.000Z",
+    userNotesCount,
+    assignees,
     time_stats: { time_estimate: 3600, total_time_spent: 1800 },
+    description: `Body ${iid}`,
+    descriptionHtml: `<p>Body ${iid}</p>`,
+    labels: [{ title: "bug", color: "#ff0000" }],
+    author: { username: "alice", name: "Alice" },
+    milestoneTitle: "Sprint 1",
+    dueDate: "2024-02-01",
+    issueCreatedAt: "2024-01-01T08:00:00.000Z",
   };
 }
 
@@ -65,6 +79,44 @@ test("syncIssues maps time stats and the global issue id", async () => {
   expect(ticket?.gitlabGlobalId).toBe(5001);
 });
 
+test("syncIssues persists the user notes count", async () => {
+  gl.issuesToReturn = [issue(1, "opened", [], 7)];
+  await svc.syncIssues();
+  expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.notesCount).toBe(7);
+});
+
+test("syncIssues persists issue metadata and round-trips labels JSON", async () => {
+  gl.issuesToReturn = [issue(1, "opened")];
+  await svc.syncIssues();
+  const ticket = repo.tickets.getByGitLabIid(1, PROJECT_ID);
+  expect(ticket?.description).toBe("Body 1");
+  expect(ticket?.descriptionHtml).toBe("<p>Body 1</p>");
+  expect(ticket?.labels).toEqual([{ title: "bug", color: "#ff0000" }]);
+  expect(ticket?.author).toEqual({ username: "alice", name: "Alice" });
+  expect(ticket?.milestoneTitle).toBe("Sprint 1");
+  expect(ticket?.dueDate).toBe("2024-02-01");
+  expect(ticket?.issueCreatedAt).toBe("2024-01-01T08:00:00.000Z");
+});
+
+test("syncIssues tolerates missing issue metadata (null author/milestone/labels)", async () => {
+  const bare = issue(1, "opened");
+  bare.description = null;
+  bare.descriptionHtml = null;
+  bare.labels = [];
+  bare.author = null;
+  bare.milestoneTitle = null;
+  bare.dueDate = null;
+  gl.issuesToReturn = [bare];
+  await svc.syncIssues();
+  const ticket = repo.tickets.getByGitLabIid(1, PROJECT_ID);
+  expect(ticket?.description).toBeNull();
+  expect(ticket?.descriptionHtml).toBeNull();
+  expect(ticket?.labels).toEqual([]);
+  expect(ticket?.author).toBeNull();
+  expect(ticket?.milestoneTitle).toBeNull();
+  expect(ticket?.dueDate).toBeNull();
+});
+
 test("syncIssues updates last_run", async () => {
   expect(repo.schedules.get("gitlab_sync")?.lastRun).toBeNull();
   gl.issuesToReturn = [issue(1, "opened")];
@@ -94,4 +146,42 @@ test("checkOrphans marks tickets GitLab no longer returns", async () => {
   expect(orphaned).toBe(1);
   expect(repo.tickets.getByGitLabIid(2, PROJECT_ID)?.status).toBe("orphaned");
   expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.status).toBe("active");
+});
+
+test("syncIssues persists the current user", async () => {
+  gl.issuesToReturn = [issue(1, "opened")];
+  await svc.syncIssues();
+  expect(repo.settings.getCurrentUser()).toEqual({
+    id: 1,
+    username: "testuser",
+    name: "Test User",
+  });
+});
+
+test("syncIssues persists assignees of an issue", async () => {
+  gl.issuesToReturn = [
+    issue(1, "opened", [
+      { id: 7, username: "alice", name: "Alice" },
+      { id: 8, username: "bob", name: "Bob" },
+    ]),
+  ];
+  await svc.syncIssues();
+
+  const ticket = repo.tickets.getByGitLabIid(1, PROJECT_ID);
+  expect(ticket?.assignees).toEqual([
+    { gitlabUserId: 7, username: "alice", name: "Alice" },
+    { gitlabUserId: 8, username: "bob", name: "Bob" },
+  ]);
+});
+
+test("syncIssues does not overwrite an existing current user", async () => {
+  repo.settings.setCurrentUser({ id: 99, username: "existing", name: "Existing User" });
+  gl.currentUser = { id: 1, username: "testuser", name: "Test User" };
+  gl.issuesToReturn = [issue(1, "opened")];
+  await svc.syncIssues();
+  expect(repo.settings.getCurrentUser()).toEqual({
+    id: 99,
+    username: "existing",
+    name: "Existing User",
+  });
 });

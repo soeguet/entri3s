@@ -1,6 +1,26 @@
 import { test, expect } from "bun:test";
 import { Database } from "bun:sqlite";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { runMigrations } from "./db";
+
+/**
+ * Wendet alle .sql-Migrationen bis EINSCHLIESSLICH `lastFile` an und schreibt sie
+ * in die migrations-Tabelle, sodass ein anschließendes runMigrations() sie
+ * überspringt und nur die späteren Migrationen ausführt. Nur für Tests.
+ */
+function applyMigrationsUpTo(db: Database, lastFile: string): void {
+  db.exec("CREATE TABLE IF NOT EXISTS migrations (name TEXT PRIMARY KEY, run_at TEXT NOT NULL)");
+  const dir = join(import.meta.dir, "migrations");
+  const files = readdirSync(dir)
+    .filter((f) => f.endsWith(".sql"))
+    .sort();
+  for (const file of files) {
+    db.exec(readFileSync(join(dir, file), "utf8"));
+    db.run("INSERT INTO migrations VALUES (?, ?)", [file, new Date().toISOString()]);
+    if (file === lastFile) break;
+  }
+}
 
 test("runMigrations creates the full schema", () => {
   const db = new Database(":memory:");
@@ -32,6 +52,7 @@ test("runMigrations seeds the default schedules", () => {
     .all();
 
   expect(schedules).toEqual([
+    { name: "comment_sync", interval_sec: 900 },
     { name: "gitlab_sync", interval_sec: 300 },
     { name: "orphan_check", interval_sec: 3600 },
   ]);
@@ -43,5 +64,80 @@ test("runMigrations is idempotent", () => {
   runMigrations(db);
 
   const count = db.query<{ n: number }, []>("SELECT COUNT(*) AS n FROM schedules").get();
-  expect(count?.n).toBe(2);
+  expect(count?.n).toBe(3);
+});
+
+test("migration 013 nulls gitlab_sync.last_run (assignee resync)", () => {
+  const db = new Database(":memory:");
+  runMigrations(db);
+
+  const applied = db
+    .query<{ name: string }, [string]>("SELECT name FROM migrations WHERE name = ?")
+    .get("013_resync_assignees.sql");
+  expect(applied).not.toBeNull();
+
+  const row = db
+    .query<{ last_run: string | null }, []>(
+      "SELECT last_run FROM schedules WHERE name = 'gitlab_sync'",
+    )
+    .get();
+  expect(row?.last_run).toBeNull();
+});
+
+test("migration 014 adds the ticket metadata columns and nulls gitlab_sync.last_run", () => {
+  const db = new Database(":memory:");
+  runMigrations(db);
+
+  const cols = db
+    .query<{ name: string }, []>("PRAGMA table_info(tickets)")
+    .all()
+    .map((c) => c.name);
+  for (const col of [
+    "description",
+    "description_html",
+    "author_username",
+    "author_name",
+    "milestone_title",
+    "labels_json",
+    "due_date",
+    "issue_created_at",
+  ]) {
+    expect(cols).toContain(col);
+  }
+
+  // Voll-Resync erzwungen (siehe Migration 014).
+  const row = db
+    .query<{ last_run: string | null }, []>(
+      "SELECT last_run FROM schedules WHERE name = 'gitlab_sync'",
+    )
+    .get();
+  expect(row?.last_run).toBeNull();
+});
+
+test("migration 015 adds discussion_id and nulls comments_hash for the backfill", () => {
+  const db = new Database(":memory:");
+  db.exec("PRAGMA foreign_keys = ON");
+
+  // Migrationen bis EINSCHLIESSLICH 014 anwenden, dann ein Ticket mit gesetztem
+  // comments_hash anlegen — so lässt sich der einmalige UPDATE in 015 verifizieren.
+  applyMigrationsUpTo(db, "014_ticket_metadata.sql");
+  db.run(
+    "INSERT INTO tickets (gitlab_iid, project_id, title, state, comments_hash) VALUES (1, 1, 'T', 'opened', 'oldhash')",
+  );
+
+  // Jetzt 015 (und ggf. spätere) anwenden.
+  runMigrations(db);
+
+  const cols = db
+    .query<{ name: string }, []>("PRAGMA table_info(ticket_comments)")
+    .all()
+    .map((c) => c.name);
+  expect(cols).toContain("discussion_id");
+
+  const row = db
+    .query<{ comments_hash: string | null }, []>(
+      "SELECT comments_hash FROM tickets WHERE gitlab_iid = 1",
+    )
+    .get();
+  expect(row?.comments_hash).toBeNull();
 });

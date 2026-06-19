@@ -4,6 +4,7 @@ import { projectFixtures } from "./projects";
 import { tagFixtures } from "./tags";
 import { templateFixtures } from "./templates";
 import { bookingFixtures } from "./bookings";
+import { commentFixtures } from "./comments";
 
 export const fixtures = {
   entries: entryFixtures,
@@ -12,4 +13,5 @@ export const fixtures = {
   tags: tagFixtures,
   templates: templateFixtures,
   bookings: bookingFixtures,
+  comments: commentFixtures,
 };

@@ -26,6 +26,15 @@ function toUpsert(issue: GitLabIssue): TicketUpsert {
     timeEstimate: issue.time_stats?.time_estimate ?? null,
     timeSpent: issue.time_stats?.total_time_spent ?? null,
     webUrl: issue.web_url,
+    notesCount: issue.userNotesCount ?? 0,
+    description: issue.description ?? null,
+    descriptionHtml: issue.descriptionHtml ?? null,
+    authorUsername: issue.author?.username ?? null,
+    authorName: issue.author?.name ?? null,
+    milestoneTitle: issue.milestoneTitle ?? null,
+    labels: issue.labels ?? [],
+    dueDate: issue.dueDate ?? null,
+    issueCreatedAt: issue.issueCreatedAt ?? null,
   };
 }
 
@@ -54,10 +63,33 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
       for (const project of projects) repo.projects.upsert(project);
       log.info("Projekte gesynct", { count: projects.length });
 
+      // Current User einmalig laden + bei Token-Änderung (Konzept). Fehler hier
+      // darf den Sync nicht abbrechen.
+      try {
+        if (repo.settings.getCurrentUser() === null) {
+          repo.settings.setCurrentUser(await gl.fetchCurrentUser());
+        }
+      } catch (e) {
+        log.warn("Current User konnte nicht geladen werden", {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+
       const issues = await gl.fetchIssues(since);
       let orphaned = 0;
       for (const issue of issues) {
         repo.tickets.upsert(toUpsert(issue));
+        const ticket = repo.tickets.getByGitLabIid(issue.iid, issue.project_id);
+        if (ticket) {
+          repo.tickets.setAssignees(
+            ticket.id,
+            issue.assignees.map((a) => ({
+              gitlabUserId: a.id,
+              username: a.username,
+              name: a.name,
+            })),
+          );
+        }
         if (isOrphanState(issue.state)) {
           repo.tickets.markOrphaned(issue.iid, issue.project_id);
           orphaned++;

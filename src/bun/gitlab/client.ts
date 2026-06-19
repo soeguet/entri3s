@@ -1,11 +1,13 @@
-import type { Settings } from "../../shared/types";
+import type { Settings, CurrentUser } from "../../shared/types";
 import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
 import { createLogger } from "../lib/logger";
 import { fetchIssue } from "./fetch";
 import { fetchCommits as restFetchCommits } from "./commits";
 import { fetchIssues as gqlFetchIssues, fetchProjects as gqlFetchProjects } from "./graphql";
+import { fetchTicketComments as commentsFetch } from "./comments";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
+import { resolveUploadUrl, projectUploadApiPath } from "./upload";
 
 const log = createLogger("gitlab");
 
@@ -110,7 +112,7 @@ function toNetworkError(label: string, url: string, cause: unknown): AppErrorErr
  */
 export function createGitLabClient(token: string, getSettings: () => Settings): GitLabClient {
   const limiter = createRateLimiter(5); // 5 req/s
-  let cachedUsername: string | null = null;
+  let cachedCurrentUser: CurrentUser | null = null;
 
   async function apiRequest(path: string, options?: RequestInit): Promise<Response> {
     await limiter.throttle();
@@ -181,12 +183,74 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     return json.data;
   }
 
-  async function fetchCurrentUser(): Promise<string> {
-    if (cachedUsername) return cachedUsername;
+  // Bewusste Abweichung: REST /user (statt GraphQL currentUser) liefert die
+  // numerische id direkt — kein GID-Parsing nötig. Ein einziger gecachter Call.
+  async function fetchCurrentUser(): Promise<CurrentUser> {
+    if (cachedCurrentUser) return cachedCurrentUser;
     const res = await apiRequest("/user");
-    const user = (await res.json()) as { username: string };
-    cachedUsername = user.username;
-    return cachedUsername;
+    const user = (await res.json()) as { id: number; username: string; name: string };
+    cachedCurrentUser = { id: user.id, username: user.username, name: user.name };
+    return cachedCurrentUser;
+  }
+
+  /**
+   * Wirft, wenn der Upload als HTML statt als Bild zurückkommt. Die
+   * Web-Namespace-Route ignoriert den Token und liefert die Login-Seite —
+   * ohne diese Prüfung würde die HTML-Sign-in-Seite als „Bild" gerendert.
+   */
+  function assertNotHtml(contentType: string, src: string): void {
+    if (contentType.toLowerCase().startsWith("text/html")) {
+      throw new AppErrorError({
+        code: "AUTH_FAILED",
+        message: `Upload nicht abrufbar — vermutlich Auth/Token-Problem (HTML statt Bild erhalten): ${src}`,
+        retry: false,
+      });
+    }
+  }
+
+  /**
+   * Lädt eine GitLab-Upload-Datei (Bild) und liefert sie base64-kodiert.
+   * Projekt-Uploads (interne `data-src`-Form `/-/project/<id>/uploads/...`)
+   * laufen über die token-authentifizierte REST-API (`apiRequest`), weil die
+   * Web-Namespace-Route den PRIVATE-TOKEN ignoriert. Alle anderen Uploads
+   * (z. B. `/uploads/-/system/...`) fallen auf den same-origin-Direkt-Fetch
+   * zurück. Beide Pfade schützen via `assertNotHtml` gegen die Login-Seite.
+   */
+  async function fetchUpload(src: string): Promise<{ contentType: string; base64: string }> {
+    const apiPath = projectUploadApiPath(src);
+    if (apiPath !== null) {
+      const res = await apiRequest(apiPath);
+      const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+      assertNotHtml(contentType, src);
+      const buf = await res.arrayBuffer();
+      return { contentType, base64: Buffer.from(buf).toString("base64") };
+    }
+
+    await limiter.throttle();
+    const url = resolveUploadUrl(getSettings().gitlabUrl, src);
+    if (url === null) {
+      throw new AppErrorError({
+        code: "NOT_FOUND",
+        message: `Bild-URL nicht proxybar (nicht same-origin): ${src}`,
+        retry: false,
+      });
+    }
+    log.info(`UPLOAD → GET ${src}`);
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: { "PRIVATE-TOKEN": token } });
+    } catch (e) {
+      throw toNetworkError(`UPLOAD ${src}`, url, e);
+    }
+    if (!res.ok) {
+      const body = await res.text();
+      log.error(`UPLOAD GET ${src} → HTTP ${res.status}`, { body: body.slice(0, 500) });
+      throw toApiError(res.status, body);
+    }
+    const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+    assertNotHtml(contentType, src);
+    const buf = await res.arrayBuffer();
+    return { contentType, base64: Buffer.from(buf).toString("base64") };
   }
 
   const client: ApiClient = { apiRequest };
@@ -204,5 +268,12 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     fetchCommits: (projectId, since, until, author) =>
       restFetchCommits(client, projectId, since, until, author),
     fetchCurrentUser,
+    // In-memory Cache muss bei Token-Wechsel invalidiert werden: der Client ist
+    // langlebig (einmal beim Start erzeugt), sonst bliebe der alte User gecacht.
+    clearCurrentUserCache: () => {
+      cachedCurrentUser = null;
+    },
+    fetchTicketComments: (fullPath, iid) => commentsFetch(gqlClient, fullPath, iid),
+    fetchUpload,
   };
 }

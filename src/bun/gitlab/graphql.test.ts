@@ -17,6 +17,15 @@ function issueNode(iid: string, extra: Record<string, unknown> = {}) {
     updatedAt: "2024-06-17T10:00:00.000Z",
     timeEstimate: 3600,
     totalTimeSpent: 1800,
+    userNotesCount: 0,
+    assignees: { nodes: [] },
+    description: null,
+    descriptionHtml: null,
+    labels: { nodes: [] },
+    author: null,
+    milestone: null,
+    dueDate: null,
+    createdAt: "2024-06-10T08:00:00.000Z",
     ...extra,
   };
 }
@@ -79,11 +88,119 @@ test("iterates member projects and maps issues per project with injected project
     state: "opened",
     web_url: "https://gl.example.com/-/issues/1",
     updated_at: "2024-06-17T10:00:00.000Z",
+    userNotesCount: 0,
+    assignees: [],
     time_stats: { time_estimate: 3600, total_time_spent: 1800 },
+    description: null,
+    descriptionHtml: null,
+    labels: [],
+    author: null,
+    milestoneTitle: null,
+    dueDate: null,
+    issueCreatedAt: "2024-06-10T08:00:00.000Z",
   });
   // Issue aus dem zweiten Projekt trägt dessen project_id.
   expect(issues[2].iid).toBe(3);
   expect(issues[2].project_id).toBe(456);
+});
+
+test("maps assignees, parsing their user id from the GID", async () => {
+  const client = fakeClient([], [{ id: "gid://gitlab/Project/7", fullPath: "grp/a" }], {
+    "grp/a:start": {
+      project: {
+        issues: page([
+          issueNode("1", {
+            assignees: {
+              nodes: [
+                { id: "gid://gitlab/User/42", username: "alice", name: "Alice" },
+                { id: "gid://gitlab/User/43", username: "bob", name: "Bob" },
+              ],
+            },
+          }),
+        ]),
+      },
+    },
+  });
+  const issues = await fetchIssues(client);
+  expect(issues[0].assignees).toEqual([
+    { id: 42, username: "alice", name: "Alice" },
+    { id: 43, username: "bob", name: "Bob" },
+  ]);
+});
+
+test("tolerates a null assignees connection and yields an empty array", async () => {
+  const client = fakeClient([], [{ id: "gid://gitlab/Project/7", fullPath: "grp/a" }], {
+    "grp/a:start": {
+      project: { issues: page([issueNode("1", { assignees: null })]) },
+    },
+  });
+  const issues = await fetchIssues(client);
+  expect(issues[0].assignees).toEqual([]);
+});
+
+test("maps the new issue metadata fields when present", async () => {
+  const client = fakeClient([], [{ id: "gid://gitlab/Project/7", fullPath: "grp/a" }], {
+    "grp/a:start": {
+      project: {
+        issues: page([
+          issueNode("1", {
+            description: "Body **md**",
+            descriptionHtml: "<p>Body <strong>md</strong></p>",
+            labels: {
+              nodes: [
+                { title: "bug", color: "#ff0000" },
+                { title: "ui", color: "#00ff00" },
+              ],
+            },
+            author: { username: "alice", name: "Alice" },
+            milestone: { title: "Sprint 1" },
+            dueDate: "2024-07-01",
+            createdAt: "2024-05-01T08:00:00.000Z",
+          }),
+        ]),
+      },
+    },
+  });
+  const issues = await fetchIssues(client);
+  expect(issues[0].description).toBe("Body **md**");
+  expect(issues[0].descriptionHtml).toBe("<p>Body <strong>md</strong></p>");
+  expect(issues[0].labels).toEqual([
+    { title: "bug", color: "#ff0000" },
+    { title: "ui", color: "#00ff00" },
+  ]);
+  expect(issues[0].author).toEqual({ username: "alice", name: "Alice" });
+  expect(issues[0].milestoneTitle).toBe("Sprint 1");
+  expect(issues[0].dueDate).toBe("2024-07-01");
+  expect(issues[0].issueCreatedAt).toBe("2024-05-01T08:00:00.000Z");
+});
+
+test("tolerates null metadata fields and yields sensible defaults", async () => {
+  const client = fakeClient([], [{ id: "gid://gitlab/Project/7", fullPath: "grp/a" }], {
+    "grp/a:start": {
+      project: {
+        issues: page([
+          issueNode("1", {
+            description: null,
+            descriptionHtml: null,
+            labels: null, // ganze Connection null
+            author: null,
+            milestone: null,
+            dueDate: null,
+            createdAt: null, // Fallback auf updatedAt
+          }),
+        ]),
+      },
+    },
+  });
+  const issues = await fetchIssues(client);
+  expect(issues[0].description).toBeNull();
+  expect(issues[0].descriptionHtml).toBeNull();
+  expect(issues[0].labels).toEqual([]);
+  expect(issues[0].author).toBeNull();
+  expect(issues[0].milestoneTitle).toBeNull();
+  expect(issues[0].dueDate).toBeNull();
+  // createdAt=null → Fallback auf updatedAt (siehe mapNode).
+  expect(issues[0].issueCreatedAt).toBe("2024-06-17T10:00:00.000Z");
 });
 
 test("follows cursor pagination within a project", async () => {

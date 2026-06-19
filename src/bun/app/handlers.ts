@@ -38,6 +38,16 @@ export function createRpc(svc: Services) {
         // Tickets
         getTickets: (filter) => wrap(() => svc.ticket.getAll(filter)),
         getRecentTickets: (p) => wrap(() => svc.ticket.getRecent(p.limit)),
+        pinTicket: (p) => wrap(() => svc.ticket.pin(p.ticketId)),
+        unpinTicket: (p) => wrap(() => svc.ticket.unpin(p.ticketId)),
+        markTicketRead: (p) => wrap(() => svc.ticket.markRead(p.ticketId)),
+        markAllTicketsRead: (p) => wrap(() => svc.ticket.markAllRead(p.filter)),
+        getUnreadCount: () => wrap(() => svc.ticket.getUnreadCount()),
+        getPinnedTickets: () => wrap(() => svc.ticket.getPinned()),
+        getTicketComments: (p) => wrap(() => svc.comment.getComments(p.ticketId)),
+        getTicket: (p) => wrap(() => svc.ticket.getById(p.ticketId)),
+        getGitlabImage: (p) => wrap(() => svc.comment.getImage(p.url)),
+        syncTicketComments: (p) => wrap(() => svc.comment.syncComments(p.ticketId)),
         getProjects: () => wrap(() => svc.project.getAll()),
 
         // Booking
@@ -66,6 +76,7 @@ export function createRpc(svc: Services) {
 
         // Settings
         getSettings: () => wrap(() => svc.settings.get()),
+        getCurrentUser: () => wrap(() => svc.settings.getCurrentUser()),
         saveSettings: (settings) => wrap(() => svc.settings.save(settings)),
         setGitLabToken: (p) => wrap(() => svc.settings.setToken(p.token)),
         backupDatabase: (p) => wrap(() => svc.settings.backup(p.destPath)),

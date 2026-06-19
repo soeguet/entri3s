@@ -12,6 +12,7 @@ import {
   getTemplates,
   getProjects,
   getRecentTickets,
+  getPinnedTickets,
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap, errorMessage } from "../../lib/errors";
@@ -59,6 +60,10 @@ export function EntryForm(props: EntryFormProps) {
   const recentTickets = useQuery({
     queryKey: keys.recentTickets(),
     queryFn: async () => unwrap(await getRecentTickets(8)),
+  });
+  const pinned = useQuery({
+    queryKey: keys.pinnedTickets(),
+    queryFn: async () => unwrap(await getPinnedTickets()),
   });
   const templates = useQuery({
     queryKey: keys.templates(),
@@ -148,6 +153,7 @@ export function EntryForm(props: EntryFormProps) {
           tickets={tickets.data ?? []}
           projects={projects.data ?? []}
           recent={recentTickets.data ?? []}
+          pinned={pinned.data ?? []}
           value={ticketId}
           onSelect={(id) => {
             form.setValue("ticketId", id);

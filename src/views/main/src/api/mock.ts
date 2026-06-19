@@ -2,6 +2,7 @@ import type {
   AppEvent,
   Booking,
   Commit,
+  CurrentUser,
   Entry,
   EntryCreate,
   EntryFilter,
@@ -12,6 +13,7 @@ import type {
   Tag,
   Template,
   Ticket,
+  TicketComment,
   TicketFilter,
 } from "../../../../shared/types";
 import { entryFixtures } from "../fixtures/entries";
@@ -20,6 +22,7 @@ import { projectFixtures } from "../fixtures/projects";
 import { tagFixtures } from "../fixtures/tags";
 import { templateFixtures } from "../fixtures/templates";
 import { bookingFixtures } from "../fixtures/bookings";
+import { commentFixtures } from "../fixtures/comments";
 
 // In-Memory-Store für den Browser-Dev-Modus (vite --mode mock).
 const store = {
@@ -29,11 +32,13 @@ const store = {
   tags: structuredClone(tagFixtures) as Tag[],
   templates: structuredClone(templateFixtures) as Template[],
   bookings: structuredClone(bookingFixtures) as Booking[],
+  comments: structuredClone(commentFixtures) as TicketComment[],
   deadEvents: [] as AppEvent[],
   settings: {
     gitlabUrl: "https://gitlab.example.com",
     syncIntervalSec: 300,
   } as Settings,
+  currentUser: { id: 1, username: "mockuser", name: "Mock User" } as CurrentUser,
   nextId: 1000,
 };
 
@@ -160,6 +165,11 @@ export const getTickets = (filter: TicketFilter) => {
   let result = store.tickets;
   if (filter.status) result = result.filter((t) => t.status === filter.status);
   if (filter.state) result = result.filter((t) => t.state === filter.state);
+  if (filter.assignedToMe) {
+    result = result.filter((t) => t.assignees.some((a) => a.gitlabUserId === store.currentUser.id));
+  }
+  if (filter.pinned) result = result.filter((t) => t.pinned);
+  if (filter.unread) result = result.filter((t) => t.unread);
   return ok([...result]);
 };
 
@@ -167,6 +177,40 @@ export const getRecentTickets = (limit: number) =>
   ok(store.tickets.filter((t) => t.status === "active").slice(0, limit));
 
 export const getProjects = () => ok([...store.projects]);
+
+export const pinTicket = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  if (t) t.pinned = true;
+  return ok(undefined as void);
+};
+export const unpinTicket = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  if (t) t.pinned = false;
+  return ok(undefined as void);
+};
+export const getPinnedTickets = () => ok(store.tickets.filter((t) => t.pinned === true));
+
+export const markTicketRead = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  if (t) t.unread = false;
+  return ok(undefined as void);
+};
+// Markiert nur die zum Filter passenden Tickets als gelesen (gleiche
+// Filter-Logik wie getTickets), analog zum Backend.
+export const markAllTicketsRead = (filter: TicketFilter) => {
+  let result = store.tickets;
+  if (filter.status) result = result.filter((t) => t.status === filter.status);
+  if (filter.state) result = result.filter((t) => t.state === filter.state);
+  if (filter.assignedToMe) {
+    result = result.filter((t) => t.assignees.some((a) => a.gitlabUserId === store.currentUser.id));
+  }
+  if (filter.pinned) result = result.filter((t) => t.pinned);
+  if (filter.unread) result = result.filter((t) => t.unread);
+  for (const t of result) t.unread = false;
+  return ok(undefined as void);
+};
+export const getUnreadCount = () =>
+  ok(store.tickets.filter((t) => t.status === "active" && t.unread).length);
 
 export const bookEntry = (entryId: number) => {
   const entry = store.entries.find((e) => e.id === entryId);
@@ -246,6 +290,19 @@ export const deleteTemplate = (id: number) => {
 
 export const triggerSync = () => ok(undefined as void);
 export const getSettings = () => ok({ ...store.settings });
+export const getCurrentUser = () => ok(store.currentUser);
+export const getTicketComments = (ticketId: number) =>
+  ok(store.comments.filter((c) => c.ticketId === ticketId));
+export const syncTicketComments = (_ticketId: number) => ok(undefined as void);
+export const getTicket = (ticketId: number) => {
+  const t = store.tickets.find((x) => x.id === ticketId);
+  return t ? ok(t) : fail<Ticket | null>("NOT_FOUND", `Ticket ${ticketId} nicht gefunden`);
+};
+// Inline gerenderter grauer SVG-Placeholder (400x200, "Bild (Mock)"), damit der
+// Inline-Bild-Pfad im Dev-Modus (vite --mode mock) sichtbar ist.
+const MOCK_IMAGE_DATA_URL =
+  "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSI0MDAiIGhlaWdodD0iMjAwIj48cmVjdCB3aWR0aD0iNDAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2NjY2NjYyIvPjx0ZXh0IHg9IjIwMCIgeT0iMTA1IiBmb250LWZhbWlseT0ic2Fucy1zZXJpZiIgZm9udC1zaXplPSIyMCIgZmlsbD0iIzY2NjY2NiIgdGV4dC1hbmNob3I9Im1pZGRsZSI+QmlsZCAoTW9jayk8L3RleHQ+PC9zdmc+";
+export const getGitlabImage = (_url: string) => ok(MOCK_IMAGE_DATA_URL);
 export const saveSettings = (s: Settings) => {
   store.settings = { ...s };
   return ok(undefined as void);

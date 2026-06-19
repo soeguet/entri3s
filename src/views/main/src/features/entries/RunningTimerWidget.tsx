@@ -13,6 +13,7 @@ import {
   getTickets,
   getProjects,
   getRecentTickets,
+  getPinnedTickets,
   getTags,
   assignTicket,
   removeTicket,
@@ -59,6 +60,10 @@ export function RunningTimerWidget() {
   const recent = useQuery({
     queryKey: keys.recentTickets(),
     queryFn: async () => unwrap(await getRecentTickets(8)),
+  });
+  const pinned = useQuery({
+    queryKey: keys.pinnedTickets(),
+    queryFn: async () => unwrap(await getPinnedTickets()),
   });
   const tags = useQuery({
     queryKey: keys.tags(),
@@ -290,6 +295,7 @@ export function RunningTimerWidget() {
           tickets={tickets.data ?? []}
           projects={projects.data ?? []}
           recent={recent.data ?? []}
+          pinned={pinned.data ?? []}
           value={activeTicketId}
           onSelect={onPick}
           onCancel={() => setPicking(false)}

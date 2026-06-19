@@ -2,6 +2,8 @@ import { createRoute, createRouter, redirect } from "@tanstack/react-router";
 import { rootRoute } from "./__root";
 import { EntriesPage } from "../features/entries/EntriesPage";
 import { TicketsPage } from "../features/tickets/TicketsPage";
+import { ticketsSearchSchema } from "../features/tickets/ticketsSearch";
+import { TicketDetailPage } from "../features/tickets/TicketDetailPage";
 import { ManagementPage } from "../features/management/ManagementPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { BookingPage } from "../features/booking/BookingPage";
@@ -24,6 +26,13 @@ const ticketsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/tickets",
   component: TicketsPage,
+  validateSearch: ticketsSearchSchema,
+});
+
+const ticketDetailRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/tickets/$ticketId",
+  component: TicketDetailPage,
 });
 
 const bookingRoute = createRoute({
@@ -48,6 +57,7 @@ const routeTree = rootRoute.addChildren([
   indexRoute,
   entriesRoute,
   ticketsRoute,
+  ticketDetailRoute,
   bookingRoute,
   managementRoute,
   settingsRoute,

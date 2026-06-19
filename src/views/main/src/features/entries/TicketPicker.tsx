@@ -7,6 +7,7 @@ interface TicketPickerProps {
   tickets: Ticket[]; // auswählbare (aktive) Tickets
   projects: Project[]; // für Projektnamen/Gruppierung
   recent: Ticket[]; // zuletzt verwendete Tickets (ohne Suche oben gezeigt)
+  pinned?: Ticket[]; // gepinnte Tickets (ohne Suche ganz oben gezeigt) — optional
   value: number | null; // aktuell ausgewählte ticketId
   onSelect: (id: number | null) => void; // wählt und kehrt zum Formular zurück
   onCancel: () => void; // zurück ohne Änderung
@@ -54,6 +55,9 @@ export function TicketPicker(props: TicketPickerProps) {
     : props.tickets;
 
   const sections: Array<{ key: string; label: string | null; tickets: Ticket[] }> = [];
+  if (!q && props.pinned && props.pinned.length > 0) {
+    sections.push({ key: "pinned", label: "Gepinnt", tickets: props.pinned });
+  }
   if (!q && props.recent.length > 0) {
     sections.push({ key: "recent", label: "Zuletzt verwendet", tickets: props.recent });
   }

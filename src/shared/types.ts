@@ -57,6 +57,19 @@ export interface EntryFilter {
 export type TicketState = "opened" | "closed" | "locked";
 export type TicketStatus = "active" | "orphaned";
 
+// Assignee eines Tickets — denormalisiert pro Ticket gespeichert (kein users-Table).
+export interface TicketAssignee {
+  gitlabUserId: number;
+  username: string;
+  name: string;
+}
+
+// Ein GitLab-Label eines Tickets (Anzeige als Badge; color ist ein CSS-Hex-Wert).
+export interface TicketLabel {
+  title: string;
+  color: string;
+}
+
 export interface Ticket {
   id: number;
   gitlabIid: number;
@@ -68,6 +81,21 @@ export interface Ticket {
   timeEstimate: number | null; // Sekunden
   timeSpent: number | null; // Sekunden
   webUrl: string | null;
+  assignees: TicketAssignee[];
+  // GitLab-Issue-Metadaten (read-only, im Issue-Sync gefüllt; null wenn nicht gesetzt).
+  description: string | null; // Markdown
+  descriptionHtml: string | null; // gerendertes HTML von GitLab
+  labels: TicketLabel[];
+  author: { username: string; name: string } | null;
+  milestoneTitle: string | null;
+  dueDate: string | null; // ISO-Date (YYYY-MM-DD)
+  issueCreatedAt: string | null; // ISO-UTC der Issue-Erstellung in GitLab
+  pinned: boolean;
+  // Ungelesen: kein read-state-Eintrag (neues Ticket) ODER notesCount > zuletzt gesehener Count.
+  unread: boolean;
+  lastViewedAt: string | null; // ISO-UTC des letzten "Als gelesen markieren"; null = nie als gelesen markiert
+  // Anzahl der GitLab-Kommentare (userNotesCount), nur im Issue-Sync aktualisiert
+  notesCount: number;
   syncedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -76,6 +104,31 @@ export interface Ticket {
 export interface TicketFilter {
   status?: TicketStatus;
   state?: TicketState;
+  // Nur Tickets, die dem aktuellen GitLab-User zugewiesen sind. Die konkrete
+  // User-ID hält der Filter NICHT — sie kommt im Repository als zweiter Parameter
+  // vom Service (Single Source: settings.getCurrentUser).
+  assignedToMe?: boolean;
+  // Lokaler Pin-Status (nicht aus GitLab gesynct) — nur gepinnte Tickets.
+  pinned?: boolean;
+  // Nur Tickets mit ungelesenen Kommentaren.
+  unread?: boolean;
+}
+
+// Ein einzelner GitLab-Kommentar (Note) eines Tickets, lokal gespiegelt.
+export interface TicketComment {
+  id: number;
+  ticketId: number;
+  gitlabNoteId: number;
+  // Hash-Teil der GitLab-Discussion-GID: gruppiert Replies. Mehrere Kommentare mit
+  // gleicher discussionId bilden einen Thread; leer/distinct = Top-Level.
+  discussionId: string;
+  authorUsername: string;
+  authorName: string;
+  body: string; // Markdown (für Suche)
+  bodyHtml: string; // gerendertes HTML von GitLab (für Anzeige)
+  isSystem: boolean;
+  createdAt: string; // ISO UTC
+  updatedAt: string; // ISO UTC
 }
 
 // ── Projects (aus GitLab gesynct; fullPath kodiert die Gruppenhierarchie) ──────
@@ -114,6 +167,12 @@ export interface Commit {
   createdAt: string; // ISO-UTC
   webUrl: string;
   projectId: number;
+}
+
+export interface CurrentUser {
+  id: number;
+  username: string;
+  name: string;
 }
 
 // ── Tags & Templates ─────────────────────────────────────────────────────────
@@ -184,6 +243,16 @@ export interface AppRPCType {
       deleteEntry: { params: { id: number }; response: RpcResponse<void> };
       getTickets: { params: TicketFilter; response: RpcResponse<Ticket[]> };
       getRecentTickets: { params: { limit: number }; response: RpcResponse<Ticket[]> };
+      pinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
+      unpinTicket: { params: { ticketId: number }; response: RpcResponse<void> };
+      markTicketRead: { params: { ticketId: number }; response: RpcResponse<void> };
+      markAllTicketsRead: { params: { filter: TicketFilter }; response: RpcResponse<void> };
+      getUnreadCount: { params: Record<string, never>; response: RpcResponse<number> };
+      getPinnedTickets: { params: Record<string, never>; response: RpcResponse<Ticket[]> };
+      getTicketComments: { params: { ticketId: number }; response: RpcResponse<TicketComment[]> };
+      getTicket: { params: { ticketId: number }; response: RpcResponse<Ticket | null> };
+      syncTicketComments: { params: { ticketId: number }; response: RpcResponse<void> };
+      getGitlabImage: { params: { url: string }; response: RpcResponse<string> };
       getProjects: { params: Record<string, never>; response: RpcResponse<Project[]> };
       assignTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
       removeTicket: { params: { entryId: number; ticketId: number }; response: RpcResponse<void> };
@@ -203,6 +272,7 @@ export interface AppRPCType {
       deleteTemplate: { params: { id: number }; response: RpcResponse<void> };
       triggerSync: { params: Record<string, never>; response: RpcResponse<void> };
       getSettings: { params: Record<string, never>; response: RpcResponse<Settings> };
+      getCurrentUser: { params: Record<string, never>; response: RpcResponse<CurrentUser | null> };
       saveSettings: { params: Settings; response: RpcResponse<void> };
       setGitLabToken: { params: { token: string }; response: RpcResponse<void> };
       backupDatabase: { params: { destPath: string }; response: RpcResponse<void> };

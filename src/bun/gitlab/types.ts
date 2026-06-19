@@ -1,3 +1,5 @@
+import type { CurrentUser } from "../../shared/types";
+
 /** Rohe GitLab-Issue-Form (Teilmenge der REST-API v4 / GraphQL). */
 export interface GitLabIssue {
   iid: number;
@@ -7,10 +9,19 @@ export interface GitLabIssue {
   state: string; // "opened" | "closed"
   web_url: string;
   updated_at: string;
+  userNotesCount: number; // Anzahl der GitLab-Kommentare (REST: user_notes_count)
+  assignees: Array<{ id: number; username: string; name: string }>;
   time_stats?: {
     time_estimate: number; // Sekunden
     total_time_spent: number; // Sekunden
   };
+  description: string | null; // Markdown der Issue-Beschreibung
+  descriptionHtml: string | null; // von GitLab gerendertes HTML der Beschreibung
+  labels: Array<{ title: string; color: string }>;
+  author: { username: string; name: string } | null;
+  milestoneTitle: string | null;
+  dueDate: string | null; // ISO-Date (YYYY-MM-DD) oder null
+  issueCreatedAt: string; // ISO-UTC der Issue-Erstellung in GitLab
 }
 
 /** Rohe GitLab-Projekt-Form (Teilmenge). `fullPath` kodiert die Gruppenhierarchie. */
@@ -29,6 +40,19 @@ export interface TimelogTarget {
   projectId: number;
   issueIid: number;
   issueGlobalId: number;
+}
+
+/** Rohe GitLab-Kommentar-Form (Note) eines Issues (GraphQL discussions-Connection). */
+export interface GitLabComment {
+  noteId: number;
+  discussionId: string; // Hash-Teil der Discussion-GID; gruppiert Reply-Threads
+  authorUsername: string;
+  authorName: string;
+  body: string;
+  bodyHtml: string;
+  system: boolean;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Rohe GitLab-Commit-Form (REST /repository/commits Endpoint). */
@@ -70,13 +94,23 @@ export interface GitLabClient {
     until: string,
     author: string,
   ): Promise<GitLabCommit[]>;
-  /** Gibt den Username des Token-Besitzers zurueck (gecacht). */
-  fetchCurrentUser(): Promise<string>;
+  /** Gibt id/username/name des Token-Besitzers zurueck (gecacht). */
+  fetchCurrentUser(): Promise<CurrentUser>;
+  /** Leert den in-memory Current-User-Cache (nach Token-Wechsel). */
+  clearCurrentUserCache(): void;
+  /** Alle Kommentare (Notes) eines Issues (GraphQL, Cursor-Pagination über alle Seiten). */
+  fetchTicketComments(projectFullPath: string, issueIid: number): Promise<GitLabComment[]>;
+  /**
+   * Holt eine GitLab-Upload-Datei (Bild) mit Token und gibt Content-Type sowie
+   * die base64-kodierten Bytes zurück. `src` ist die rohe URL aus gerendertem
+   * GitLab-HTML (relativ oder absolut, same-origin).
+   */
+  fetchUpload(src: string): Promise<{ contentType: string; base64: string }>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
 export class FakeGitLabClient implements GitLabClient {
-  currentUsername = "testuser";
+  currentUser: CurrentUser = { id: 1, username: "testuser", name: "Test User" };
   createCalls: Array<{
     target: TimelogTarget;
     durationMinutes: number;
@@ -98,7 +132,13 @@ export class FakeGitLabClient implements GitLabClient {
   createShouldThrow: Error | null = null;
   deleteShouldThrow: Error | null = null;
   commitsToReturn: GitLabCommit[] = [];
+  commentsToReturn: GitLabComment[] = [];
   nextTimelogId = 500;
+  clearCurrentUserCacheCalls = 0;
+  uploadToReturn: { contentType: string; base64: string } | null = null;
+  uploadShouldThrow: Error | null = null;
+  /** Zeichnet die an fetchUpload übergebenen src-Argumente auf (Tests). */
+  uploadCalls: string[] = [];
 
   async fetchIssues(): Promise<GitLabIssue[]> {
     return this.issuesToReturn;
@@ -164,7 +204,22 @@ export class FakeGitLabClient implements GitLabClient {
     return this.commitsToReturn;
   }
 
-  async fetchCurrentUser(): Promise<string> {
-    return this.currentUsername;
+  async fetchCurrentUser(): Promise<CurrentUser> {
+    return this.currentUser;
+  }
+
+  clearCurrentUserCache(): void {
+    this.clearCurrentUserCacheCalls++;
+  }
+
+  async fetchTicketComments(): Promise<GitLabComment[]> {
+    return this.commentsToReturn;
+  }
+
+  async fetchUpload(src: string): Promise<{ contentType: string; base64: string }> {
+    this.uploadCalls.push(src);
+    if (this.uploadShouldThrow) throw this.uploadShouldThrow;
+    if (!this.uploadToReturn) throw new Error("FakeGitLabClient: uploadToReturn nicht gesetzt");
+    return this.uploadToReturn;
   }
 }

@@ -12,7 +12,7 @@ export function createCommitService(repo: Repository, gl: GitLabClient) {
       const until = `${date}T23:59:59Z`;
       const projects = repo.projects.list();
 
-      const author = await gl.fetchCurrentUser();
+      const author = (await gl.fetchCurrentUser()).username;
       const results = await Promise.allSettled(
         projects.map((p: Project) => gl.fetchCommits(p.id, since, until, author)),
       );
