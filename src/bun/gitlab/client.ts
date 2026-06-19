@@ -1,4 +1,4 @@
-import type { Settings } from "../../shared/types";
+import type { Settings, CurrentUser } from "../../shared/types";
 import type { GitLabClient } from "./types";
 import { AppErrorError } from "../lib/app-error";
 import { createLogger } from "../lib/logger";
@@ -110,7 +110,7 @@ function toNetworkError(label: string, url: string, cause: unknown): AppErrorErr
  */
 export function createGitLabClient(token: string, getSettings: () => Settings): GitLabClient {
   const limiter = createRateLimiter(5); // 5 req/s
-  let cachedUsername: string | null = null;
+  let cachedCurrentUser: CurrentUser | null = null;
 
   async function apiRequest(path: string, options?: RequestInit): Promise<Response> {
     await limiter.throttle();
@@ -181,12 +181,14 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     return json.data;
   }
 
-  async function fetchCurrentUser(): Promise<string> {
-    if (cachedUsername) return cachedUsername;
+  // Bewusste Abweichung: REST /user (statt GraphQL currentUser) liefert die
+  // numerische id direkt — kein GID-Parsing nötig. Ein einziger gecachter Call.
+  async function fetchCurrentUser(): Promise<CurrentUser> {
+    if (cachedCurrentUser) return cachedCurrentUser;
     const res = await apiRequest("/user");
-    const user = (await res.json()) as { username: string };
-    cachedUsername = user.username;
-    return cachedUsername;
+    const user = (await res.json()) as { id: number; username: string; name: string };
+    cachedCurrentUser = { id: user.id, username: user.username, name: user.name };
+    return cachedCurrentUser;
   }
 
   const client: ApiClient = { apiRequest };

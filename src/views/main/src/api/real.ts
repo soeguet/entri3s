@@ -94,3 +94,4 @@ export const saveSettings = (s: Settings) => r.saveSettings(s);
 export const setGitLabToken = (token: string) => r.setGitLabToken({ token });
 export const backupDatabase = (destPath: string) => r.backupDatabase({ destPath });
 export const getCommitsForDate = (date: string) => r.getCommitsForDate({ date });
+export const getCurrentUser = () => r.getCurrentUser({});

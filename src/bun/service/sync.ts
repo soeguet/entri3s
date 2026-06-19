@@ -54,6 +54,18 @@ export function createSyncService(repo: Repository, gl: GitLabClient, emit: AppE
       for (const project of projects) repo.projects.upsert(project);
       log.info("Projekte gesynct", { count: projects.length });
 
+      // Current User einmalig laden + bei Token-Änderung (Konzept). Fehler hier
+      // darf den Sync nicht abbrechen.
+      try {
+        if (repo.settings.getCurrentUser() === null) {
+          repo.settings.setCurrentUser(await gl.fetchCurrentUser());
+        }
+      } catch (e) {
+        log.warn("Current User konnte nicht geladen werden", {
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+
       const issues = await gl.fetchIssues(since);
       let orphaned = 0;
       for (const issue of issues) {

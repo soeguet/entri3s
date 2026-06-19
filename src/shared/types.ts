@@ -116,6 +116,12 @@ export interface Commit {
   projectId: number;
 }
 
+export interface CurrentUser {
+  id: number;
+  username: string;
+  name: string;
+}
+
 // ── Tags & Templates ─────────────────────────────────────────────────────────
 
 export interface Tag {
@@ -203,6 +209,7 @@ export interface AppRPCType {
       deleteTemplate: { params: { id: number }; response: RpcResponse<void> };
       triggerSync: { params: Record<string, never>; response: RpcResponse<void> };
       getSettings: { params: Record<string, never>; response: RpcResponse<Settings> };
+      getCurrentUser: { params: Record<string, never>; response: RpcResponse<CurrentUser | null> };
       saveSettings: { params: Settings; response: RpcResponse<void> };
       setGitLabToken: { params: { token: string }; response: RpcResponse<void> };
       backupDatabase: { params: { destPath: string }; response: RpcResponse<void> };

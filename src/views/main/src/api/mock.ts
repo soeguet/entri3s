@@ -2,6 +2,7 @@ import type {
   AppEvent,
   Booking,
   Commit,
+  CurrentUser,
   Entry,
   EntryCreate,
   EntryFilter,
@@ -34,6 +35,7 @@ const store = {
     gitlabUrl: "https://gitlab.example.com",
     syncIntervalSec: 300,
   } as Settings,
+  currentUser: { id: 1, username: "mockuser", name: "Mock User" } as CurrentUser,
   nextId: 1000,
 };
 
@@ -246,6 +248,7 @@ export const deleteTemplate = (id: number) => {
 
 export const triggerSync = () => ok(undefined as void);
 export const getSettings = () => ok({ ...store.settings });
+export const getCurrentUser = () => ok(store.currentUser);
 export const saveSettings = (s: Settings) => {
   store.settings = { ...s };
   return ok(undefined as void);

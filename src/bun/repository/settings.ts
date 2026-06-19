@@ -1,5 +1,5 @@
 import type { Database } from "bun:sqlite";
-import type { Settings } from "../../shared/types";
+import type { Settings, CurrentUser } from "../../shared/types";
 
 const SYNC_SCHEDULE = "gitlab_sync";
 
@@ -44,6 +44,28 @@ export function createSettingsRepository(db: Database) {
       db.run("UPDATE schedules SET interval_sec = ? WHERE name = ?", [
         settings.syncIntervalSec,
         SYNC_SCHEDULE,
+      ]);
+    },
+
+    getCurrentUser(): CurrentUser | null {
+      const id = get("gitlab_user_id");
+      if (id === null) return null;
+      const username = get("gitlab_username");
+      const name = get("gitlab_user_name");
+      return { id: Number(id), username: username ?? "", name: name ?? "" };
+    },
+
+    setCurrentUser(user: CurrentUser): void {
+      set("gitlab_user_id", String(user.id));
+      set("gitlab_username", user.username);
+      set("gitlab_user_name", user.name);
+    },
+
+    clearCurrentUser(): void {
+      db.run("DELETE FROM settings WHERE key IN (?, ?, ?)", [
+        "gitlab_user_id",
+        "gitlab_username",
+        "gitlab_user_name",
       ]);
     },
   };

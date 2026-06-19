@@ -66,6 +66,7 @@ export function createRpc(svc: Services) {
 
         // Settings
         getSettings: () => wrap(() => svc.settings.get()),
+        getCurrentUser: () => wrap(() => svc.settings.getCurrentUser()),
         saveSettings: (settings) => wrap(() => svc.settings.save(settings)),
         setGitLabToken: (p) => wrap(() => svc.settings.setToken(p.token)),
         backupDatabase: (p) => wrap(() => svc.settings.backup(p.destPath)),

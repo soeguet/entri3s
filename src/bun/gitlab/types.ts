@@ -1,3 +1,5 @@
+import type { CurrentUser } from "../../shared/types";
+
 /** Rohe GitLab-Issue-Form (Teilmenge der REST-API v4 / GraphQL). */
 export interface GitLabIssue {
   iid: number;
@@ -70,13 +72,13 @@ export interface GitLabClient {
     until: string,
     author: string,
   ): Promise<GitLabCommit[]>;
-  /** Gibt den Username des Token-Besitzers zurueck (gecacht). */
-  fetchCurrentUser(): Promise<string>;
+  /** Gibt id/username/name des Token-Besitzers zurueck (gecacht). */
+  fetchCurrentUser(): Promise<CurrentUser>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
 export class FakeGitLabClient implements GitLabClient {
-  currentUsername = "testuser";
+  currentUser: CurrentUser = { id: 1, username: "testuser", name: "Test User" };
   createCalls: Array<{
     target: TimelogTarget;
     durationMinutes: number;
@@ -164,7 +166,7 @@ export class FakeGitLabClient implements GitLabClient {
     return this.commitsToReturn;
   }
 
-  async fetchCurrentUser(): Promise<string> {
-    return this.currentUsername;
+  async fetchCurrentUser(): Promise<CurrentUser> {
+    return this.currentUser;
   }
 }

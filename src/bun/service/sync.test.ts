@@ -95,3 +95,25 @@ test("checkOrphans marks tickets GitLab no longer returns", async () => {
   expect(repo.tickets.getByGitLabIid(2, PROJECT_ID)?.status).toBe("orphaned");
   expect(repo.tickets.getByGitLabIid(1, PROJECT_ID)?.status).toBe("active");
 });
+
+test("syncIssues persists the current user", async () => {
+  gl.issuesToReturn = [issue(1, "opened")];
+  await svc.syncIssues();
+  expect(repo.settings.getCurrentUser()).toEqual({
+    id: 1,
+    username: "testuser",
+    name: "Test User",
+  });
+});
+
+test("syncIssues does not overwrite an existing current user", async () => {
+  repo.settings.setCurrentUser({ id: 99, username: "existing", name: "Existing User" });
+  gl.currentUser = { id: 1, username: "testuser", name: "Test User" };
+  gl.issuesToReturn = [issue(1, "opened")];
+  await svc.syncIssues();
+  expect(repo.settings.getCurrentUser()).toEqual({
+    id: 99,
+    username: "existing",
+    name: "Existing User",
+  });
+});
