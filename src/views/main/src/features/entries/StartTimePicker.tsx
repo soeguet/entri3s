@@ -44,40 +44,43 @@ export function StartTimePicker(props: StartTimePickerProps) {
           </span>
         )}
       </div>
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={() => shift(5)}
-          className="rounded border border-border px-2 py-1 hover:bg-muted"
-        >
-          -5
-        </button>
-        <button
-          type="button"
-          onClick={() => shift(15)}
-          className="rounded border border-border px-2 py-1 hover:bg-muted"
-        >
-          -15
-        </button>
-        <button
-          type="button"
-          onClick={() => shift(30)}
-          className="rounded border border-border px-2 py-1 hover:bg-muted"
-        >
-          -30
-        </button>
-        <button
-          type="button"
-          onClick={() => props.onChange(null)}
-          className="rounded border border-border px-2 py-1 hover:bg-muted"
-        >
-          Jetzt
-        </button>
+      <div className="flex w-full flex-col gap-3">
+        <div className="flex w-full justify-between items-start gap-1.5">
+          <button
+            type="button"
+            onClick={() => shift(5)}
+            className="rounded border border-border px-2 py-1 hover:bg-muted"
+          >
+            -5
+          </button>
+          <button
+            type="button"
+            onClick={() => shift(15)}
+            className="rounded border border-border px-2 py-1 hover:bg-muted"
+          >
+            -15
+          </button>
+          <button
+            type="button"
+            onClick={() => shift(30)}
+            className="rounded border border-border px-2 py-1 hover:bg-muted"
+          >
+            -30
+          </button>
+          <button
+            type="button"
+            onClick={() => props.onChange(null)}
+            className="rounded border border-border px-2 py-1 hover:bg-muted"
+          >
+            Jetzt
+          </button>
+        </div>
+
         <input
           type="time"
           value={formatTime(effective.toISOString())}
           onChange={(e) => onPickTime(e.target.value)}
-          className="ml-auto rounded border border-border bg-card px-1.5 py-1 text-foreground"
+          className="ml-auto justify-start rounded border border-border bg-card px-1.5 py-1 text-foreground"
         />
       </div>
     </div>
