@@ -46,7 +46,7 @@ bun install
 mise run check
 ```
 
-Läuft `mise run check` grün durch (108 Bun- + 62 FE-Tests, lint/fmt sauber),
+Läuft `mise run check` grün durch (fmt+lint → typecheck → alle Tests),
 ist die Shell vollständig projekt-fertig.
 
 ## Schneller, ohne Tests
