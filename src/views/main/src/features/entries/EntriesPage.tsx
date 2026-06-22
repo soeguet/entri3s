@@ -16,6 +16,7 @@ import { EntryQuickEditDialog, type QuickEditField } from "./EntryQuickEditDialo
 import { EntriesFilters } from "./EntriesFilters";
 import { EntriesFiltersCompact } from "./EntriesFiltersCompact";
 import { loadCollapsed, saveCollapsed } from "./filterPrefs";
+import { DayNavigator } from "./DayNavigator";
 import { GapBanner } from "./GapBanner";
 
 const TZ = "Europe/Berlin";
@@ -183,7 +184,6 @@ export function EntriesPage() {
               setTo(v);
               setActivePreset(null);
             }}
-            onDay={onDay}
             onClearRange={clearRange}
             selectedTagIds={selectedTagIds}
             onToggleTag={toggleTag}
@@ -195,6 +195,7 @@ export function EntriesPage() {
         )}
 
         <div className="min-w-0 flex-1">
+          <DayNavigator from={from} to={to} onDay={onDay} />
           <GapBanner />
 
           {book.isError ? <ErrorNote error={book.error} className="mb-3" /> : null}

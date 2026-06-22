@@ -5,8 +5,8 @@ import { getTags } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import type { FilterTreeNode } from "../../lib/filterTree";
-import { type RangePreset, shiftDay, singleDayBase, todayBerlinYmd } from "../../lib/dates";
-import { ChevronLeft, ChevronRight, PanelLeftClose } from "lucide-react";
+import type { RangePreset } from "../../lib/dates";
+import { PanelLeftClose } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";
 import { Input } from "../../components/ui/input";
@@ -36,7 +36,6 @@ interface EntriesFiltersProps extends FilterControls {
   to: string;
   onFrom: (value: string) => void;
   onTo: (value: string) => void;
-  onDay: (day: string) => void;
   onClearRange: () => void;
   tree: FilterTreeNode[];
   selectedNodes: Set<string>;
@@ -102,41 +101,6 @@ export function EntriesFilters(props: EntriesFiltersProps) {
               Zurücksetzen
             </Button>
           ) : null}
-        </div>
-        <div className="mt-2">
-          <Label htmlFor="f-day">Tag</Label>
-          <div className="flex items-end gap-1">
-            <Button
-              size="icon"
-              variant="outline"
-              aria-label="Tag zurück"
-              onClick={() => {
-                props.onDay(shiftDay(singleDayBase(props.from, props.to, todayBerlinYmd()), -1));
-              }}
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="flex-1">
-              <Input
-                id="f-day"
-                type="date"
-                value={props.from && props.from === props.to ? props.from : ""}
-                onChange={(e) => {
-                  if (e.target.value) props.onDay(e.target.value);
-                }}
-              />
-            </div>
-            <Button
-              size="icon"
-              variant="outline"
-              aria-label="Tag vor"
-              onClick={() => {
-                props.onDay(shiftDay(singleDayBase(props.from, props.to, todayBerlinYmd()), +1));
-              }}
-            >
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
         </div>
         <div className="mt-2 flex gap-2">
           <div className="flex-1">
