@@ -8,12 +8,15 @@ interface TodoListProps {
   // Listen → dann ist sections leer und es wird nur nach Sektionsname gruppiert).
   sections: string[];
   selectedId: string | null;
+  // ALLE Listennamen — für das Verschiebe-Menü in der Zeile.
+  listNames: string[];
   errorTaskId: string | null;
   error: unknown;
   onSelect: (id: string) => void;
   onToggle: (task: TodoTask) => void;
   onRename: (task: TodoTask, title: string) => void;
   onReschedule: (task: TodoTask, due: string | null) => void;
+  onMove: (task: TodoTask, toList: string) => void;
 }
 
 // Gruppiert Tasks nach Sektion (definierte Reihenfolge zuerst, dann unbekannte
@@ -47,12 +50,14 @@ export function TodoList(props: TodoListProps) {
           section={section}
           tasks={tasks}
           selectedId={props.selectedId}
+          listNames={props.listNames}
           errorTaskId={props.errorTaskId}
           error={props.error}
           onSelect={props.onSelect}
           onToggle={props.onToggle}
           onRename={props.onRename}
           onReschedule={props.onReschedule}
+          onMove={props.onMove}
         />
       ))}
     </div>

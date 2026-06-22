@@ -1,19 +1,23 @@
 import { useRef, useState } from "react";
-import { Calendar, Repeat } from "lucide-react";
+import { Calendar, FolderInput, Repeat } from "lucide-react";
 import type { TodoTask } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
 import { TodoDatePicker } from "./TodoDatePicker";
+import { TodoMoveMenu } from "./TodoMoveMenu";
 import { todoErrorMessage } from "./todoError";
 
 interface TodoRowProps {
   task: TodoTask;
   selected: boolean;
+  // ALLE Listennamen (inkl. der aktuellen) — zum Anbieten der Verschiebe-Ziele.
+  listNames: string[];
   onSelect: () => void;
   onToggle: () => void;
   // Neuer Titel nach Blur (nur wenn geändert und nicht leer).
   onRename: (title: string) => void;
   onReschedule: (due: string | null) => void;
+  onMove: (toList: string) => void;
   // Fehler der zuletzt versuchten Mutation auf GENAU diese Zeile (Konflikt).
   error: unknown;
 }
@@ -33,7 +37,13 @@ export function TodoRow(props: TodoRowProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(props.task.title);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [moveOpen, setMoveOpen] = useState(false);
   const dateBtnRef = useRef<HTMLButtonElement>(null);
+  const moveBtnRef = useRef<HTMLButtonElement>(null);
+
+  // Verschiebe-Ziele: alle Listen außer der aktuellen. Button nur zeigen, wenn
+  // es überhaupt eine andere Liste gibt.
+  const moveTargets = props.listNames.filter((n) => n !== props.task.listId);
 
   // recurrenceEditableInApp === false → nicht abhakbar, Badge "in Obsidian abhaken".
   const readOnlyRecurrence = props.task.recurrence !== null && !props.task.recurrenceEditableInApp;
@@ -134,6 +144,32 @@ export function TodoRow(props: TodoRowProps) {
         onPick={(due) => {
           setPickerOpen(false);
           props.onReschedule(due);
+        }}
+      />
+
+      {moveTargets.length > 0 ? (
+        <button
+          ref={moveBtnRef}
+          type="button"
+          aria-label="In andere Liste verschieben"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMoveOpen(true);
+          }}
+          className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+        >
+          <FolderInput className="h-3 w-3" />
+        </button>
+      ) : null}
+
+      <TodoMoveMenu
+        open={moveOpen}
+        anchor={moveBtnRef.current}
+        lists={moveTargets}
+        onClose={() => setMoveOpen(false)}
+        onMove={(toList) => {
+          setMoveOpen(false);
+          props.onMove(toList);
         }}
       />
 

@@ -7,6 +7,8 @@ interface TodoSectionProps {
   section: string | null;
   tasks: TodoTask[];
   selectedId: string | null;
+  // ALLE Listennamen — für das Verschiebe-Menü in der Zeile.
+  listNames: string[];
   // id der Zeile, deren letzte Mutation fehlschlug (für inline-Konfliktanzeige).
   errorTaskId: string | null;
   error: unknown;
@@ -14,6 +16,7 @@ interface TodoSectionProps {
   onToggle: (task: TodoTask) => void;
   onRename: (task: TodoTask, title: string) => void;
   onReschedule: (task: TodoTask, due: string | null) => void;
+  onMove: (task: TodoTask, toList: string) => void;
 }
 
 export function TodoSection(props: TodoSectionProps) {
@@ -27,11 +30,13 @@ export function TodoSection(props: TodoSectionProps) {
             key={task.id}
             task={task}
             selected={props.selectedId === task.id}
+            listNames={props.listNames}
             error={props.errorTaskId === task.id ? props.error : null}
             onSelect={() => props.onSelect(task.id)}
             onToggle={() => props.onToggle(task)}
             onRename={(title) => props.onRename(task, title)}
             onReschedule={(due) => props.onReschedule(task, due)}
+            onMove={(toList) => props.onMove(task, toList)}
           />
         ))}
       </div>

@@ -53,6 +53,7 @@ export function TodosPage() {
   const quickAddRef = useRef<HTMLInputElement>(null);
 
   const today = todayBerlinYmd();
+  const listNames = (lists.data ?? []).map((l) => l.id);
   const allTasks = (lists.data ?? []).flatMap((l) => l.tasks);
   const counts = smartViewCounts(allTasks, today);
 
@@ -73,6 +74,10 @@ export function TodosPage() {
   }
   function onReschedule(task: TodoTask, due: string | null) {
     mut.update.mutate({ id: task.id, listId: task.listId, due });
+  }
+  // toSection wird weggelassen → Backend hängt den Task ans Ende der Ziel-Liste.
+  function onMove(task: TodoTask, toList: string) {
+    mut.move.mutate({ id: task.id, fromList: task.listId, toList });
   }
 
   // Eingaben leeren, sobald Add/CreateList durchläuft (Remount via key).
@@ -212,12 +217,14 @@ export function TodosPage() {
                 tasks={visible}
                 sections={sections}
                 selectedId={selectedId}
+                listNames={listNames}
                 errorTaskId={errorTaskId}
                 error={mut.update.error}
                 onSelect={setSelectedId}
                 onToggle={onToggle}
                 onRename={onRename}
                 onReschedule={onReschedule}
+                onMove={onMove}
               />
             )}
           </div>
