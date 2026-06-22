@@ -44,7 +44,9 @@ const WEEKDAY_DOW: Record<string, number> = {
   do: 4,
   fr: 5,
   sa: 6,
-  so: 7,
+  // Kurzform "so" bewusst NICHT aufgenommen: kollidiert mit dem häufigen
+  // deutschen Wort "so" (z.B. "mach es so") und würde fälschlich Sonntag setzen.
+  // Für Sonntag die Langform "sonntag" verwenden.
 };
 
 /** Erste Priorität (p1..p4) als ganzes Wort; gibt Wert + Bereich zurück. */
