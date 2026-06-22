@@ -2,6 +2,7 @@ import { useState } from "react";
 import { ChevronLeft, Search, X } from "lucide-react";
 import type { Project, Ticket } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
+import { SectionHeader } from "../../components/SectionHeader";
 
 interface TicketPickerProps {
   tickets: Ticket[]; // auswählbare (aktive) Tickets
@@ -145,11 +146,7 @@ export function TicketPicker(props: TicketPickerProps) {
         )}
         {sections.map((s) => (
           <div key={s.key}>
-            {s.label ? (
-              <p className="px-3 pb-0.5 pt-2 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
-                {s.label}
-              </p>
-            ) : null}
+            {s.label ? <SectionHeader>{s.label}</SectionHeader> : null}
             {s.tickets.map((t) =>
               row(
                 t.id,

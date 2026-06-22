@@ -7,6 +7,7 @@ import { keys } from "../../lib/queryKeys";
 import { getCommitsForDate } from "../../api";
 import { unwrap } from "../../lib/errors";
 import { Button } from "../../components/ui/button";
+import { SectionHeader } from "../../components/SectionHeader";
 
 interface CommitPickerProps {
   date: string; // YYYY-MM-DD for the query
@@ -137,9 +138,7 @@ export function CommitPicker(props: CommitPickerProps) {
         ) : (
           groups.map((g) => (
             <div key={g.label}>
-              <p className="px-3 pb-0.5 pt-2 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
-                {g.label}
-              </p>
+              <SectionHeader>{g.label}</SectionHeader>
               {g.commits.map((c) => (
                 <button
                   key={c.hash}
