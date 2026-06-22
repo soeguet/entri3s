@@ -75,6 +75,22 @@ export function createEventQueueRepository(db: Database) {
       db.run("UPDATE event_queue SET status = 'pending' WHERE status = 'processing'");
     },
 
+    /** Anzahl Events pro Status in einer Query — für die Hintergrund-Statusanzeige. */
+    counts(): { pending: number; processing: number; dead: number } {
+      const result = { pending: 0, processing: 0, dead: 0 };
+      const rows = db
+        .query<{ status: AppEventStatus; n: number }, []>(
+          "SELECT status, COUNT(*) AS n FROM event_queue GROUP BY status",
+        )
+        .all();
+      for (const row of rows) {
+        if (row.status === "pending") result.pending = row.n;
+        else if (row.status === "processing") result.processing = row.n;
+        else if (row.status === "dead") result.dead = row.n;
+      }
+      return result;
+    },
+
     listDead(): AppEvent[] {
       return db
         .query<AppEventRow, []>(

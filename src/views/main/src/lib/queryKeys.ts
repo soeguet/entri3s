@@ -28,6 +28,7 @@ export const keys = {
   templates: () => ["templates"] as const,
   commits: (date: string) => ["commits", date] as const,
   deadEvents: () => ["deadEvents"] as const,
+  backgroundStatus: () => ["backgroundStatus"] as const,
   settings: () => ["settings"] as const,
   // Letzter Sync-Status. triggerSync ist Fire-and-Forget — das Ergebnis kommt
   // asynchron über die syncCompleted/syncFailed-Events; hier zwischengespeichert,

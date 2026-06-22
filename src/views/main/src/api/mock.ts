@@ -1,5 +1,6 @@
 import type {
   AppEvent,
+  BackgroundStatus,
   Booking,
   Commit,
   CurrentUser,
@@ -251,6 +252,20 @@ export const deleteBooking = (bookingId: number) => {
 
 export const getBookingsForEntry = (entryId: number) =>
   ok(store.bookings.filter((b) => b.entryId === entryId));
+
+export const getBackgroundStatus = () => {
+  const minsAgo = (m: number) => new Date(Date.now() - m * 60_000).toISOString();
+  const minsAhead = (m: number) => new Date(Date.now() + m * 60_000).toISOString();
+  return ok<BackgroundStatus>({
+    syncRunning: false,
+    schedules: [
+      { name: "gitlab_sync", intervalSec: 300, lastRunAt: minsAgo(3), nextRunAt: minsAhead(2) },
+      { name: "orphan_check", intervalSec: 3600, lastRunAt: minsAgo(20), nextRunAt: minsAhead(40) },
+      { name: "comment_sync", intervalSec: 900, lastRunAt: minsAgo(5), nextRunAt: minsAhead(10) },
+    ],
+    queue: { pending: 0, processing: 0, dead: store.deadEvents.length },
+  });
+};
 
 export const getDeadEvents = () => ok([...store.deadEvents]);
 export const retryDeadEvent = (eventId: number) => {
