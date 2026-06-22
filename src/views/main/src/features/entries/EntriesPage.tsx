@@ -54,7 +54,11 @@ export function EntriesPage() {
     setCollapsedState(value);
     saveCollapsed(value);
   }
-  const [quickEdit, setQuickEdit] = useState<{ entry: Entry; field: QuickEditField } | null>(null);
+  const [quickEdit, setQuickEdit] = useState<{
+    entry: Entry;
+    field: QuickEditField;
+    anchor: HTMLElement;
+  } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
   function applyPreset(preset: RangePreset) {
@@ -272,7 +276,7 @@ export function EntriesPage() {
                 onEdit={openEdit}
                 onDelete={confirmDelete}
                 onBook={(entry) => book.mutate(entry.id)}
-                onQuickEdit={(entry, field) => setQuickEdit({ entry, field })}
+                onQuickEdit={(entry, field, anchor) => setQuickEdit({ entry, field, anchor })}
                 onDuplicate={openDuplicate}
               />
             </>
@@ -293,6 +297,7 @@ export function EntriesPage() {
       <EntryQuickEditDialog
         entry={quickEdit?.entry ?? null}
         field={quickEdit?.field ?? null}
+        anchor={quickEdit?.anchor ?? null}
         onClose={() => setQuickEdit(null)}
       />
 

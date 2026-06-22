@@ -25,7 +25,7 @@ interface EntryListProps {
   onEdit: (entry: Entry) => void;
   onDelete: (entry: Entry) => void;
   onBook: (entry: Entry) => void;
-  onQuickEdit: (entry: Entry, field: QuickEditField) => void;
+  onQuickEdit: (entry: Entry, field: QuickEditField, anchor: HTMLElement) => void;
   onDuplicate: (entry: Entry) => void;
 }
 

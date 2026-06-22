@@ -17,6 +17,7 @@ import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import { composeDateTime } from "./entrySchema";
 import { Dialog } from "../../components/ui/dialog";
+import { Popover } from "../../components/ui/popover";
 import { TagPicker } from "./TagPicker";
 import { TicketPicker } from "./TicketPicker";
 import { NoteQuickEdit } from "./NoteQuickEdit";
@@ -27,6 +28,7 @@ export type QuickEditField = "tags" | "ticket" | "notes" | "date";
 interface EntryQuickEditDialogProps {
   entry: Entry | null;
   field: QuickEditField | null;
+  anchor: HTMLElement | null;
   onClose: () => void;
 }
 
@@ -121,12 +123,40 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
     setTags.mutate({ id: entry.id, tagIds: next });
   }
 
+  const isOpen = entry !== null && props.field !== null;
+  const isPopoverField = props.field === "notes" || props.field === "date";
+
+  // notes/date: leichtgewichtiges Popover am Anker; ticket/tags: vollflächiges Modal.
+  if (isPopoverField) {
+    return (
+      <Popover open={isOpen} anchor={props.anchor} onClose={props.onClose}>
+        {entry === null ? null : props.field === "notes" ? (
+          <NoteQuickEdit
+            initialNotes={entry.notes}
+            pending={saveNotes.isPending}
+            onSave={(notes) => {
+              saveNotes.mutate({ id: entry.id, notes });
+              props.onClose();
+            }}
+            onCancel={props.onClose}
+          />
+        ) : (
+          <DateTimeQuickEdit
+            entry={entry}
+            pending={saveDateTime.isPending}
+            onSave={(v) => {
+              saveDateTime.mutate({ entry, ...v });
+              props.onClose();
+            }}
+            onCancel={props.onClose}
+          />
+        )}
+      </Popover>
+    );
+  }
+
   return (
-    <Dialog
-      open={props.entry !== null && props.field !== null}
-      onClose={props.onClose}
-      size={props.field === "ticket" || props.field === "tags" ? "lg" : "md"}
-    >
+    <Dialog open={isOpen} onClose={props.onClose} size="lg">
       {entry === null || props.field === null ? null : props.field === "tags" ? (
         <TagPicker
           tags={tags.data ?? []}
@@ -147,27 +177,7 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
           }}
           onCancel={props.onClose}
         />
-      ) : props.field === "notes" ? (
-        <NoteQuickEdit
-          initialNotes={entry.notes}
-          pending={saveNotes.isPending}
-          onSave={(notes) => {
-            saveNotes.mutate({ id: entry.id, notes });
-            props.onClose();
-          }}
-          onCancel={props.onClose}
-        />
-      ) : (
-        <DateTimeQuickEdit
-          entry={entry}
-          pending={saveDateTime.isPending}
-          onSave={(v) => {
-            saveDateTime.mutate({ entry, ...v });
-            props.onClose();
-          }}
-          onCancel={props.onClose}
-        />
-      )}
+      ) : null}
     </Dialog>
   );
 }

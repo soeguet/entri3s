@@ -7,7 +7,7 @@ const cellBtn = "cursor-pointer rounded px-1 text-left hover:bg-muted";
 
 interface DateCellProps {
   entry: Entry;
-  onQuickEdit: (entry: Entry, field: QuickEditField) => void;
+  onQuickEdit: (entry: Entry, field: QuickEditField, anchor: HTMLElement) => void;
 }
 
 /** Datums-/Zeit-Zelle als Klick-Trigger fürs Datums-Quick-Edit. */
@@ -17,7 +17,7 @@ export function DateCell(props: DateCellProps) {
     <button
       type="button"
       aria-label="Datum bearbeiten"
-      onClick={() => props.onQuickEdit(props.entry, "date")}
+      onClick={(e) => props.onQuickEdit(props.entry, "date", e.currentTarget)}
       className={cn(cellBtn, "whitespace-nowrap")}
     >
       {formatWeekday(d)}, {formatDate(d)} · {formatTime(d)} -{" "}
@@ -28,7 +28,7 @@ export function DateCell(props: DateCellProps) {
 
 interface NotesCellProps {
   entry: Entry;
-  onQuickEdit: (entry: Entry, field: QuickEditField) => void;
+  onQuickEdit: (entry: Entry, field: QuickEditField, anchor: HTMLElement) => void;
 }
 
 /** Notiz-Zelle als Klick-Trigger fürs Notiz-Quick-Edit. */
@@ -37,7 +37,7 @@ export function NotesCell(props: NotesCellProps) {
     <button
       type="button"
       aria-label="Notiz bearbeiten"
-      onClick={() => props.onQuickEdit(props.entry, "notes")}
+      onClick={(e) => props.onQuickEdit(props.entry, "notes", e.currentTarget)}
       className={cellBtn}
     >
       {props.entry.notes ?? <span className="text-muted-foreground">–</span>}
@@ -48,7 +48,7 @@ export function NotesCell(props: NotesCellProps) {
 interface TicketCellProps {
   entry: Entry;
   ticketsById: Map<number, Ticket>;
-  onQuickEdit: (entry: Entry, field: QuickEditField) => void;
+  onQuickEdit: (entry: Entry, field: QuickEditField, anchor: HTMLElement) => void;
 }
 
 /** Ticket-Zelle als Klick-Trigger fürs Ticket-Quick-Edit. */
@@ -61,7 +61,7 @@ export function TicketCell(props: TicketCellProps) {
     <button
       type="button"
       aria-label="Ticket bearbeiten"
-      onClick={() => props.onQuickEdit(props.entry, "ticket")}
+      onClick={(e) => props.onQuickEdit(props.entry, "ticket", e.currentTarget)}
       className={cellBtn}
     >
       {iids.length > 0 ? iids.join(", ") : <span className="text-muted-foreground">–</span>}
@@ -72,7 +72,7 @@ export function TicketCell(props: TicketCellProps) {
 interface TagsCellProps {
   entry: Entry;
   tagsById: Map<number, Tag>;
-  onQuickEdit: (entry: Entry, field: QuickEditField) => void;
+  onQuickEdit: (entry: Entry, field: QuickEditField, anchor: HTMLElement) => void;
 }
 
 /** Tags-Zelle (Chips) als Klick-Trigger fürs Tags-Quick-Edit. */
@@ -84,7 +84,7 @@ export function TagsCell(props: TagsCellProps) {
     <button
       type="button"
       aria-label="Tags bearbeiten"
-      onClick={() => props.onQuickEdit(props.entry, "tags")}
+      onClick={(e) => props.onQuickEdit(props.entry, "tags", e.currentTarget)}
       className={cn(cellBtn, "flex flex-wrap gap-1")}
     >
       {tags.length === 0 ? (

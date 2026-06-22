@@ -121,6 +121,7 @@ test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
   expect(onQuickEdit).toHaveBeenCalledWith(
     expect.objectContaining({ id: expect.any(Number) }),
     "tags",
+    expect.any(HTMLElement),
   );
 });
 
