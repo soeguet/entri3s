@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fromZonedTime } from "date-fns-tz";
 import type { Entry, EntryFilter, EntryStatus } from "../../../../../shared/types";
@@ -24,7 +24,7 @@ import { EntryForm } from "./EntryForm";
 import { EntryQuickEditDialog, type QuickEditField } from "./EntryQuickEditDialog";
 import { EntriesFilters } from "./EntriesFilters";
 import { EntriesFiltersCompact } from "./EntriesFiltersCompact";
-import { loadCollapsed, saveCollapsed } from "./filterPrefs";
+import { loadCollapsed, saveCollapsed, loadFilterState, saveFilterState } from "./filterPrefs";
 import { DayNavigator } from "./DayNavigator";
 import { GapBanner } from "./GapBanner";
 import { EntrySearchDialog } from "./EntrySearchDialog";
@@ -40,13 +40,32 @@ function dayEnd(date: string): string {
 
 export function EntriesPage() {
   const qc = useQueryClient();
-  const initialRange = rangeForPreset("today");
-  const [status, setStatus] = useState<EntryStatus | "">("");
-  const [from, setFrom] = useState(initialRange.from);
-  const [to, setTo] = useState(initialRange.to);
-  const [activePreset, setActivePreset] = useState<RangePreset | null>("today");
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
-  const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
+  // Filter-Zustand einmal beim Mount aus localStorage wiederherstellen (siehe
+  // filterPrefs.ts), sonst Default "today".
+  const [persisted] = useState(() => loadFilterState());
+  const [status, setStatus] = useState<EntryStatus | "">(persisted?.status ?? "");
+  const [from, setFrom] = useState(() =>
+    persisted ? persisted.from : rangeForPreset("today").from,
+  );
+  const [to, setTo] = useState(() => (persisted ? persisted.to : rangeForPreset("today").to));
+  const [activePreset, setActivePreset] = useState<RangePreset | null>(() =>
+    persisted ? persisted.preset : "today",
+  );
+  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(persisted?.tagIds ?? []);
+  const [selectedNodes, setSelectedNodes] = useState<Set<string>>(
+    () => new Set(persisted?.nodes ?? []),
+  );
+
+  useEffect(() => {
+    saveFilterState({
+      status,
+      from,
+      to,
+      preset: activePreset,
+      tagIds: selectedTagIds,
+      nodes: [...selectedNodes],
+    });
+  }, [status, from, to, activePreset, selectedTagIds, selectedNodes]);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | undefined>(undefined);
   const [duplicating, setDuplicating] = useState<Entry | undefined>(undefined);
