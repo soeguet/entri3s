@@ -16,6 +16,7 @@ import {
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap, errorMessage } from "../../lib/errors";
+import { useHotkey } from "../../lib/useHotkey";
 import { parsePayload } from "../../lib/templatePayload";
 import { Dialog } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
@@ -115,6 +116,12 @@ export function EntryForm(props: EntryFormProps) {
   const [picking, setPicking] = useState(false);
   const [pickingCommits, setPickingCommits] = useState(false);
 
+  // Ctrl/Cmd+W schliesst das Formular von überall (auch aus Sub-Pickern).
+  // NON-NORMAL: In manchen Browsern/Electron-Umgebungen fängt das OS/der Browser
+  // Ctrl/Cmd+W ab (Tab/Fenster schliessen), bevor wir es sehen — deshalb bleibt
+  // Esc der primäre Schliessen-Weg in der Hauptansicht.
+  useHotkey("mod+w", props.onClose, { scope: "global", enabled: props.open });
+
   const selectedTags = form.watch("tagIds");
   const ticketId = form.watch("ticketId");
 
@@ -135,6 +142,17 @@ export function EntryForm(props: EntryFormProps) {
     <Dialog
       open={props.open}
       onClose={props.onClose}
+      onEscape={() => {
+        if (pickingCommits) {
+          setPickingCommits(false);
+          return;
+        }
+        if (picking) {
+          setPicking(false);
+          return;
+        }
+        props.onClose();
+      }}
       size="lg"
       title={
         picking || pickingCommits ? undefined : props.entry ? "Entry bearbeiten" : "Neuer Entry"

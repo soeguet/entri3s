@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouterState } from "@tanstack/react-router";
 import type { Ticket, TicketFilter } from "../../../../../shared/types";
 import { getTickets, getProjects } from "../../api";
 import { keys } from "../../lib/queryKeys";
@@ -16,8 +16,14 @@ const FILTER: TicketFilter = { status: "active" };
 export function TicketSearchLauncher() {
   const [open, setOpen] = useState(false);
   const navigate = useNavigate();
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
 
-  useHotkey("mod+shift+f", () => setOpen((o) => !o), { scope: "global" });
+  // Auf /entries hat die Entries-Suche Vorrang auf mod+shift+f; dort tritt der
+  // globale Ticket-Launcher zurück (disabled), sonst feuert er überall.
+  useHotkey("mod+shift+f", () => setOpen((o) => !o), {
+    scope: "global",
+    enabled: pathname !== "/entries",
+  });
 
   useCommands(
     useMemo(
