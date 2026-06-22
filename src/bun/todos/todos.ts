@@ -7,6 +7,7 @@ import { parseList } from "./parser";
 import { computeNext, parseRule } from "./recurrence";
 import { applyTaskEdit, renderNewTask, renderTask, type TaskEdit } from "./serializer";
 import { mutateFile, writeContent } from "./mutate";
+import { reorderLines } from "./reorder";
 import { fileForList, listMd, read } from "./vault";
 
 // Todo-Service. Liest todoFolder live aus den Settings; TODO_NO_FOLDER wenn der
@@ -160,6 +161,26 @@ export function createTodoService(repo: Repository) {
         lines.splice(idx, 1);
         return lines;
       });
+    },
+
+    // Umsortieren INNERHALB einer Liste (Drag&Drop). Der verschobene Task nimmt
+    // seinen Subtask-Block mit. ids dienen nur zum Auffinden; die Verschiebung
+    // selbst läuft fingerprint-basiert und fail-closed in reorderLines.
+    async reorderTask(
+      listId: string,
+      id: string,
+      targetId: string,
+      before: boolean,
+    ): Promise<void> {
+      const dir = folder();
+      const file = fileForList(dir, listId);
+      const r = await read(file);
+      const parsed = parseList(listId, listId, r.content);
+      const moved = parsed.raw.find((x) => x.task.id === id);
+      const target = parsed.raw.find((x) => x.task.id === targetId);
+      if (!moved || !target) throw appError("TODO_CONFLICT", "Aufgabe nicht gefunden.", false);
+      const next = reorderLines(r.content, moved.raw, target.raw, before);
+      writeContent(file, next);
     },
   };
 }

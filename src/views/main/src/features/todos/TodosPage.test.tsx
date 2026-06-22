@@ -65,7 +65,13 @@ test("Toggle ruft updateTodoTask und invalidiert die todos-Query (instant)", asy
   const user = userEvent.setup();
   renderPage(client);
 
-  const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken");
+  // "Alle"-View ansteuern, damit der Task unabhängig vom heutigen Kalendertag
+  // sichtbar ist (Default "Heute" hinge sonst am realen Datum) — und großzügiger
+  // Timeout gegen Render-Flake unter Last.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, {
+    timeout: 3000,
+  });
   await user.click(checkbox);
 
   await vi.waitFor(() =>
@@ -84,11 +90,16 @@ test("Konflikt-UX: TODO_CONFLICT zeigt Spec-Meldung an der betroffenen Zeile", a
   const user = userEvent.setup();
   renderPage(freshClient());
 
-  const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken");
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, {
+    timeout: 3000,
+  });
   await user.click(checkbox);
 
   expect(
-    await screen.findByText("Aufgabe wurde extern geändert, nicht gespeichert"),
+    await screen.findByText("Aufgabe wurde extern geändert, nicht gespeichert", undefined, {
+      timeout: 3000,
+    }),
   ).toBeInTheDocument();
   // Die Aufgabe ist weiterhin sichtbar (Eingabe/Status nicht verworfen).
   expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();

@@ -369,6 +369,10 @@ export interface AppRPCType {
         params: { id: string; fromList: string; toList: string; toSection?: string | null };
         response: RpcResponse<void>;
       };
+      reorderTodoTask: {
+        params: { listId: string; id: string; targetId: string; before: boolean };
+        response: RpcResponse<void>;
+      };
     };
     messages: Record<string, never>;
   };

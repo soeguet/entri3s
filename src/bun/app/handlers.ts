@@ -90,6 +90,8 @@ export function createRpc(svc: Services) {
         deleteTodoTask: (p) => wrap(() => svc.todo.deleteTask(p.id, p.listId)),
         moveTodoTask: (p) =>
           wrap(() => svc.todo.moveTask(p.id, p.fromList, p.toList, p.toSection ?? null)),
+        reorderTodoTask: (p) =>
+          wrap(() => svc.todo.reorderTask(p.listId, p.id, p.targetId, p.before)),
       },
       messages: {},
     },
