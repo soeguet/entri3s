@@ -76,19 +76,29 @@ export function composeDateTime(
   return { date: start.toISOString(), durationMinutes: toMinutes(endTime) - toMinutes(startTime) };
 }
 
+/** Aktuelle Berlin-Zeit als "HH:mm", auf 5 Min gerundet, max 23:58 (nie 24:00). */
+export function roundedNowHHmm(now: Date = new Date()): string {
+  const rawMinutes = toMinutes(formatInTimeZone(now, TZ, "HH:mm"));
+  const rounded = Math.min(Math.round(rawMinutes / 5) * 5, 23 * 60 + 58);
+  return minutesToTime(rounded);
+}
+
+/** Addiert deltaMinutes auf "HH:mm", geclampt auf [00:00, 23:59]. */
+export function shiftHHmm(hhmm: string, deltaMinutes: number): string {
+  const total = Math.max(0, Math.min(toMinutes(hhmm) + deltaMinutes, 23 * 60 + 59));
+  return minutesToTime(total);
+}
+
 // Funktion statt Konstante: "jetzt" muss beim Öffnen ausgewertet werden,
 // nicht beim Modul-Import (sonst friert die Zeit auf den App-Start ein).
 export function makeEmptyFormValues(options?: { date?: string; now?: Date }): EntryFormValues {
   const now = options?.now ?? new Date();
   const date = options?.date ?? formatInTimeZone(now, TZ, "yyyy-MM-dd");
-  const rawMinutes = toMinutes(formatInTimeZone(now, TZ, "HH:mm"));
-  // Runde auf 5 Minuten, kappe dann auf max 23:58 damit endTime (mindestens
-  // startMinutes+1) noch in 00:00–23:59 liegt und nie in den Folgetag rutscht.
-  const startMinutes = Math.min(Math.round(rawMinutes / 5) * 5, 23 * 60 + 58);
-  const endMinutes = Math.min(startMinutes + 60, 23 * 60 + 59);
+  const startTime = roundedNowHHmm(now);
+  const endMinutes = Math.min(toMinutes(startTime) + 60, 23 * 60 + 59);
   return {
     date,
-    startTime: minutesToTime(startMinutes),
+    startTime,
     endTime: minutesToTime(endMinutes),
     notes: "",
     tagIds: [],

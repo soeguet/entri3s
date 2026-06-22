@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronsUpDown, GitCommitHorizontal } from "lucide-react";
@@ -31,6 +31,8 @@ import {
   toEntryCreate,
   toFormValues,
   previewDurationMinutes,
+  roundedNowHHmm,
+  shiftHHmm,
   type EntryFormValues,
 } from "./entrySchema";
 import { formatDuration, roundUpToQuarterHour } from "../../lib/dates";
@@ -171,7 +173,17 @@ export function EntryForm(props: EntryFormProps) {
           onCancel={() => setPicking(false)}
         />
       ) : (
-        <form className="space-y-4" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+              e.preventDefault();
+              if (mutation.isPending) return;
+              form.handleSubmit((v) => mutation.mutate(v))();
+            }
+          }}
+        >
           {!props.entry && (templates.data ?? []).length > 0 ? (
             <div>
               <Label htmlFor="template">Template anwenden</Label>
@@ -194,10 +206,12 @@ export function EntryForm(props: EntryFormProps) {
             <div>
               <Label htmlFor="startTime">Start</Label>
               <Input id="startTime" type="time" {...form.register("startTime")} />
+              <TimeSteppers form={form} field="startTime" />
             </div>
             <div>
               <Label htmlFor="endTime">Ende</Label>
               <Input id="endTime" type="time" {...form.register("endTime")} />
+              <TimeSteppers form={form} field="endTime" />
             </div>
           </div>
           <FieldError message={form.formState.errors.endTime?.message} />
@@ -304,4 +318,31 @@ export function EntryForm(props: EntryFormProps) {
 function FieldError(props: { message?: string }) {
   if (!props.message) return null;
   return <p className="mt-1 text-xs text-danger-accent">{props.message}</p>;
+}
+
+/** Kompakte Button-Gruppe: Jetzt / -15 / +15 unter dem time-Input. */
+function TimeSteppers(props: {
+  form: UseFormReturn<EntryFormValues>;
+  field: "startTime" | "endTime";
+}) {
+  // Bei ungültigem Wert auf gerundete Jetzt-Zeit zurückfallen
+  const cur = () => {
+    const v = props.form.getValues(props.field);
+    return /^\d{2}:\d{2}$/.test(v) ? v : roundedNowHHmm();
+  };
+  const set = (val: string) => props.form.setValue(props.field, val);
+
+  return (
+    <div className="mt-1 flex gap-1">
+      <Button type="button" variant="ghost" size="sm" onClick={() => set(roundedNowHHmm())}>
+        Jetzt
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => set(shiftHHmm(cur(), -15))}>
+        -15
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={() => set(shiftHHmm(cur(), +15))}>
+        +15
+      </Button>
+    </div>
+  );
 }

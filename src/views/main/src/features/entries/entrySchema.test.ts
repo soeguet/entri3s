@@ -1,5 +1,5 @@
 import { test, expect } from "vitest";
-import { composeDateTime, makeEmptyFormValues } from "./entrySchema";
+import { composeDateTime, makeEmptyFormValues, roundedNowHHmm, shiftHHmm } from "./entrySchema";
 
 test("composeDateTime in winter (CET = UTC+1)", () => {
   expect(composeDateTime("2025-01-20", "10:00", "11:30")).toEqual({
@@ -99,4 +99,36 @@ test("makeEmptyFormValues at 23:59 Berlin does not overflow to next day", () => 
   expect(toMin(result.endTime)).toBeGreaterThan(toMin(result.startTime));
   expect(result.startTime).toBe("23:58");
   expect(result.endTime).toBe("23:59");
+});
+
+// -- roundedNowHHmm --
+
+test("roundedNowHHmm rounds Berlin time to nearest 5 min", () => {
+  // 2025-07-15T12:37:00Z = 14:37 Berlin (CEST) → rounded to 14:35
+  const now = new Date("2025-07-15T12:37:00.000Z");
+  expect(roundedNowHHmm(now)).toBe("14:35");
+});
+
+test("roundedNowHHmm caps at 23:58 near midnight", () => {
+  // 2025-07-15T21:59:00Z = 23:59 Berlin (CEST) → rounding would give 24:00, capped to 23:58
+  const now = new Date("2025-07-15T21:59:00.000Z");
+  expect(roundedNowHHmm(now)).toBe("23:58");
+});
+
+// -- shiftHHmm --
+
+test("shiftHHmm adds 15 minutes", () => {
+  expect(shiftHHmm("10:00", 15)).toBe("10:15");
+});
+
+test("shiftHHmm subtracts 15 minutes", () => {
+  expect(shiftHHmm("10:00", -15)).toBe("09:45");
+});
+
+test("shiftHHmm clamps at 23:59 on overflow", () => {
+  expect(shiftHHmm("23:55", 15)).toBe("23:59");
+});
+
+test("shiftHHmm clamps at 00:00 on underflow", () => {
+  expect(shiftHHmm("00:05", -15)).toBe("00:00");
 });
