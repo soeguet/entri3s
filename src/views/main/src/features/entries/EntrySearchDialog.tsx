@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import type { Entry, Ticket } from "../../../../../shared/types";
 import { formatDate, formatDuration, formatWeekday, formatTime } from "../../lib/dates";
 import { Dialog } from "../../components/ui/dialog";
@@ -35,7 +35,12 @@ function truncate(text: string, max: number): string {
 }
 
 export function EntrySearchDialog(props: EntrySearchDialogProps) {
+  const onPickRef = useRef(props.onPick);
+  onPickRef.current = props.onPick;
+
   const sections: CommandListSection[] = useMemo(() => {
+    if (!props.open) return [];
+
     const sorted = [...props.entries]
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
       .slice(0, MAX_ENTRIES);
@@ -68,12 +73,12 @@ export function EntrySearchDialog(props: EntrySearchDialogProps) {
                 ) : null}
               </div>
             ),
-            onSelect: () => props.onPick(entry),
+            onSelect: () => onPickRef.current(entry),
           };
         }),
       },
     ];
-  }, [props.entries, props.ticketsById, props.onPick]);
+  }, [props.open, props.entries, props.ticketsById]);
 
   return (
     <Dialog open={props.open} onClose={props.onClose} title="Entry suchen" size="lg">

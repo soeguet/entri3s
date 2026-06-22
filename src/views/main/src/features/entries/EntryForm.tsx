@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useForm, type UseFormReturn } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ChevronsUpDown, GitCommitHorizontal } from "lucide-react";
@@ -19,7 +19,6 @@ import { unwrap, errorMessage } from "../../lib/errors";
 import { parsePayload } from "../../lib/templatePayload";
 import { Dialog } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Select } from "../../components/ui/select";
@@ -30,12 +29,9 @@ import {
   makeEmptyFormValues,
   toEntryCreate,
   toFormValues,
-  previewDurationMinutes,
-  roundedNowHHmm,
-  shiftHHmm,
   type EntryFormValues,
 } from "./entrySchema";
-import { formatDuration, roundUpToQuarterHour } from "../../lib/dates";
+import { EntryDateTimeFields } from "./EntryDateTimeFields";
 
 interface EntryFormProps {
   open: boolean;
@@ -122,8 +118,6 @@ export function EntryForm(props: EntryFormProps) {
   const selectedTags = form.watch("tagIds");
   const ticketId = form.watch("ticketId");
 
-  const previewMinutes = previewDurationMinutes(form.watch("startTime"), form.watch("endTime"));
-
   const selectedTicket =
     ticketId === null ? null : ((tickets.data ?? []).find((t) => t.id === ticketId) ?? null);
   function projectName(id: number): string {
@@ -198,43 +192,7 @@ export function EntryForm(props: EntryFormProps) {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label htmlFor="date">Datum</Label>
-              <Input id="date" type="date" {...form.register("date")} />
-            </div>
-            <div>
-              <Label htmlFor="startTime">Start</Label>
-              <Input id="startTime" type="time" {...form.register("startTime")} />
-              <TimeSteppers form={form} field="startTime" />
-            </div>
-            <div>
-              <Label htmlFor="endTime">Ende</Label>
-              <Input id="endTime" type="time" {...form.register("endTime")} />
-              <TimeSteppers form={form} field="endTime" />
-            </div>
-          </div>
-          <FieldError message={form.formState.errors.endTime?.message} />
-          <FieldError message={form.formState.errors.startTime?.message} />
-
-          <p className="text-sm text-muted-foreground">
-            {previewMinutes === null ? (
-              <span className="text-muted-foreground">Dauer: –</span>
-            ) : (
-              <>
-                Dauer:{" "}
-                <span className="font-medium text-foreground">
-                  {formatDuration(previewMinutes)}
-                </span>
-                {roundUpToQuarterHour(previewMinutes) !== previewMinutes ? (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    → {formatDuration(roundUpToQuarterHour(previewMinutes))} gebucht
-                  </span>
-                ) : null}
-              </>
-            )}
-          </p>
+          <EntryDateTimeFields form={form} />
 
           <div>
             <Label htmlFor="notes">Notizen</Label>
@@ -312,37 +270,5 @@ export function EntryForm(props: EntryFormProps) {
         </form>
       )}
     </Dialog>
-  );
-}
-
-function FieldError(props: { message?: string }) {
-  if (!props.message) return null;
-  return <p className="mt-1 text-xs text-danger-accent">{props.message}</p>;
-}
-
-/** Kompakte Button-Gruppe: Jetzt / -15 / +15 unter dem time-Input. */
-function TimeSteppers(props: {
-  form: UseFormReturn<EntryFormValues>;
-  field: "startTime" | "endTime";
-}) {
-  // Bei ungültigem Wert auf gerundete Jetzt-Zeit zurückfallen
-  const cur = () => {
-    const v = props.form.getValues(props.field);
-    return /^\d{2}:\d{2}$/.test(v) ? v : roundedNowHHmm();
-  };
-  const set = (val: string) => props.form.setValue(props.field, val);
-
-  return (
-    <div className="mt-1 flex gap-1">
-      <Button type="button" variant="ghost" size="sm" onClick={() => set(roundedNowHHmm())}>
-        Jetzt
-      </Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => set(shiftHHmm(cur(), -15))}>
-        -15
-      </Button>
-      <Button type="button" variant="ghost" size="sm" onClick={() => set(shiftHHmm(cur(), +15))}>
-        +15
-      </Button>
-    </div>
   );
 }
