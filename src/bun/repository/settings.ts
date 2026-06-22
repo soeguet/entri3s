@@ -36,11 +36,13 @@ export function createSettingsRepository(db: Database) {
       return {
         gitlabUrl: get("gitlabUrl") ?? "",
         syncIntervalSec: syncIntervalSec(),
+        todoFolder: get("todoFolder") ?? "",
       };
     },
 
     save(settings: Settings): void {
       set("gitlabUrl", settings.gitlabUrl);
+      set("todoFolder", settings.todoFolder);
       db.run("UPDATE schedules SET interval_sec = ? WHERE name = ?", [
         settings.syncIntervalSec,
         SYNC_SCHEDULE,

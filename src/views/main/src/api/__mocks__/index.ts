@@ -50,7 +50,7 @@ export const updateTemplate = vi.fn(voidResp);
 export const deleteTemplate = vi.fn(voidResp);
 export const triggerSync = vi.fn(voidResp);
 export const getSettings = vi.fn(() =>
-  okResp({ gitlabUrl: "https://gitlab.example.com", syncIntervalSec: 300 }),
+  okResp({ gitlabUrl: "https://gitlab.example.com", syncIntervalSec: 300, todoFolder: "" }),
 );
 export const getGitlabImage = vi.fn(() => okResp("data:image/png;base64,AAA"));
 export const saveSettings = vi.fn(voidResp);

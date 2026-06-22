@@ -14,6 +14,7 @@ import { createSettingsService } from "./settings";
 import { createCommitService } from "./commit";
 import { createCommentService } from "./comment";
 import { createBackgroundService } from "./background";
+import { createTodoService } from "../todos/todos";
 
 export function createService(repo: Repository, gl: GitLabClient, db: Database, emit: AppEmitter) {
   // Sync zuerst, da der Background-Service dessen In-Memory-Status (isSyncing) liest.
@@ -31,6 +32,7 @@ export function createService(repo: Repository, gl: GitLabClient, db: Database, 
     commit: createCommitService(repo, gl),
     comment: createCommentService(repo, gl),
     background: createBackgroundService(repo, sync),
+    todo: createTodoService(repo),
   };
 }
 

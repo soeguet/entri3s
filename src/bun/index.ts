@@ -9,6 +9,7 @@ import { createTrayController } from "./app/tray";
 import { startWorker } from "./worker/worker";
 import { startScheduler } from "./scheduler/scheduler";
 import { getToken } from "./keychain/keychain";
+import { startTodoWatcher } from "./todos/watcher";
 import { resolveDataDir } from "./lib/paths";
 import { resolveViewUrl } from "./lib/window-url";
 import { parseWindowFrame } from "./lib/window-frame";
@@ -42,6 +43,7 @@ win = new BrowserWindow({
 });
 const workerHandle = startWorker(repo, glClient, emit);
 const schedulerHandle = startScheduler(repo, svc, emit);
+const todoWatcher = startTodoWatcher(repo, emit);
 
 const trayCtl = createTrayController({
   getRunning: () => svc.entry.getRunning(),
@@ -70,6 +72,7 @@ win.on("close", () => {
   if (win) repo.settings.set(BOUNDS_KEY, JSON.stringify(win.getFrame()));
   clearInterval(workerHandle);
   clearInterval(schedulerHandle);
+  todoWatcher.close();
   trayCtl.dispose();
   db.close();
 });

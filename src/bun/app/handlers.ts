@@ -81,6 +81,15 @@ export function createRpc(svc: Services) {
         saveSettings: (settings) => wrap(() => svc.settings.save(settings)),
         setGitLabToken: (p) => wrap(() => svc.settings.setToken(p.token)),
         backupDatabase: (p) => wrap(() => svc.settings.backup(p.destPath)),
+
+        // Todos (Markdown-Vault)
+        getTodoLists: () => wrap(() => svc.todo.getLists()),
+        createTodoList: (p) => wrap(() => svc.todo.createList(p.name)),
+        addTodoTask: (p) => wrap(() => svc.todo.addTask(p)),
+        updateTodoTask: (p) => wrap(() => svc.todo.updateTask(p)),
+        deleteTodoTask: (p) => wrap(() => svc.todo.deleteTask(p.id, p.listId)),
+        moveTodoTask: (p) =>
+          wrap(() => svc.todo.moveTask(p.id, p.fromList, p.toList, p.toSection ?? null)),
       },
       messages: {},
     },

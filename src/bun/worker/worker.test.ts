@@ -22,6 +22,7 @@ function makeEmitter(): AppEmitter {
     syncFailed: () => events.push("syncFailed"),
     orphanDetected: () => events.push("orphanDetected"),
     runningEntryChanged: () => {},
+    todosChanged: () => {},
   };
 }
 

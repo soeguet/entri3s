@@ -38,6 +38,7 @@ const store = {
   settings: {
     gitlabUrl: "https://gitlab.example.com",
     syncIntervalSec: 300,
+    todoFolder: "",
   } as Settings,
   currentUser: { id: 1, username: "mockuser", name: "Mock User" } as CurrentUser,
   nextId: 1000,

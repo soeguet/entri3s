@@ -38,6 +38,9 @@ export function SettingsPage() {
         await saveSettings({
           gitlabUrl: gitlabUrl.trim(),
           syncIntervalSec: Math.max(1, Number(intervalMin) || 5) * 60,
+          // Vorhandenen Wert durchreichen; die Todo-Ordner-Eingabe baut der
+          // Frontend-Subagent. Kein Verlust beim Speichern anderer Settings.
+          todoFolder: settings.data?.todoFolder ?? "",
         }),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.settings() }),
