@@ -155,7 +155,8 @@ export function TodosPage() {
 
   // Empty State: todoFolder leer ODER Backend liefert TODO_NO_FOLDER.
   const noFolder =
-    (settings.data && settings.data.todoFolder.trim() === "") || isNoFolderError(lists.error);
+    (settings.data && (settings.data.todoFolder ?? "").trim() === "") ||
+    isNoFolderError(lists.error);
 
   // id der Zeile, deren letzte update-Mutation fehlschlug (inline-Konflikt).
   const errorTaskId = mut.update.isError ? (mut.update.variables?.id ?? null) : null;

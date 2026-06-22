@@ -50,6 +50,15 @@ test("Empty State wenn todoFolder leer ist", async () => {
   expect(await screen.findByText("Kein Todo-Ordner konfiguriert")).toBeInTheDocument();
 });
 
+test("Empty State wenn todoFolder im settings-Objekt fehlt (kein Crash)", async () => {
+  vi.mocked(api.getSettings).mockResolvedValue({
+    data: { gitlabUrl: "", syncIntervalSec: 300 } as never,
+    error: null,
+  });
+  renderPage(freshClient());
+  expect(await screen.findByText("Kein Todo-Ordner konfiguriert")).toBeInTheDocument();
+});
+
 test("Toggle ruft updateTodoTask und invalidiert die todos-Query (instant)", async () => {
   const client = freshClient();
   const spy = vi.spyOn(client, "invalidateQueries");
