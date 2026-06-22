@@ -27,7 +27,7 @@ import { TicketPicker } from "./TicketPicker";
 import { CommitPicker } from "./CommitPicker";
 import {
   entrySchema,
-  emptyFormValues,
+  makeEmptyFormValues,
   toEntryCreate,
   toFormValues,
   previewDurationMinutes,
@@ -39,13 +39,22 @@ interface EntryFormProps {
   open: boolean;
   onClose: () => void;
   entry?: Entry;
+  duplicateFrom?: Entry;
+  defaultDate?: string;
 }
 
 export function EntryForm(props: EntryFormProps) {
   const qc = useQueryClient();
   const form = useForm<EntryFormValues>({
     resolver: zodResolver(entrySchema),
-    defaultValues: props.entry ? toFormValues(props.entry) : emptyFormValues,
+    defaultValues: props.entry
+      ? toFormValues(props.entry)
+      : props.duplicateFrom
+        ? {
+            ...toFormValues(props.duplicateFrom),
+            date: props.defaultDate ?? toFormValues(props.duplicateFrom).date,
+          }
+        : makeEmptyFormValues({ date: props.defaultDate }),
   });
 
   const tags = useQuery({ queryKey: keys.tags(), queryFn: async () => unwrap(await getTags()) });

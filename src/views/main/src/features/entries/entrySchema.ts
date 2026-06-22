@@ -76,11 +76,22 @@ export function composeDateTime(
   return { date: start.toISOString(), durationMinutes: toMinutes(endTime) - toMinutes(startTime) };
 }
 
-export const emptyFormValues: EntryFormValues = {
-  date: formatInTimeZone(new Date(), TZ, "yyyy-MM-dd"),
-  startTime: "09:00",
-  endTime: "10:00",
-  notes: "",
-  tagIds: [],
-  ticketId: null,
-};
+// Funktion statt Konstante: "jetzt" muss beim Öffnen ausgewertet werden,
+// nicht beim Modul-Import (sonst friert die Zeit auf den App-Start ein).
+export function makeEmptyFormValues(options?: { date?: string; now?: Date }): EntryFormValues {
+  const now = options?.now ?? new Date();
+  const date = options?.date ?? formatInTimeZone(now, TZ, "yyyy-MM-dd");
+  const rawMinutes = toMinutes(formatInTimeZone(now, TZ, "HH:mm"));
+  // Runde auf 5 Minuten, kappe dann auf max 23:58 damit endTime (mindestens
+  // startMinutes+1) noch in 00:00–23:59 liegt und nie in den Folgetag rutscht.
+  const startMinutes = Math.min(Math.round(rawMinutes / 5) * 5, 23 * 60 + 58);
+  const endMinutes = Math.min(startMinutes + 60, 23 * 60 + 59);
+  return {
+    date,
+    startTime: minutesToTime(startMinutes),
+    endTime: minutesToTime(endMinutes),
+    notes: "",
+    tagIds: [],
+    ticketId: null,
+  };
+}

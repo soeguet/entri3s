@@ -37,6 +37,7 @@ export function EntriesPage() {
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | undefined>(undefined);
+  const [duplicating, setDuplicating] = useState<Entry | undefined>(undefined);
   const [collapsed, setCollapsedState] = useState(() => loadCollapsed());
   function setCollapsed(value: boolean) {
     setCollapsedState(value);
@@ -118,15 +119,24 @@ export function EntriesPage() {
 
   function openCreate() {
     setEditing(undefined);
+    setDuplicating(undefined);
     setFormOpen(true);
   }
   function openEdit(entry: Entry) {
     setEditing(entry);
+    setDuplicating(undefined);
+    setFormOpen(true);
+  }
+  function openDuplicate(entry: Entry) {
+    setEditing(undefined);
+    setDuplicating(entry);
     setFormOpen(true);
   }
   function confirmDelete(entry: Entry) {
     if (window.confirm(`Entry #${entry.id} löschen?`)) remove.mutate(entry.id);
   }
+
+  const filteredDay = from && from === to ? from : undefined;
 
   return (
     <div>
@@ -205,6 +215,7 @@ export function EntriesPage() {
                 onDelete={confirmDelete}
                 onBook={(entry) => book.mutate(entry.id)}
                 onQuickEdit={(entry, field) => setQuickEdit({ entry, field })}
+                onDuplicate={openDuplicate}
               />
             </>
           )}
@@ -212,7 +223,13 @@ export function EntriesPage() {
       </div>
 
       {formOpen ? (
-        <EntryForm open={formOpen} onClose={() => setFormOpen(false)} entry={editing} />
+        <EntryForm
+          open={formOpen}
+          onClose={() => setFormOpen(false)}
+          entry={editing}
+          duplicateFrom={duplicating}
+          defaultDate={filteredDay}
+        />
       ) : null}
 
       <EntryQuickEditDialog
