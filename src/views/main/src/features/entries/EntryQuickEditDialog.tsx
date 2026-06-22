@@ -124,9 +124,10 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
   }
 
   const isOpen = entry !== null && props.field !== null;
-  const isPopoverField = props.field === "notes" || props.field === "date";
+  const isPopoverField =
+    props.field === "notes" || props.field === "date" || props.field === "tags";
 
-  // notes/date: leichtgewichtiges Popover am Anker; ticket/tags: vollflächiges Modal.
+  // notes/date/tags: leichtgewichtiges Popover am Anker; nur ticket: Modal.
   if (isPopoverField) {
     return (
       <Popover open={isOpen} anchor={props.anchor} onClose={props.onClose}>
@@ -139,6 +140,13 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
               props.onClose();
             }}
             onCancel={props.onClose}
+          />
+        ) : props.field === "tags" ? (
+          <TagPicker
+            tags={tags.data ?? []}
+            value={tagIds}
+            onToggle={onToggleTag}
+            onDone={props.onClose}
           />
         ) : (
           <DateTimeQuickEdit
@@ -157,14 +165,7 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
 
   return (
     <Dialog open={isOpen} onClose={props.onClose} size="lg">
-      {entry === null || props.field === null ? null : props.field === "tags" ? (
-        <TagPicker
-          tags={tags.data ?? []}
-          value={tagIds}
-          onToggle={onToggleTag}
-          onDone={props.onClose}
-        />
-      ) : props.field === "ticket" ? (
+      {entry === null || props.field === null ? null : props.field === "ticket" ? (
         <TicketPicker
           tickets={activeTickets.data ?? []}
           projects={projects.data ?? []}
