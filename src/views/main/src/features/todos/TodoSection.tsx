@@ -34,6 +34,10 @@ interface TodoSectionProps {
   onReschedule: (task: TodoTask, due: string | null) => void;
   onMove: (task: TodoTask, toList: string) => void;
   onReorder: (activeId: string, targetId: string, before: boolean) => void;
+  // Mehrfachauswahl: aktiviert die Auswahl-Checkbox je Zeile.
+  selectMode: boolean;
+  selectedIds: Set<string>;
+  onSelectBulk: (task: TodoTask) => void;
 }
 
 export function TodoSection(props: TodoSectionProps) {
@@ -67,6 +71,9 @@ export function TodoSection(props: TodoSectionProps) {
       onRename={(title) => props.onRename(task, title)}
       onReschedule={(due) => props.onReschedule(task, due)}
       onMove={(toList) => props.onMove(task, toList)}
+      selectMode={props.selectMode}
+      selectedForBulk={props.selectedIds.has(task.id)}
+      onSelectBulk={() => props.onSelectBulk(task)}
     />
   ));
 

@@ -104,3 +104,27 @@ test("Konflikt-UX: TODO_CONFLICT zeigt Spec-Meldung an der betroffenen Zeile", a
   // Die Aufgabe ist weiterhin sichtbar (Eingabe/Status nicht verworfen).
   expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();
 });
+
+test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit done:true", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "Alle"-View, damit die Tasks unabhängig vom heutigen Datum sichtbar sind.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+
+  // Auswahl-Modus aktivieren.
+  await user.click(await screen.findByRole("button", { name: "Auswählen" }, { timeout: 3000 }));
+
+  // Zwei Tasks über die Auswahl-Checkboxen markieren.
+  const checkboxes = await screen.findAllByLabelText("Auswählen", undefined, { timeout: 3000 });
+  await user.click(checkboxes[0]);
+  await user.click(checkboxes[1]);
+
+  // Bulk-Leiste erscheint → "Abhaken".
+  await user.click(await screen.findByRole("button", { name: /Abhaken/ }, { timeout: 3000 }));
+
+  await vi.waitFor(() => expect(api.updateTodoTask).toHaveBeenCalledTimes(2));
+  for (const call of vi.mocked(api.updateTodoTask).mock.calls) {
+    expect(call[0]).toEqual(expect.objectContaining({ done: true }));
+  }
+});

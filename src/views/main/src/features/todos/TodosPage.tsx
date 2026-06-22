@@ -13,6 +13,7 @@ import { ErrorNote } from "../../components/ErrorNote";
 import { Button } from "../../components/ui/button";
 import { TodoSidebar } from "./TodoSidebar";
 import { TodoList } from "./TodoList";
+import { TodoBulkBar } from "./TodoBulkBar";
 import { TodoQuickAdd } from "./TodoQuickAdd";
 import { useTodoMutations } from "./useTodoMutations";
 import { smartViewFilter, smartViewCounts, type SmartView } from "./smartViewFilter";
@@ -48,6 +49,8 @@ export function TodosPage() {
   const [selectedList, setSelectedList] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   // key-Remount zum Leeren der Eingaben NACH erfolgreichem Add/CreateList.
   const [quickAddKey, setQuickAddKey] = useState(0);
   const quickAddRef = useRef<HTMLInputElement>(null);
@@ -90,6 +93,32 @@ export function TodosPage() {
   useEffect(() => {
     if (mut.add.isSuccess || mut.createList.isSuccess) setQuickAddKey((k) => k + 1);
   }, [mut.add.isSuccess, mut.createList.isSuccess]);
+
+  // Auswahl leeren bei View-/Listenwechsel — die sichtbaren Tasks ändern sich,
+  // eine listenübergreifende Auswahl wäre dann irreführend.
+  useEffect(() => {
+    setSelectedIds(new Set());
+  }, [view, selectedList]);
+
+  function toggleSelectMode() {
+    setSelectMode((on) => !on);
+    setSelectedIds(new Set());
+  }
+  function onSelectBulk(task: TodoTask) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(task.id)) next.delete(task.id);
+      else next.add(task.id);
+      return next;
+    });
+  }
+  // Selektierte Tasks aus ALLEN geladenen Listen (nicht nur den sichtbaren),
+  // damit listId für die Bulk-RPCs verfügbar ist.
+  const selectedTasks = allTasks.filter((t) => selectedIds.has(t.id));
+  function runBulk(op: Parameters<typeof mut.bulk.mutate>[0]) {
+    mut.bulk.mutate(op);
+    setSelectedIds(new Set());
+  }
 
   function selectedTask(): TodoTask | undefined {
     return visible.find((t) => t.id === selectedId);
@@ -216,6 +245,29 @@ export function TodosPage() {
 
             {lists.isError && !noFolder ? <ErrorNote error={lists.error} className="mb-3" /> : null}
 
+            <div className="mb-3 flex justify-end">
+              <Button
+                variant={selectMode ? "default" : "outline"}
+                size="sm"
+                onClick={toggleSelectMode}
+              >
+                {selectMode ? "Auswahl beenden" : "Auswählen"}
+              </Button>
+            </div>
+
+            {selectMode && selectedIds.size > 0 ? (
+              <TodoBulkBar
+                count={selectedIds.size}
+                listNames={listNames}
+                currentList={selectedList}
+                onComplete={() => runBulk({ kind: "complete", tasks: selectedTasks })}
+                onReschedule={(due) => runBulk({ kind: "reschedule", tasks: selectedTasks, due })}
+                onMove={(toList) => runBulk({ kind: "move", tasks: selectedTasks, toList })}
+                onDelete={() => runBulk({ kind: "delete", tasks: selectedTasks })}
+                onClear={() => setSelectedIds(new Set())}
+              />
+            ) : null}
+
             {lists.isLoading ? (
               <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>
             ) : (
@@ -233,6 +285,9 @@ export function TodosPage() {
                 onReschedule={onReschedule}
                 onMove={onMove}
                 onReorder={onReorder}
+                selectMode={selectMode}
+                selectedIds={selectedIds}
+                onSelectBulk={onSelectBulk}
               />
             )}
           </div>

@@ -26,6 +26,11 @@ interface TodoRowProps {
   onMove: (toList: string) => void;
   // Fehler der zuletzt versuchten Mutation auf GENAU diese Zeile (Konflikt).
   error: unknown;
+  // Mehrfachauswahl-Modus: zeigt GANZ LINKS eine zusätzliche Auswahl-Checkbox
+  // (getrennt von der done-Checkbox). Default false → Verhalten wie bisher.
+  selectMode?: boolean;
+  selectedForBulk?: boolean;
+  onSelectBulk?: () => void;
 }
 
 // Priorität als kompaktes Emoji-Badge (Obsidian-Tasks-Konvention). "normal"
@@ -88,6 +93,17 @@ export function TodoRow(props: TodoRowProps) {
         props.sortable && sortable.isDragging && "opacity-50",
       )}
     >
+      {props.selectMode ? (
+        <input
+          type="checkbox"
+          checked={props.selectedForBulk ?? false}
+          aria-label="Auswählen"
+          onChange={() => props.onSelectBulk?.()}
+          onClick={(e) => e.stopPropagation()}
+          className="mr-1 shrink-0"
+        />
+      ) : null}
+
       {props.sortable ? (
         <button
           ref={sortable.setActivatorNodeRef}

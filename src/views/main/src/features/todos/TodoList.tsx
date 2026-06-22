@@ -20,6 +20,10 @@ interface TodoListProps {
   onReschedule: (task: TodoTask, due: string | null) => void;
   onMove: (task: TodoTask, toList: string) => void;
   onReorder: (activeId: string, targetId: string, before: boolean) => void;
+  // Mehrfachauswahl: durchgereicht bis TodoRow.
+  selectMode: boolean;
+  selectedIds: Set<string>;
+  onSelectBulk: (task: TodoTask) => void;
 }
 
 // Gruppiert Tasks nach Sektion (definierte Reihenfolge zuerst, dann unbekannte
@@ -63,6 +67,9 @@ export function TodoList(props: TodoListProps) {
           onReschedule={props.onReschedule}
           onMove={props.onMove}
           onReorder={props.onReorder}
+          selectMode={props.selectMode}
+          selectedIds={props.selectedIds}
+          onSelectBulk={props.onSelectBulk}
         />
       ))}
     </div>
