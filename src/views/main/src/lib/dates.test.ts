@@ -3,6 +3,7 @@ import {
   formatDuration,
   formatDate,
   formatWeekday,
+  nextWeekdayYmd,
   rangeForPreset,
   reschedulePresetDate,
   shiftDay,
@@ -93,6 +94,13 @@ test("reschedulePresetDate: weekend = nächster Samstag, am WE unverändert", ()
   expect(reschedulePresetDate("weekend", "2026-06-22")).toBe("2026-06-27");
   // Samstag 27.06. ist schon Wochenende → bleibt.
   expect(reschedulePresetDate("weekend", "2026-06-27")).toBe("2026-06-27");
+});
+
+test("nextWeekdayYmd: next occurrence of an ISO weekday", () => {
+  // 2026-06-22 ist ein Montag.
+  expect(nextWeekdayYmd("2026-06-22", 3)).toBe("2026-06-24"); // Mittwoch
+  expect(nextWeekdayYmd("2026-06-22", 1)).toBe("2026-06-22"); // Montag = heute
+  expect(nextWeekdayYmd("2026-06-22", 7)).toBe("2026-06-28"); // Sonntag
 });
 
 test("singleDayBase returns from when range is active (from !== to)", () => {

@@ -189,6 +189,7 @@ export function TodosPage() {
               ref={quickAddRef}
               listId={targetListId}
               sections={sections}
+              today={today}
               onAdd={(input) => mut.add.mutate(input)}
               error={mut.add.isError ? mut.add.error : null}
             />

@@ -131,6 +131,18 @@ export function reschedulePresetDate(preset: ReschedulePreset, today: string): s
   return utcToYmd(saturday);
 }
 
+/**
+ * Nächstes Vorkommen eines ISO-Wochentags (1=Mo .. 7=So) ab `today`
+ * (yyyy-MM-dd). Ist `today` schon dieser Wochentag → `today` selbst.
+ * Rechnet rein über UTC, daher unabhängig von der Host-Zeitzone.
+ */
+export function nextWeekdayYmd(today: string, isoDow: number): string {
+  const base = ymdToUtc(today);
+  const currentIsoDow = ((base.getUTCDay() + 6) % 7) + 1; // 0=So..6=Sa → 1=Mo..7=So
+  const delta = (isoDow - currentIsoDow + 7) % 7;
+  return utcToYmd(addDays(base, delta));
+}
+
 /** Datumsbereich (yyyy-MM-dd) für ein Preset, Anker ist heute in Berlin. */
 export function rangeForPreset(preset: RangePreset, now: Date = new Date()): DateRange {
   const today = ymdToUtc(berlinTodayYmd(now));
