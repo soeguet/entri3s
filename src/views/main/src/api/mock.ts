@@ -16,6 +16,10 @@ import type {
   Ticket,
   TicketComment,
   TicketFilter,
+  TodoList,
+  TodoTask,
+  TodoTaskCreate,
+  TodoTaskPatch,
 } from "../../../../shared/types";
 import { entryFixtures } from "../fixtures/entries";
 import { ticketFixtures } from "../fixtures/tickets";
@@ -24,6 +28,7 @@ import { tagFixtures } from "../fixtures/tags";
 import { templateFixtures } from "../fixtures/templates";
 import { bookingFixtures } from "../fixtures/bookings";
 import { commentFixtures } from "../fixtures/comments";
+import { todoFixtures } from "../fixtures/todos";
 
 // In-Memory-Store für den Browser-Dev-Modus (vite --mode mock).
 const store = {
@@ -34,11 +39,14 @@ const store = {
   templates: structuredClone(templateFixtures) as Template[],
   bookings: structuredClone(bookingFixtures) as Booking[],
   comments: structuredClone(commentFixtures) as TicketComment[],
+  todos: structuredClone(todoFixtures) as TodoList[],
   deadEvents: [] as AppEvent[],
   settings: {
     gitlabUrl: "https://gitlab.example.com",
     syncIntervalSec: 300,
-    todoFolder: "",
+    // Im Dev-Modus (vite --mode mock) gesetzt, damit /todos die Fixtures zeigt
+    // statt des Empty States. Den Empty State testet das Vitest-Modul-Mock.
+    todoFolder: "/Vault/todos",
   } as Settings,
   currentUser: { id: 1, username: "mockuser", name: "Mock User" } as CurrentUser,
   nextId: 1000,
@@ -325,6 +333,102 @@ export const saveSettings = (s: Settings) => {
 };
 export const setGitLabToken = (_token: string) => ok(undefined as void);
 export const backupDatabase = (_destPath: string) => ok(undefined as void);
+// ── Todos (In-Memory-Vault-Simulation) ───────────────────────────────────────
+// ids sind im Mock stabil (kein Reparse) — anders als im echten Backend, wo sie
+// flüchtig sind. Für die Dev-Ansicht genügt das. TODO_NO_FOLDER bei leerem
+// todoFolder; TODO_CONFLICT wird über Titel mit Präfix "CONFLICT" simuliert,
+// damit die Konflikt-UX im Dev-Modus erlebbar ist.
+function findTodoTask(listId: string, id: string): TodoTask | undefined {
+  return store.todos.find((l) => l.id === listId)?.tasks.find((t) => t.id === id);
+}
+
+export const getTodoLists = (): Promise<RpcResponse<TodoList[]>> => {
+  if (store.settings.todoFolder.trim() === "") {
+    return fail<TodoList[]>("TODO_NO_FOLDER", "Kein Todo-Ordner konfiguriert");
+  }
+  return ok(structuredClone(store.todos));
+};
+
+export const createTodoList = (name: string) => {
+  const trimmed = name.trim();
+  if (trimmed === "" || trimmed.includes("/") || trimmed.includes("..")) {
+    return fail<void>("INVALID_NAME", "Ungültiger Listenname");
+  }
+  if (store.todos.some((l) => l.id === trimmed)) {
+    return fail<void>("INVALID_NAME", "Liste existiert bereits");
+  }
+  store.todos.push({ id: trimmed, name: trimmed, tasks: [], sections: [] });
+  return ok(undefined as void);
+};
+
+export const addTodoTask = (input: TodoTaskCreate) => {
+  const list = store.todos.find((l) => l.id === input.listId);
+  if (!list) return fail<void>("TODO_CONFLICT", "Liste nicht gefunden");
+  const id = `${list.id}#${store.nextId++}`;
+  list.tasks.push({
+    id,
+    listId: list.id,
+    section: input.section ?? null,
+    title: input.title,
+    done: false,
+    priority: input.priority ?? "normal",
+    due: input.due ?? null,
+    scheduled: null,
+    start: null,
+    created: now().slice(0, 10),
+    doneDate: null,
+    recurrence: null,
+    recurrenceEditableInApp: true,
+    tags: input.tags ?? [],
+    depth: 0,
+  });
+  if (input.section && !list.sections.includes(input.section)) list.sections.push(input.section);
+  return ok(undefined as void);
+};
+
+export const updateTodoTask = (patch: TodoTaskPatch) => {
+  const task = findTodoTask(patch.listId, patch.id);
+  if (!task) return fail<void>("TODO_CONFLICT", "Aufgabe wurde extern geändert");
+  // Konflikt-Simulation: Titel mit Präfix "CONFLICT" lehnt jede Mutation ab.
+  if (task.title.startsWith("CONFLICT")) {
+    return fail<void>("TODO_CONFLICT", "Aufgabe wurde extern geändert");
+  }
+  if (patch.title !== undefined) task.title = patch.title;
+  if (patch.done !== undefined) {
+    task.done = patch.done;
+    task.doneDate = patch.done ? now().slice(0, 10) : null;
+  }
+  if (patch.priority !== undefined) task.priority = patch.priority;
+  if (patch.due !== undefined) task.due = patch.due;
+  if (patch.scheduled !== undefined) task.scheduled = patch.scheduled;
+  if (patch.start !== undefined) task.start = patch.start;
+  if (patch.tags !== undefined) task.tags = [...patch.tags];
+  if (patch.section !== undefined) task.section = patch.section;
+  return ok(undefined as void);
+};
+
+export const deleteTodoTask = (id: string, listId: string) => {
+  const list = store.todos.find((l) => l.id === listId);
+  if (!list) return fail<void>("TODO_CONFLICT", "Liste nicht gefunden");
+  list.tasks = list.tasks.filter((t) => t.id !== id);
+  return ok(undefined as void);
+};
+
+export const moveTodoTask = (
+  id: string,
+  fromList: string,
+  toList: string,
+  toSection?: string | null,
+) => {
+  const from = store.todos.find((l) => l.id === fromList);
+  const to = store.todos.find((l) => l.id === toList);
+  const task = from?.tasks.find((t) => t.id === id);
+  if (!from || !to || !task) return fail<void>("TODO_CONFLICT", "Aufgabe nicht gefunden");
+  from.tasks = from.tasks.filter((t) => t.id !== id);
+  to.tasks.push({ ...task, listId: to.id, section: toSection ?? null });
+  return ok(undefined as void);
+};
+
 export const getCommitsForDate = (_date: string): Promise<RpcResponse<Commit[]>> =>
   ok([
     {

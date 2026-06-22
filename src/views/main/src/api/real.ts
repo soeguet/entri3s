@@ -9,6 +9,8 @@ import type {
   Tag,
   Template,
   TicketFilter,
+  TodoTaskCreate,
+  TodoTaskPatch,
 } from "../../../../shared/types";
 import { queryClient } from "../lib/queryClient";
 import { keys } from "../lib/queryKeys";
@@ -50,6 +52,11 @@ const rpc = Electroview.defineRPC<AppRPCType>({
       },
       runningEntryChanged: () => {
         queryClient.invalidateQueries({ queryKey: keys.runningEntry() });
+      },
+      // Watcher meldet eine externe oder eigene Vault-Änderung → die eine
+      // getTodoLists-Query neu laden (speist alle Smart-Views).
+      todosChanged: () => {
+        queryClient.invalidateQueries({ queryKey: keys.todos() });
       },
     },
   },
@@ -106,3 +113,17 @@ export const getTicketComments = (ticketId: number) => r.getTicketComments({ tic
 export const syncTicketComments = (ticketId: number) => r.syncTicketComments({ ticketId });
 export const getTicket = (ticketId: number) => r.getTicket({ ticketId });
 export const getGitlabImage = (url: string) => r.getGitlabImage({ url });
+
+// Todos (Markdown-Vault). ids sind flüchtig — addTodoTask gibt void zurück,
+// updateTodoTask deckt done ab (kein toggle-RPC).
+export const getTodoLists = () => r.getTodoLists({});
+export const createTodoList = (name: string) => r.createTodoList({ name });
+export const addTodoTask = (input: TodoTaskCreate) => r.addTodoTask(input);
+export const updateTodoTask = (patch: TodoTaskPatch) => r.updateTodoTask(patch);
+export const deleteTodoTask = (id: string, listId: string) => r.deleteTodoTask({ id, listId });
+export const moveTodoTask = (
+  id: string,
+  fromList: string,
+  toList: string,
+  toSection?: string | null,
+) => r.moveTodoTask({ id, fromList, toList, toSection });

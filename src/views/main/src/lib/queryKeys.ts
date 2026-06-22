@@ -30,6 +30,9 @@ export const keys = {
   deadEvents: () => ["deadEvents"] as const,
   backgroundStatus: () => ["backgroundStatus"] as const,
   settings: () => ["settings"] as const,
+  // Reiner Prefix ["todos"] (wie keys.entries()): EINE getTodoLists-Query speist
+  // alle Smart-Views, daher kein Argument. todosChanged invalidiert per Prefix.
+  todos: () => ["todos"] as readonly unknown[],
   // Letzter Sync-Status. triggerSync ist Fire-and-Forget — das Ergebnis kommt
   // asynchron über die syncCompleted/syncFailed-Events; hier zwischengespeichert,
   // damit die TicketsPage einen Sync-Fehler anzeigen kann.

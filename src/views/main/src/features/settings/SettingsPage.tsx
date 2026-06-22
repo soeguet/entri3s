@@ -24,11 +24,13 @@ export function SettingsPage() {
   const [intervalMin, setIntervalMin] = useState("5");
   const [token, setToken] = useState("");
   const [backupPath, setBackupPath] = useState("");
+  const [todoFolder, setTodoFolder] = useState("");
 
   useEffect(() => {
     if (settings.data) {
       setGitlabUrl(settings.data.gitlabUrl);
       setIntervalMin(String(Math.round(settings.data.syncIntervalSec / 60)));
+      setTodoFolder(settings.data.todoFolder);
     }
   }, [settings.data]);
 
@@ -38,9 +40,7 @@ export function SettingsPage() {
         await saveSettings({
           gitlabUrl: gitlabUrl.trim(),
           syncIntervalSec: Math.max(1, Number(intervalMin) || 5) * 60,
-          // Vorhandenen Wert durchreichen; die Todo-Ordner-Eingabe baut der
-          // Frontend-Subagent. Kein Verlust beim Speichern anderer Settings.
-          todoFolder: settings.data?.todoFolder ?? "",
+          todoFolder: todoFolder.trim(),
         }),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.settings() }),
@@ -128,6 +128,23 @@ export function SettingsPage() {
             <span className="text-sm text-danger-accent">{errorMessage(saveToken.error)}</span>
           ) : null}
         </div>
+      </div>
+
+      <div className="mt-6 space-y-4 rounded-lg border border-border bg-card p-5">
+        <h2 className="text-lg font-semibold">Todos</h2>
+        <div>
+          <Label htmlFor="s-todo-folder">Todo-Ordner</Label>
+          <Input
+            id="s-todo-folder"
+            value={todoFolder}
+            onChange={(e) => setTodoFolder(e.target.value)}
+            placeholder="z.B. .../Vault/todos"
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Dedizierter Vault-Unterordner: jede .md-Datei darin ist eine Liste. Leer = Todo-Modul
+          zeigt den Empty State. Mit dem Speichern-Button oben übernehmen.
+        </p>
       </div>
 
       <div className="mt-6 space-y-4 rounded-lg border border-border bg-card p-5">
