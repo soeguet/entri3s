@@ -5,7 +5,15 @@ import type { Entry, EntryFilter, EntryStatus } from "../../../../../shared/type
 import { getEntries, getTickets, getProjects, getTags, deleteEntry, bookEntry } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
-import { formatDuration, rangeForPreset, type RangePreset } from "../../lib/dates";
+import {
+  formatDuration,
+  rangeForPreset,
+  shiftDay,
+  singleDayBase,
+  todayBerlinYmd,
+  type RangePreset,
+} from "../../lib/dates";
+import { useHotkey } from "../../lib/useHotkey";
 import { buildFilterTree, resolveSelection } from "../../lib/filterTree";
 import { PageHeader } from "../../components/PageHeader";
 import { ErrorNote } from "../../components/ErrorNote";
@@ -138,6 +146,15 @@ export function EntriesPage() {
     setDuplicating(entry);
     setFormOpen(true);
   }
+  useHotkey("n", openCreate);
+  useHotkey(",", () => {
+    onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), -1));
+  });
+  useHotkey(".", () => {
+    onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1));
+  });
+  useHotkey("t", () => onDay(todayBerlinYmd()));
+
   function confirmDelete(entry: Entry) {
     if (window.confirm(`Entry #${entry.id} löschen?`)) remove.mutate(entry.id);
   }

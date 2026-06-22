@@ -18,6 +18,7 @@ export function DayNavigator(props: DayNavigatorProps) {
         size="icon"
         variant="outline"
         aria-label="Tag zurück"
+        title="Vorheriger Tag (,)"
         onClick={() => {
           props.onDay(shiftDay(singleDayBase(props.from, props.to, todayBerlinYmd()), -1));
         }}
@@ -36,13 +37,19 @@ export function DayNavigator(props: DayNavigatorProps) {
         size="icon"
         variant="outline"
         aria-label="Tag vor"
+        title="Nächster Tag (.)"
         onClick={() => {
           props.onDay(shiftDay(singleDayBase(props.from, props.to, todayBerlinYmd()), +1));
         }}
       >
         <ChevronRight className="h-4 w-4" />
       </Button>
-      <Button size="sm" variant="ghost" onClick={() => props.onDay(todayBerlinYmd())}>
+      <Button
+        size="sm"
+        variant="ghost"
+        title="Heute (t)"
+        onClick={() => props.onDay(todayBerlinYmd())}
+      >
         Heute
       </Button>
     </div>
