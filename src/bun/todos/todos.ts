@@ -1,4 +1,5 @@
-import { accessSync, constants, existsSync, statSync } from "node:fs";
+import { accessSync, constants, existsSync, mkdirSync, statSync } from "node:fs";
+import { dirname } from "node:path";
 import type { TodoList, TodoTaskCreate, TodoTaskPatch } from "../../shared/types";
 import type { Repository } from "../repository";
 import { appError } from "../lib/app-error";
@@ -28,7 +29,21 @@ export function createTodoService(repo: Repository) {
   function folder(): string {
     const dir = repo.settings.getAll().todoFolder.trim();
     if (!dir) throw appError("TODO_NO_FOLDER", "Kein Todo-Ordner konfiguriert.", false);
-    if (!existsSync(dir) || !statSync(dir).isDirectory()) {
+    // Ordner automatisch anlegen, aber NUR wenn der übergeordnete Ordner schon
+    // existiert. So vermeidet ein Tippfehler im Pfad (z.B. falsches Laufwerk)
+    // das versehentliche Anlegen eines tiefen, ungewollten Verzeichnisbaums.
+    if (!existsSync(dir)) {
+      const parent = dirname(dir);
+      if (!existsSync(parent) || !statSync(parent).isDirectory()) {
+        throw appError(
+          "TODO_NO_FOLDER",
+          "Übergeordneter Ordner existiert nicht – bitte Pfad prüfen.",
+          false,
+        );
+      }
+      mkdirSync(dir, { recursive: true });
+    }
+    if (!statSync(dir).isDirectory()) {
       throw appError("TODO_NO_FOLDER", "Todo-Ordner existiert nicht.", false);
     }
     try {
@@ -59,6 +74,12 @@ export function createTodoService(repo: Repository) {
   return {
     async getLists(): Promise<TodoList[]> {
       const dir = folder();
+      // "Inbox" anlegen, damit immer eine nutzbare Liste existiert (Todoist-
+      // Modell). Bewusst auch dann, wenn der Nutzer alle Listen gelöscht hat:
+      // ein leerer Todo-Ordner soll nie ohne Einstiegsliste dastehen.
+      if (listMd(dir).length === 0) {
+        writeContent(fileForList(dir, "Inbox"), "");
+      }
       const names = listMd(dir).sort((a, b) => a.localeCompare(b));
       return Promise.all(names.map((n) => loadList(dir, n)));
     },

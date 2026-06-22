@@ -1,5 +1,5 @@
 import { test, expect, beforeEach, afterEach } from "bun:test";
-import { mkdtempSync, rmSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createTestDb } from "../repository/test-helper";
@@ -23,6 +23,29 @@ afterEach(() => {
 test("TODO_NO_FOLDER when folder not configured", async () => {
   repo.settings.set("todoFolder", "");
   await expect(svc.getLists()).rejects.toMatchObject({ code: "TODO_NO_FOLDER" });
+});
+
+test("getLists seeds an Inbox list when the folder is empty", async () => {
+  const lists = await svc.getLists();
+  expect(lists.map((l) => l.name)).toEqual(["Inbox"]);
+  expect(existsSync(join(dir, "Inbox.md"))).toBe(true);
+});
+
+test("getLists auto-creates the folder when it is missing but parent exists", async () => {
+  const sub = join(dir, "vault");
+  expect(existsSync(sub)).toBe(false);
+  repo.settings.set("todoFolder", sub);
+  const lists = await svc.getLists();
+  expect(existsSync(sub)).toBe(true);
+  expect(lists.map((l) => l.name)).toEqual(["Inbox"]);
+});
+
+test("TODO_NO_FOLDER when parent of the folder does not exist", async () => {
+  const deep = join(dir, "nope", "vault");
+  repo.settings.set("todoFolder", deep);
+  await expect(svc.getLists()).rejects.toMatchObject({ code: "TODO_NO_FOLDER" });
+  expect(existsSync(deep)).toBe(false);
+  expect(existsSync(join(dir, "nope"))).toBe(false);
 });
 
 test("getLists parses files in folder", async () => {
