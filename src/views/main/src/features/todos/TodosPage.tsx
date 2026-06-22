@@ -17,6 +17,7 @@ import { TodoQuickAdd } from "./TodoQuickAdd";
 import { useTodoMutations } from "./useTodoMutations";
 import { smartViewFilter, smartViewCounts, type SmartView } from "./smartViewFilter";
 import { isNoFolderError } from "./todoError";
+import { TodoSearchDialog } from "./TodoSearchDialog";
 
 function EmptyState() {
   return (
@@ -46,6 +47,7 @@ export function TodosPage() {
   const [view, setView] = useState<SmartView>("today");
   const [selectedList, setSelectedList] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
   // key-Remount zum Leeren der Eingaben NACH erfolgreichem Add/CreateList.
   const [quickAddKey, setQuickAddKey] = useState(0);
   const quickAddRef = useRef<HTMLInputElement>(null);
@@ -107,6 +109,7 @@ export function TodosPage() {
     const t = selectedTask();
     if (t) onReschedule(t, reschedulePresetDate("tomorrow", today));
   });
+  useHotkey("f", () => setSearchOpen(true));
 
   useCommands([
     {
@@ -114,6 +117,12 @@ export function TodosPage() {
       label: "Aufgabe hinzufügen",
       section: "Todos",
       run: () => quickAddRef.current?.focus(),
+    },
+    {
+      id: "todos:search",
+      label: "Aufgabe suchen",
+      section: "Todos",
+      run: () => setSearchOpen(true),
     },
     {
       id: "todos:today",
@@ -214,6 +223,17 @@ export function TodosPage() {
           </div>
         </div>
       )}
+
+      <TodoSearchDialog
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        lists={lists.data ?? []}
+        onPick={(task) => {
+          setSelectedList(task.listId);
+          setSelectedId(task.id);
+          setSearchOpen(false);
+        }}
+      />
     </div>
   );
 }
