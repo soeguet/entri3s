@@ -408,6 +408,18 @@ export function createTicketRepository(db: Database) {
       db.run("UPDATE tickets SET comments_hash = ? WHERE id = ?", [hash, ticketId]);
     },
 
+    /** Distinct project_ids für eine Menge Ticket-IDs (Eingrenzung der Commit-Abfrage). */
+    projectIdsForTickets(ticketIds: number[]): number[] {
+      if (ticketIds.length === 0) return [];
+      const placeholders = ticketIds.map(() => "?").join(", ");
+      return db
+        .query<{ project_id: number }, number[]>(
+          `SELECT DISTINCT project_id FROM tickets WHERE id IN (${placeholders})`,
+        )
+        .all(...ticketIds)
+        .map((r) => r.project_id);
+    },
+
     /** Aktive gepinnte Tickets, jüngst gepinnte zuerst. */
     listPinned(): Ticket[] {
       const rows = db
