@@ -27,6 +27,7 @@ import { EntriesFiltersCompact } from "./EntriesFiltersCompact";
 import { loadCollapsed, saveCollapsed } from "./filterPrefs";
 import { DayNavigator } from "./DayNavigator";
 import { GapBanner } from "./GapBanner";
+import { EntrySearchDialog } from "./EntrySearchDialog";
 
 const TZ = "Europe/Berlin";
 
@@ -54,6 +55,7 @@ export function EntriesPage() {
     saveCollapsed(value);
   }
   const [quickEdit, setQuickEdit] = useState<{ entry: Entry; field: QuickEditField } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   function applyPreset(preset: RangePreset) {
     const range = rangeForPreset(preset);
@@ -155,6 +157,7 @@ export function EntriesPage() {
     onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1));
   });
   useHotkey("t", () => onDay(todayBerlinYmd()));
+  useHotkey("f", () => setSearchOpen(true));
 
   useCommands([
     { id: "entries:create", label: "Neuer Entry", section: "Entries", run: openCreate },
@@ -176,6 +179,13 @@ export function EntriesPage() {
       label: "Nächster Tag",
       section: "Entries",
       run: () => onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1)),
+    },
+    {
+      id: "entries:search",
+      label: "Entry suchen",
+      keywords: "find suche",
+      section: "Entries",
+      run: () => setSearchOpen(true),
     },
   ]);
 
@@ -284,6 +294,17 @@ export function EntriesPage() {
         entry={quickEdit?.entry ?? null}
         field={quickEdit?.field ?? null}
         onClose={() => setQuickEdit(null)}
+      />
+
+      <EntrySearchDialog
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        entries={allEntries.data ?? []}
+        ticketsById={ticketsById}
+        onPick={(entry) => {
+          setSearchOpen(false);
+          openEdit(entry);
+        }}
       />
     </div>
   );
