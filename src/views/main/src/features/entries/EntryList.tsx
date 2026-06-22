@@ -25,7 +25,8 @@ interface EntryListProps {
   onEdit: (entry: Entry) => void;
   onDelete: (entry: Entry) => void;
   onBook: (entry: Entry) => void;
-  onQuickEdit: (entry: Entry, field: QuickEditField) => void;
+  onQuickEdit: (entry: Entry, field: QuickEditField, anchor: HTMLElement) => void;
+  onDuplicate: (entry: Entry) => void;
 }
 
 const helper = createColumnHelper<Entry>();
@@ -105,6 +106,9 @@ export function EntryList(props: EntryListProps) {
             ) : null}
             <Button size="sm" variant="outline" onClick={() => props.onEdit(entry)}>
               Bearbeiten
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => props.onDuplicate(entry)}>
+              Duplizieren
             </Button>
             <Button size="sm" variant="ghost" onClick={() => props.onDelete(entry)}>
               Löschen

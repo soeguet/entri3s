@@ -5,7 +5,7 @@ import { getTags } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
 import type { FilterTreeNode } from "../../lib/filterTree";
-import { type RangePreset } from "../../lib/dates";
+import type { RangePreset } from "../../lib/dates";
 import { PanelLeftClose } from "lucide-react";
 import { Button } from "../../components/ui/button";
 import { Select } from "../../components/ui/select";

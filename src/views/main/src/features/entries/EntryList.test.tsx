@@ -21,6 +21,7 @@ test("rendert Entries mit Notiz und Status", () => {
       onDelete={noop}
       onBook={noop}
       onQuickEdit={noop}
+      onDuplicate={noop}
     />,
   );
   expect(screen.getByText(/15\.01\.2024\s*·\s*10:00\s*[-]\s*11:30/)).toBeInTheDocument();
@@ -38,6 +39,7 @@ test("zeigt die Tags-Spalte mit Tag-Namen", () => {
       onDelete={noop}
       onBook={noop}
       onQuickEdit={noop}
+      onDuplicate={noop}
     />,
   );
   // Header der neuen Spalte.
@@ -57,6 +59,7 @@ test("zeigt Buchen-Button nur für draft-Entry mit Ticket", () => {
       onDelete={noop}
       onBook={onBook}
       onQuickEdit={noop}
+      onDuplicate={noop}
     />,
   );
   // Fixtures: nur Entry 1 (draft + Ticket) ist buchbar.
@@ -74,6 +77,7 @@ test("zeigt Leermeldung ohne Entries", () => {
       onDelete={noop}
       onBook={noop}
       onQuickEdit={noop}
+      onDuplicate={noop}
     />,
   );
   expect(screen.getByText("Keine Entries.")).toBeInTheDocument();
@@ -89,6 +93,7 @@ test("zeigt Wochentag im Datum", () => {
       onDelete={noop}
       onBook={noop}
       onQuickEdit={noop}
+      onDuplicate={noop}
     />,
   );
   // Entry 1 + 2 liegen am 15.01.2024 (Montag) → mehrere Treffer erwartet.
@@ -108,6 +113,7 @@ test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
       onDelete={noop}
       onBook={noop}
       onQuickEdit={onQuickEdit}
+      onDuplicate={noop}
     />,
   );
   // Erste Tags-Zelle anklicken; robuste Assertion ohne Annahme über die Sortier-Reihenfolge.
@@ -115,6 +121,7 @@ test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
   expect(onQuickEdit).toHaveBeenCalledWith(
     expect.objectContaining({ id: expect.any(Number) }),
     "tags",
+    expect.any(HTMLElement),
   );
 });
 
@@ -128,6 +135,7 @@ test("gebuchte Zeile hat bg-success-surface", () => {
       onDelete={noop}
       onBook={noop}
       onQuickEdit={noop}
+      onDuplicate={noop}
     />,
   );
   // Zeile des gebuchten Eintrags (Entry 2) über das Status-Badge finden.

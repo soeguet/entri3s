@@ -132,6 +132,10 @@ export class FakeGitLabClient implements GitLabClient {
   createShouldThrow: Error | null = null;
   deleteShouldThrow: Error | null = null;
   commitsToReturn: GitLabCommit[] = [];
+  /** Zeichnet die an fetchCommits übergebenen projectIds auf (Tests). */
+  commitCalls: number[] = [];
+  /** Wenn true, löst fetchCommits nie auf (simuliert hängende Requests für Timeout-Tests). */
+  commitsHang = false;
   commentsToReturn: GitLabComment[] = [];
   nextTimelogId = 500;
   clearCurrentUserCacheCalls = 0;
@@ -196,11 +200,13 @@ export class FakeGitLabClient implements GitLabClient {
   }
 
   async fetchCommits(
-    _projectId: number,
+    projectId: number,
     _since: string,
     _until: string,
     _author: string,
   ): Promise<GitLabCommit[]> {
+    this.commitCalls.push(projectId);
+    if (this.commitsHang) return new Promise(() => {});
     return this.commitsToReturn;
   }
 

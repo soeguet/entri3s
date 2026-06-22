@@ -76,11 +76,32 @@ export function composeDateTime(
   return { date: start.toISOString(), durationMinutes: toMinutes(endTime) - toMinutes(startTime) };
 }
 
-export const emptyFormValues: EntryFormValues = {
-  date: formatInTimeZone(new Date(), TZ, "yyyy-MM-dd"),
-  startTime: "09:00",
-  endTime: "10:00",
-  notes: "",
-  tagIds: [],
-  ticketId: null,
-};
+/** Aktuelle Berlin-Zeit als "HH:mm", auf 5 Min gerundet, max 23:58 (nie 24:00). */
+export function roundedNowHHmm(now: Date = new Date()): string {
+  const rawMinutes = toMinutes(formatInTimeZone(now, TZ, "HH:mm"));
+  const rounded = Math.min(Math.round(rawMinutes / 5) * 5, 23 * 60 + 58);
+  return minutesToTime(rounded);
+}
+
+/** Addiert deltaMinutes auf "HH:mm", geclampt auf [00:00, 23:59]. */
+export function shiftHHmm(hhmm: string, deltaMinutes: number): string {
+  const total = Math.max(0, Math.min(toMinutes(hhmm) + deltaMinutes, 23 * 60 + 59));
+  return minutesToTime(total);
+}
+
+// Funktion statt Konstante: "jetzt" muss beim Öffnen ausgewertet werden,
+// nicht beim Modul-Import (sonst friert die Zeit auf den App-Start ein).
+export function makeEmptyFormValues(options?: { date?: string; now?: Date }): EntryFormValues {
+  const now = options?.now ?? new Date();
+  const date = options?.date ?? formatInTimeZone(now, TZ, "yyyy-MM-dd");
+  const startTime = roundedNowHHmm(now);
+  const endMinutes = Math.min(toMinutes(startTime) + 60, 23 * 60 + 59);
+  return {
+    date,
+    startTime,
+    endTime: minutesToTime(endMinutes),
+    notes: "",
+    tagIds: [],
+    ticketId: null,
+  };
+}

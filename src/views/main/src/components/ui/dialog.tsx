@@ -1,5 +1,6 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useId, type ReactNode } from "react";
 import { cn } from "../../lib/utils";
+import { useFocusTrap } from "./useFocusTrap";
 
 interface DialogProps {
   open: boolean;
@@ -18,6 +19,9 @@ const SIZE_CLASS: Record<NonNullable<DialogProps["size"]>, string> = {
 /** Schlichter, kontrollierter Modal-Dialog (Overlay + Box). */
 export function Dialog(props: DialogProps) {
   const onClose = props.onClose;
+  const titleId = useId();
+  const trapRef = useFocusTrap(props.open);
+
   // Esc schliesst den Dialog – fokus-unabhängig (global), damit das Wegklicken
   // auch funktioniert, wenn der Fokus nicht in einem Eingabefeld liegt.
   useEffect(() => {
@@ -36,13 +40,21 @@ export function Dialog(props: DialogProps) {
       onClick={props.onClose}
     >
       <div
+        ref={trapRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={props.title ? titleId : undefined}
         className={cn(
           "max-h-[90vh] w-full overflow-y-auto rounded-lg bg-card p-6 shadow-xl",
           SIZE_CLASS[props.size ?? "md"],
         )}
         onClick={(e) => e.stopPropagation()}
       >
-        {props.title ? <h2 className="mb-4 text-lg font-semibold">{props.title}</h2> : null}
+        {props.title ? (
+          <h2 id={titleId} className="mb-4 text-lg font-semibold">
+            {props.title}
+          </h2>
+        ) : null}
         {props.children}
       </div>
     </div>

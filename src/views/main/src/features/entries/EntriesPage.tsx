@@ -5,7 +5,16 @@ import type { Entry, EntryFilter, EntryStatus } from "../../../../../shared/type
 import { getEntries, getTickets, getProjects, getTags, deleteEntry, bookEntry } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
-import { formatDuration, rangeForPreset, type RangePreset } from "../../lib/dates";
+import {
+  formatDuration,
+  rangeForPreset,
+  shiftDay,
+  singleDayBase,
+  todayBerlinYmd,
+  type RangePreset,
+} from "../../lib/dates";
+import { useHotkey } from "../../lib/useHotkey";
+import { useCommands } from "../../lib/useCommand";
 import { buildFilterTree, resolveSelection } from "../../lib/filterTree";
 import { PageHeader } from "../../components/PageHeader";
 import { ErrorNote } from "../../components/ErrorNote";
@@ -16,7 +25,9 @@ import { EntryQuickEditDialog, type QuickEditField } from "./EntryQuickEditDialo
 import { EntriesFilters } from "./EntriesFilters";
 import { EntriesFiltersCompact } from "./EntriesFiltersCompact";
 import { loadCollapsed, saveCollapsed } from "./filterPrefs";
+import { DayNavigator } from "./DayNavigator";
 import { GapBanner } from "./GapBanner";
+import { EntrySearchDialog } from "./EntrySearchDialog";
 
 const TZ = "Europe/Berlin";
 
@@ -37,12 +48,18 @@ export function EntriesPage() {
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | undefined>(undefined);
+  const [duplicating, setDuplicating] = useState<Entry | undefined>(undefined);
   const [collapsed, setCollapsedState] = useState(() => loadCollapsed());
   function setCollapsed(value: boolean) {
     setCollapsedState(value);
     saveCollapsed(value);
   }
-  const [quickEdit, setQuickEdit] = useState<{ entry: Entry; field: QuickEditField } | null>(null);
+  const [quickEdit, setQuickEdit] = useState<{
+    entry: Entry;
+    field: QuickEditField;
+    anchor: HTMLElement;
+  } | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
 
   function applyPreset(preset: RangePreset) {
     const range = rangeForPreset(preset);
@@ -57,6 +74,11 @@ export function EntriesPage() {
   }
   function toggleTag(id: number) {
     setSelectedTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
+  }
+  function onDay(day: string) {
+    setFrom(day);
+    setTo(day);
+    setActivePreset(null);
   }
 
   const tickets = useQuery({
@@ -118,15 +140,64 @@ export function EntriesPage() {
 
   function openCreate() {
     setEditing(undefined);
+    setDuplicating(undefined);
     setFormOpen(true);
   }
   function openEdit(entry: Entry) {
     setEditing(entry);
+    setDuplicating(undefined);
     setFormOpen(true);
   }
+  function openDuplicate(entry: Entry) {
+    setEditing(undefined);
+    setDuplicating(entry);
+    setFormOpen(true);
+  }
+  useHotkey("n", openCreate);
+  useHotkey(",", () => {
+    onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), -1));
+  });
+  useHotkey(".", () => {
+    onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1));
+  });
+  useHotkey("t", () => onDay(todayBerlinYmd()));
+  useHotkey("f", () => setSearchOpen(true));
+
+  useCommands([
+    { id: "entries:create", label: "Neuer Entry", section: "Entries", run: openCreate },
+    { id: "entries:today", label: "Heute", section: "Entries", run: () => onDay(todayBerlinYmd()) },
+    {
+      id: "entries:clear-filter",
+      label: "Filter zurücksetzen",
+      section: "Entries",
+      run: clearRange,
+    },
+    {
+      id: "entries:prev-day",
+      label: "Vorheriger Tag",
+      section: "Entries",
+      run: () => onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), -1)),
+    },
+    {
+      id: "entries:next-day",
+      label: "Nächster Tag",
+      section: "Entries",
+      run: () => onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1)),
+    },
+    {
+      id: "entries:search",
+      label: "Entry suchen",
+      keywords: "find suche",
+      section: "Entries",
+      run: () => setSearchOpen(true),
+    },
+  ]);
+
   function confirmDelete(entry: Entry) {
     if (window.confirm(`Entry #${entry.id} löschen?`)) remove.mutate(entry.id);
   }
+
+  const filteredDay = from && from === to ? from : undefined;
 
   return (
     <div>
@@ -179,6 +250,7 @@ export function EntriesPage() {
         )}
 
         <div className="min-w-0 flex-1">
+          <DayNavigator from={from} to={to} onDay={onDay} />
           <GapBanner />
 
           {book.isError ? <ErrorNote error={book.error} className="mb-3" /> : null}
@@ -204,7 +276,8 @@ export function EntriesPage() {
                 onEdit={openEdit}
                 onDelete={confirmDelete}
                 onBook={(entry) => book.mutate(entry.id)}
-                onQuickEdit={(entry, field) => setQuickEdit({ entry, field })}
+                onQuickEdit={(entry, field, anchor) => setQuickEdit({ entry, field, anchor })}
+                onDuplicate={openDuplicate}
               />
             </>
           )}
@@ -212,13 +285,31 @@ export function EntriesPage() {
       </div>
 
       {formOpen ? (
-        <EntryForm open={formOpen} onClose={() => setFormOpen(false)} entry={editing} />
+        <EntryForm
+          open={formOpen}
+          onClose={() => setFormOpen(false)}
+          entry={editing}
+          duplicateFrom={duplicating}
+          defaultDate={filteredDay}
+        />
       ) : null}
 
       <EntryQuickEditDialog
         entry={quickEdit?.entry ?? null}
         field={quickEdit?.field ?? null}
+        anchor={quickEdit?.anchor ?? null}
         onClose={() => setQuickEdit(null)}
+      />
+
+      <EntrySearchDialog
+        open={searchOpen}
+        onClose={() => setSearchOpen(false)}
+        entries={allEntries.data ?? []}
+        ticketsById={ticketsById}
+        onPick={(entry) => {
+          setSearchOpen(false);
+          openEdit(entry);
+        }}
       />
     </div>
   );

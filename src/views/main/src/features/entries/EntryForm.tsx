@@ -19,7 +19,6 @@ import { unwrap, errorMessage } from "../../lib/errors";
 import { parsePayload } from "../../lib/templatePayload";
 import { Dialog } from "../../components/ui/dialog";
 import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
 import { Label } from "../../components/ui/label";
 import { Textarea } from "../../components/ui/textarea";
 import { Select } from "../../components/ui/select";
@@ -27,25 +26,33 @@ import { TicketPicker } from "./TicketPicker";
 import { CommitPicker } from "./CommitPicker";
 import {
   entrySchema,
-  emptyFormValues,
+  makeEmptyFormValues,
   toEntryCreate,
   toFormValues,
-  previewDurationMinutes,
   type EntryFormValues,
 } from "./entrySchema";
-import { formatDuration, roundUpToQuarterHour } from "../../lib/dates";
+import { EntryDateTimeFields } from "./EntryDateTimeFields";
 
 interface EntryFormProps {
   open: boolean;
   onClose: () => void;
   entry?: Entry;
+  duplicateFrom?: Entry;
+  defaultDate?: string;
 }
 
 export function EntryForm(props: EntryFormProps) {
   const qc = useQueryClient();
   const form = useForm<EntryFormValues>({
     resolver: zodResolver(entrySchema),
-    defaultValues: props.entry ? toFormValues(props.entry) : emptyFormValues,
+    defaultValues: props.entry
+      ? toFormValues(props.entry)
+      : props.duplicateFrom
+        ? {
+            ...toFormValues(props.duplicateFrom),
+            date: props.defaultDate ?? toFormValues(props.duplicateFrom).date,
+          }
+        : makeEmptyFormValues({ date: props.defaultDate }),
   });
 
   const tags = useQuery({ queryKey: keys.tags(), queryFn: async () => unwrap(await getTags()) });
@@ -111,8 +118,6 @@ export function EntryForm(props: EntryFormProps) {
   const selectedTags = form.watch("tagIds");
   const ticketId = form.watch("ticketId");
 
-  const previewMinutes = previewDurationMinutes(form.watch("startTime"), form.watch("endTime"));
-
   const selectedTicket =
     ticketId === null ? null : ((tickets.data ?? []).find((t) => t.id === ticketId) ?? null);
   function projectName(id: number): string {
@@ -162,7 +167,17 @@ export function EntryForm(props: EntryFormProps) {
           onCancel={() => setPicking(false)}
         />
       ) : (
-        <form className="space-y-4" onSubmit={form.handleSubmit((v) => mutation.mutate(v))}>
+        <form
+          className="space-y-4"
+          onSubmit={form.handleSubmit((v) => mutation.mutate(v))}
+          onKeyDown={(e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+              e.preventDefault();
+              if (mutation.isPending) return;
+              form.handleSubmit((v) => mutation.mutate(v))();
+            }
+          }}
+        >
           {!props.entry && (templates.data ?? []).length > 0 ? (
             <div>
               <Label htmlFor="template">Template anwenden</Label>
@@ -177,41 +192,7 @@ export function EntryForm(props: EntryFormProps) {
             </div>
           ) : null}
 
-          <div className="grid grid-cols-3 gap-3">
-            <div>
-              <Label htmlFor="date">Datum</Label>
-              <Input id="date" type="date" {...form.register("date")} />
-            </div>
-            <div>
-              <Label htmlFor="startTime">Start</Label>
-              <Input id="startTime" type="time" {...form.register("startTime")} />
-            </div>
-            <div>
-              <Label htmlFor="endTime">Ende</Label>
-              <Input id="endTime" type="time" {...form.register("endTime")} />
-            </div>
-          </div>
-          <FieldError message={form.formState.errors.endTime?.message} />
-          <FieldError message={form.formState.errors.startTime?.message} />
-
-          <p className="text-sm text-muted-foreground">
-            {previewMinutes === null ? (
-              <span className="text-muted-foreground">Dauer: –</span>
-            ) : (
-              <>
-                Dauer:{" "}
-                <span className="font-medium text-foreground">
-                  {formatDuration(previewMinutes)}
-                </span>
-                {roundUpToQuarterHour(previewMinutes) !== previewMinutes ? (
-                  <span className="text-muted-foreground">
-                    {" "}
-                    → {formatDuration(roundUpToQuarterHour(previewMinutes))} gebucht
-                  </span>
-                ) : null}
-              </>
-            )}
-          </p>
+          <EntryDateTimeFields form={form} />
 
           <div>
             <Label htmlFor="notes">Notizen</Label>
@@ -290,9 +271,4 @@ export function EntryForm(props: EntryFormProps) {
       )}
     </Dialog>
   );
-}
-
-function FieldError(props: { message?: string }) {
-  if (!props.message) return null;
-  return <p className="mt-1 text-xs text-danger-accent">{props.message}</p>;
 }

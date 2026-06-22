@@ -86,6 +86,25 @@ function startOfWeek(date: Date): Date {
   return addDays(date, -((dow + 6) % 7));
 }
 
+/**
+ * Bestimmt die Basis für die Pfeil-Navigation (‹/›) im Tagesfilter.
+ * Einzeltag (from===to, gesetzt) → dieser Tag; sonst from falls gesetzt;
+ * sonst to falls gesetzt; sonst today. Leere Strings fallen durch (||-Semantik).
+ */
+export function singleDayBase(from: string, to: string, today: string): string {
+  return (from && from === to ? from : "") || from || to || today;
+}
+
+/** Verschiebt ein yyyy-MM-dd um delta Kalendertage (positiv = vorwärts). */
+export function shiftDay(ymd: string, delta: number): string {
+  return utcToYmd(addDays(ymdToUtc(ymd), delta));
+}
+
+/** Heutiges Datum in Europe/Berlin als yyyy-MM-dd (öffentlicher Wrapper). */
+export function todayBerlinYmd(now: Date = new Date()): string {
+  return berlinTodayYmd(now);
+}
+
 /** Datumsbereich (yyyy-MM-dd) für ein Preset, Anker ist heute in Berlin. */
 export function rangeForPreset(preset: RangePreset, now: Date = new Date()): DateRange {
   const today = ymdToUtc(berlinTodayYmd(now));
