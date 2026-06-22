@@ -5,6 +5,7 @@ import { DailyProgress } from "../features/entries/DailyProgress";
 import { BackgroundStatusWidget } from "../features/background/BackgroundStatusWidget";
 import { RunningTimerWidget } from "../features/entries/RunningTimerWidget";
 import { Toaster } from "../components/ui/toaster";
+import { CommandPalette } from "../features/command/CommandPalette";
 
 const NAV: Array<{ to: string; label: string; icon: ComponentType<{ className?: string }> }> = [
   { to: "/entries", label: "Entries", icon: Clock },
@@ -47,6 +48,7 @@ function RootLayout() {
       </main>
 
       <Toaster />
+      <CommandPalette />
     </div>
   );
 }

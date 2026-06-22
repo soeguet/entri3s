@@ -14,6 +14,7 @@ import {
   type RangePreset,
 } from "../../lib/dates";
 import { useHotkey } from "../../lib/useHotkey";
+import { useCommands } from "../../lib/useCommand";
 import { buildFilterTree, resolveSelection } from "../../lib/filterTree";
 import { PageHeader } from "../../components/PageHeader";
 import { ErrorNote } from "../../components/ErrorNote";
@@ -154,6 +155,29 @@ export function EntriesPage() {
     onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1));
   });
   useHotkey("t", () => onDay(todayBerlinYmd()));
+
+  useCommands([
+    { id: "entries:create", label: "Neuer Entry", section: "Entries", run: openCreate },
+    { id: "entries:today", label: "Heute", section: "Entries", run: () => onDay(todayBerlinYmd()) },
+    {
+      id: "entries:clear-filter",
+      label: "Filter zurücksetzen",
+      section: "Entries",
+      run: clearRange,
+    },
+    {
+      id: "entries:prev-day",
+      label: "Vorheriger Tag",
+      section: "Entries",
+      run: () => onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), -1)),
+    },
+    {
+      id: "entries:next-day",
+      label: "Nächster Tag",
+      section: "Entries",
+      run: () => onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1)),
+    },
+  ]);
 
   function confirmDelete(entry: Entry) {
     if (window.confirm(`Entry #${entry.id} löschen?`)) remove.mutate(entry.id);
