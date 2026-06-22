@@ -5,6 +5,7 @@ import {
   createTodoList,
   deleteTodoTask,
   moveTodoTask,
+  reorderTodoTask,
   updateTodoTask,
 } from "../../api";
 import { keys } from "../../lib/queryKeys";
@@ -49,11 +50,18 @@ export function useTodoMutations() {
     meta: { silentError: true },
   });
 
+  const reorder = useMutation({
+    mutationFn: async (vars: { listId: string; id: string; targetId: string; before: boolean }) =>
+      unwrap(await reorderTodoTask(vars.listId, vars.id, vars.targetId, vars.before)),
+    onSuccess: invalidate,
+    meta: { silentError: true },
+  });
+
   const createList = useMutation({
     mutationFn: async (name: string) => unwrap(await createTodoList(name)),
     onSuccess: invalidate,
     meta: { silentError: true },
   });
 
-  return { add, update, remove, move, createList };
+  return { add, update, remove, move, reorder, createList };
 }

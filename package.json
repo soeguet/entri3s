@@ -14,6 +14,9 @@
     "build:stable": "electrobun build --env=stable && bun run scripts/embed-win-icon.ts"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@hookform/resolvers": "^5.4.0",
     "@tanstack/react-query": "^5.101.0",
     "@tanstack/react-router": "^1.170.15",

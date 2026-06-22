@@ -1,5 +1,7 @@
 import { useRef, useState } from "react";
-import { Calendar, FolderInput, Repeat } from "lucide-react";
+import { useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { Calendar, FolderInput, GripVertical, Repeat } from "lucide-react";
 import type { TodoTask } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
@@ -10,6 +12,10 @@ import { todoErrorMessage } from "./todoError";
 interface TodoRowProps {
   task: TodoTask;
   selected: boolean;
+  // true in der konkreten Listenansicht: zeigt einen Drag-Handle und macht die
+  // Zeile per @dnd-kit sortierbar. false (Default) in Smart-Views — heutiges
+  // Verhalten unverändert.
+  sortable?: boolean;
   // ALLE Listennamen (inkl. der aktuellen) — zum Anbieten der Verschiebe-Ziele.
   listNames: string[];
   onSelect: () => void;
@@ -41,6 +47,14 @@ export function TodoRow(props: TodoRowProps) {
   const dateBtnRef = useRef<HTMLButtonElement>(null);
   const moveBtnRef = useRef<HTMLButtonElement>(null);
 
+  // useSortable wird immer aufgerufen (Hook-Regel), aber transform/listeners nur
+  // angewandt, wenn props.sortable. In Smart-Views (sortable=false) bleibt die
+  // Zeile dadurch exakt wie bisher.
+  const sortable = useSortable({ id: props.task.id });
+  const sortableStyle = props.sortable
+    ? { transform: CSS.Transform.toString(sortable.transform), transition: sortable.transition }
+    : undefined;
+
   // Verschiebe-Ziele: alle Listen außer der aktuellen. Button nur zeigen, wenn
   // es überhaupt eine andere Liste gibt.
   const moveTargets = props.listNames.filter((n) => n !== props.task.listId);
@@ -63,15 +77,33 @@ export function TodoRow(props: TodoRowProps) {
 
   return (
     <div
+      ref={props.sortable ? sortable.setNodeRef : undefined}
       role="listitem"
       aria-selected={props.selected}
       onClick={props.onSelect}
-      style={{ paddingLeft: `${props.task.depth * 1.5 + 0.75}rem` }}
+      style={{ paddingLeft: `${props.task.depth * 1.5 + 0.75}rem`, ...sortableStyle }}
       className={cn(
         "flex items-center gap-2 border-b border-border py-1.5 pr-3 text-sm",
         props.selected && "bg-muted",
+        props.sortable && sortable.isDragging && "opacity-50",
       )}
     >
+      {props.sortable ? (
+        <button
+          ref={sortable.setActivatorNodeRef}
+          type="button"
+          aria-label="Aufgabe umsortieren"
+          // attributes/listeners NUR am Handle — sonst kollidiert der Drag mit
+          // Checkbox, Inline-Edit und Verschiebe-Button der Zeile.
+          {...sortable.attributes}
+          {...sortable.listeners}
+          onClick={(e) => e.stopPropagation()}
+          className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground hover:text-foreground"
+        >
+          <GripVertical className="h-4 w-4" />
+        </button>
+      ) : null}
+
       <input
         type="checkbox"
         checked={props.task.done}

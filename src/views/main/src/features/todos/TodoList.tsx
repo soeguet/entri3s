@@ -10,6 +10,8 @@ interface TodoListProps {
   selectedId: string | null;
   // ALLE Listennamen — für das Verschiebe-Menü in der Zeile.
   listNames: string[];
+  // true nur in der konkreten Listenansicht (nicht in Smart-Views): aktiviert DnD.
+  reorderable: boolean;
   errorTaskId: string | null;
   error: unknown;
   onSelect: (id: string) => void;
@@ -17,6 +19,7 @@ interface TodoListProps {
   onRename: (task: TodoTask, title: string) => void;
   onReschedule: (task: TodoTask, due: string | null) => void;
   onMove: (task: TodoTask, toList: string) => void;
+  onReorder: (activeId: string, targetId: string, before: boolean) => void;
 }
 
 // Gruppiert Tasks nach Sektion (definierte Reihenfolge zuerst, dann unbekannte
@@ -51,6 +54,7 @@ export function TodoList(props: TodoListProps) {
           tasks={tasks}
           selectedId={props.selectedId}
           listNames={props.listNames}
+          reorderable={props.reorderable}
           errorTaskId={props.errorTaskId}
           error={props.error}
           onSelect={props.onSelect}
@@ -58,6 +62,7 @@ export function TodoList(props: TodoListProps) {
           onRename={props.onRename}
           onReschedule={props.onReschedule}
           onMove={props.onMove}
+          onReorder={props.onReorder}
         />
       ))}
     </div>

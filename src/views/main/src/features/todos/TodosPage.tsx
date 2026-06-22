@@ -79,6 +79,12 @@ export function TodosPage() {
   function onMove(task: TodoTask, toList: string) {
     mut.move.mutate({ id: task.id, fromList: task.listId, toList });
   }
+  // DnD-Umsortieren nur in der konkreten Listenansicht (selectedList gesetzt),
+  // nicht in Smart-Views — dort gibt es keine stabile, listengebundene Reihenfolge.
+  const reorderable = selectedList !== null;
+  function onReorder(activeId: string, targetId: string, before: boolean) {
+    if (selectedList) mut.reorder.mutate({ listId: selectedList, id: activeId, targetId, before });
+  }
 
   // Eingaben leeren, sobald Add/CreateList durchläuft (Remount via key).
   useEffect(() => {
@@ -218,6 +224,7 @@ export function TodosPage() {
                 sections={sections}
                 selectedId={selectedId}
                 listNames={listNames}
+                reorderable={reorderable}
                 errorTaskId={errorTaskId}
                 error={mut.update.error}
                 onSelect={setSelectedId}
@@ -225,6 +232,7 @@ export function TodosPage() {
                 onRename={onRename}
                 onReschedule={onReschedule}
                 onMove={onMove}
+                onReorder={onReorder}
               />
             )}
           </div>

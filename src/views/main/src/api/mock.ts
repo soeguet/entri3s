@@ -429,6 +429,21 @@ export const moveTodoTask = (
   return ok(undefined as void);
 };
 
+// Vereinfachung: nur eine flache Array-Umsortierung der Task innerhalb der Liste.
+// Subtask-/Block-Verschiebung (mitziehen der Kinder) macht der Mock NICHT — das
+// echte Backend behandelt Blöcke korrekt; für die Dev-Ansicht reicht das Flache.
+export const reorderTodoTask = (listId: string, id: string, targetId: string, before: boolean) => {
+  const list = store.todos.find((l) => l.id === listId);
+  const task = list?.tasks.find((t) => t.id === id);
+  if (!list || !task) return fail<void>("TODO_CONFLICT", "Aufgabe nicht gefunden");
+  const rest = list.tasks.filter((t) => t.id !== id);
+  const targetIdx = rest.findIndex((t) => t.id === targetId);
+  if (targetIdx === -1) return fail<void>("TODO_CONFLICT", "Zielaufgabe nicht gefunden");
+  const insertAt = before ? targetIdx : targetIdx + 1;
+  list.tasks = [...rest.slice(0, insertAt), task, ...rest.slice(insertAt)];
+  return ok(undefined as void);
+};
+
 export const getCommitsForDate = (_date: string): Promise<RpcResponse<Commit[]>> =>
   ok([
     {

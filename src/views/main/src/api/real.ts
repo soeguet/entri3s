@@ -127,3 +127,5 @@ export const moveTodoTask = (
   toList: string,
   toSection?: string | null,
 ) => r.moveTodoTask({ id, fromList, toList, toSection });
+export const reorderTodoTask = (listId: string, id: string, targetId: string, before: boolean) =>
+  r.reorderTodoTask({ listId, id, targetId, before });
