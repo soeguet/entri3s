@@ -1,6 +1,7 @@
 import { useRef, useState, type ReactNode } from "react";
 import { Search } from "lucide-react";
 import { cn } from "../lib/utils";
+import { SectionHeader } from "./SectionHeader";
 
 export interface CommandListItem {
   id: string;
@@ -93,11 +94,7 @@ export function CommandList(props: CommandListProps) {
       <div ref={listRef} className="max-h-[55vh] overflow-y-auto">
         {filtered.map((section) => (
           <div key={section.label ?? "__default"}>
-            {section.label ? (
-              <p className="px-3 pb-0.5 pt-2 font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
-                {section.label}
-              </p>
-            ) : null}
+            {section.label ? <SectionHeader>{section.label}</SectionHeader> : null}
             {section.items.map((item) => {
               const here = idx++;
               return (

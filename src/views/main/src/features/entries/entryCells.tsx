@@ -1,6 +1,7 @@
 import type { Entry, Tag, Ticket } from "../../../../../shared/types";
 import { formatWeekday, formatDate, formatTime, formatEndTime } from "../../lib/dates";
 import { cn } from "../../lib/utils";
+import { Tooltip } from "../../components/ui/tooltip";
 import type { QuickEditField } from "./EntryQuickEditDialog";
 
 const cellBtn = "cursor-pointer rounded px-1 text-left hover:bg-muted";
@@ -53,11 +54,12 @@ interface TicketCellProps {
 
 /** Ticket-Zelle als Klick-Trigger fürs Ticket-Quick-Edit. */
 export function TicketCell(props: TicketCellProps) {
-  const iids = props.entry.ticketIds
+  const tickets = props.entry.ticketIds
     .map((id) => props.ticketsById.get(id))
-    .filter((t): t is Ticket => Boolean(t))
-    .map((t) => `#${t.gitlabIid}`);
-  return (
+    .filter((t): t is Ticket => Boolean(t));
+  const iids = tickets.map((t) => `#${t.gitlabIid}`);
+
+  const button = (
     <button
       type="button"
       aria-label="Ticket bearbeiten"
@@ -66,6 +68,20 @@ export function TicketCell(props: TicketCellProps) {
     >
       {iids.length > 0 ? iids.join(", ") : <span className="text-muted-foreground">–</span>}
     </button>
+  );
+
+  if (tickets.length === 0) return button;
+
+  return (
+    <Tooltip
+      content={tickets.map((t) => (
+        <div key={t.id}>
+          #{t.gitlabIid} {t.title}
+        </div>
+      ))}
+    >
+      {button}
+    </Tooltip>
   );
 }
 

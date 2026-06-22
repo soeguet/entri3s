@@ -9,6 +9,7 @@ import {
   Filter,
   FolderTree,
   History,
+  Infinity as InfinityIcon,
   List,
   PanelLeftOpen,
   Pencil,
@@ -95,6 +96,15 @@ export function EntriesFiltersCompact(props: EntriesFiltersCompactProps) {
       <Separator />
 
       <div className="flex flex-col items-center gap-1.5">
+        <Button
+          variant={props.from === "" && props.to === "" ? "default" : "outline"}
+          size="icon"
+          title="Alle"
+          aria-label="Alle"
+          onClick={props.onClearRange}
+        >
+          <InfinityIcon className="h-4 w-4" />
+        </Button>
         {PRESETS.map((preset, i) => {
           const Icon = PRESET_ICONS[preset.key];
           const active = props.activePreset === preset.key;

@@ -6,6 +6,7 @@ import { BackgroundStatusWidget } from "../features/background/BackgroundStatusW
 import { RunningTimerWidget } from "../features/entries/RunningTimerWidget";
 import { Toaster } from "../components/ui/toaster";
 import { CommandPalette } from "../features/command/CommandPalette";
+import { TicketSearchLauncher } from "../features/tickets/TicketSearchLauncher";
 
 const NAV: Array<{ to: string; label: string; icon: ComponentType<{ className?: string }> }> = [
   { to: "/entries", label: "Entries", icon: Clock },
@@ -49,6 +50,7 @@ function RootLayout() {
 
       <Toaster />
       <CommandPalette />
+      <TicketSearchLauncher />
     </div>
   );
 }
