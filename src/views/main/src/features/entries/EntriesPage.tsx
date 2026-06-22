@@ -59,6 +59,11 @@ export function EntriesPage() {
   function toggleTag(id: number) {
     setSelectedTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
   }
+  function onDay(day: string) {
+    setFrom(day);
+    setTo(day);
+    setActivePreset(null);
+  }
 
   const tickets = useQuery({
     queryKey: keys.tickets(),
@@ -178,6 +183,7 @@ export function EntriesPage() {
               setTo(v);
               setActivePreset(null);
             }}
+            onDay={onDay}
             onClearRange={clearRange}
             selectedTagIds={selectedTagIds}
             onToggleTag={toggleTag}
