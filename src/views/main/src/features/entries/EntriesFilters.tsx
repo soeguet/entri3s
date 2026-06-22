@@ -86,6 +86,13 @@ export function EntriesFilters(props: EntriesFiltersProps) {
       <div>
         <p className="mb-1 text-sm font-medium">Zeitraum</p>
         <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            variant={props.from === "" && props.to === "" ? "default" : "outline"}
+            onClick={props.onClearRange}
+          >
+            Alle
+          </Button>
           {PRESETS.map((preset) => (
             <Button
               key={preset.key}
@@ -96,11 +103,6 @@ export function EntriesFilters(props: EntriesFiltersProps) {
               {preset.label}
             </Button>
           ))}
-          {props.from || props.to ? (
-            <Button size="sm" variant="ghost" onClick={props.onClearRange}>
-              Zurücksetzen
-            </Button>
-          ) : null}
         </div>
         <div className="mt-2 flex gap-2">
           <div className="flex-1">

@@ -40,10 +40,11 @@ function dayEnd(date: string): string {
 
 export function EntriesPage() {
   const qc = useQueryClient();
+  const initialRange = rangeForPreset("today");
   const [status, setStatus] = useState<EntryStatus | "">("");
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
-  const [activePreset, setActivePreset] = useState<RangePreset | null>(null);
+  const [from, setFrom] = useState(initialRange.from);
+  const [to, setTo] = useState(initialRange.to);
+  const [activePreset, setActivePreset] = useState<RangePreset | null>("today");
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([]);
   const [selectedNodes, setSelectedNodes] = useState<Set<string>>(new Set());
   const [formOpen, setFormOpen] = useState(false);
