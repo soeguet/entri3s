@@ -1,7 +1,7 @@
 import type { TicketComment } from "../../../../../shared/types";
 import { formatDateTime } from "../../lib/dates";
-import { renderGitlabHtml } from "../../lib/gitlabHtml";
 import { Badge } from "../../components/ui/badge";
+import { GitlabContent } from "./GitlabContent";
 
 interface CommentItemProps {
   comment: TicketComment;
@@ -23,26 +23,35 @@ export function CommentItem(props: CommentItemProps) {
   }
 
   const card = props.isNew
-    ? "rounded border border-border bg-card p-3 border-l-4 border-l-info-accent pl-3"
-    : "rounded border border-border bg-card p-3";
+    ? "rounded-lg border border-border bg-card p-3 border-l-4 border-l-info-accent"
+    : "rounded-lg border border-border bg-card p-3";
   // Replies bekommen eine linke Einrückung + dezenten Rand als Connector, damit
   // klar erkennbar ist: Antwort auf den darüberliegenden Kommentar.
   const wrapper = props.isReply ? `ml-6 border-l-2 border-border pl-3 ${card}` : card;
 
   return (
     <div className={wrapper}>
-      <div className="mb-1 flex flex-wrap items-center gap-2 text-sm">
+      <div className="mb-2 flex items-center gap-2 text-sm">
+        <span
+          title={`${props.comment.authorName} (@${props.comment.authorUsername})`}
+          className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] font-medium text-muted-foreground"
+        >
+          {commentInitials(props.comment.authorName)}
+        </span>
         <span className="font-medium text-foreground">{props.comment.authorName}</span>
         <span className="text-muted-foreground">@{props.comment.authorUsername}</span>
-        <span className="text-muted-foreground">{formatDateTime(props.comment.createdAt)}</span>
+        <span className="text-muted-foreground">· {formatDateTime(props.comment.createdAt)}</span>
         {props.isNew ? <Badge variant="secondary">Neu</Badge> : null}
       </div>
-      {/* Bewusst KEIN Sanitizing — lokale Single-User-App, HTML kommt vom eigenen GitLab.
-          renderGitlabHtml entpackt <gl-emoji> in den Unicode-Fallback (sonst unsichtbar). */}
-      <div
-        className="gitlab-content"
-        dangerouslySetInnerHTML={{ __html: renderGitlabHtml(props.comment.bodyHtml) }}
-      />
+      <GitlabContent html={props.comment.bodyHtml} />
     </div>
   );
+}
+
+/** Initialen aus dem Anzeigenamen (max. 2 Zeichen) — gleiche Logik wie AssigneeCell. */
+function commentInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  const first = parts[0]?.[0] ?? "";
+  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
+  return (first + last).toUpperCase() || "?";
 }

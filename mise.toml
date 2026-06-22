@@ -23,7 +23,26 @@ run = "bun run electrobun dev"
 [tasks.build]
 description = "Production Build"
 depends = ["build-fe"]
-run = "bun run electrobun build"
+run = """
+bun run electrobun build
+bun run scripts/embed-win-icon.ts
+"""
+
+[tasks.build-stable]
+description = "Production Build (stable env) inkl. Windows-Icon-Embedding"
+depends = ["build-fe"]
+run = """
+bun run electrobun build --env=stable
+bun run scripts/embed-win-icon.ts
+"""
+
+[tasks.build-canary]
+description = "Production Build (canary env) inkl. Windows-Icon-Embedding"
+depends = ["build-fe"]
+run = """
+bun run electrobun build --env=canary
+bun run scripts/embed-win-icon.ts
+"""
 
 [tasks.test-bun]
 description = "Bun Tests für Main Process"

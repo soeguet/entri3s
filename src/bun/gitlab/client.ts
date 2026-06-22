@@ -7,6 +7,7 @@ import { fetchCommits as restFetchCommits } from "./commits";
 import { fetchIssues as gqlFetchIssues, fetchProjects as gqlFetchProjects } from "./graphql";
 import { fetchTicketComments as commentsFetch } from "./comments";
 import { createTimelog, findTimelog, deleteTimelog } from "./timelog";
+import { resolveUploadUrl, projectUploadApiPath } from "./upload";
 
 const log = createLogger("gitlab");
 
@@ -192,6 +193,66 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
     return cachedCurrentUser;
   }
 
+  /**
+   * Wirft, wenn der Upload als HTML statt als Bild zurückkommt. Die
+   * Web-Namespace-Route ignoriert den Token und liefert die Login-Seite —
+   * ohne diese Prüfung würde die HTML-Sign-in-Seite als „Bild" gerendert.
+   */
+  function assertNotHtml(contentType: string, src: string): void {
+    if (contentType.toLowerCase().startsWith("text/html")) {
+      throw new AppErrorError({
+        code: "AUTH_FAILED",
+        message: `Upload nicht abrufbar — vermutlich Auth/Token-Problem (HTML statt Bild erhalten): ${src}`,
+        retry: false,
+      });
+    }
+  }
+
+  /**
+   * Lädt eine GitLab-Upload-Datei (Bild) und liefert sie base64-kodiert.
+   * Projekt-Uploads (interne `data-src`-Form `/-/project/<id>/uploads/...`)
+   * laufen über die token-authentifizierte REST-API (`apiRequest`), weil die
+   * Web-Namespace-Route den PRIVATE-TOKEN ignoriert. Alle anderen Uploads
+   * (z. B. `/uploads/-/system/...`) fallen auf den same-origin-Direkt-Fetch
+   * zurück. Beide Pfade schützen via `assertNotHtml` gegen die Login-Seite.
+   */
+  async function fetchUpload(src: string): Promise<{ contentType: string; base64: string }> {
+    const apiPath = projectUploadApiPath(src);
+    if (apiPath !== null) {
+      const res = await apiRequest(apiPath);
+      const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+      assertNotHtml(contentType, src);
+      const buf = await res.arrayBuffer();
+      return { contentType, base64: Buffer.from(buf).toString("base64") };
+    }
+
+    await limiter.throttle();
+    const url = resolveUploadUrl(getSettings().gitlabUrl, src);
+    if (url === null) {
+      throw new AppErrorError({
+        code: "NOT_FOUND",
+        message: `Bild-URL nicht proxybar (nicht same-origin): ${src}`,
+        retry: false,
+      });
+    }
+    log.info(`UPLOAD → GET ${src}`);
+    let res: Response;
+    try {
+      res = await fetch(url, { headers: { "PRIVATE-TOKEN": token } });
+    } catch (e) {
+      throw toNetworkError(`UPLOAD ${src}`, url, e);
+    }
+    if (!res.ok) {
+      const body = await res.text();
+      log.error(`UPLOAD GET ${src} → HTTP ${res.status}`, { body: body.slice(0, 500) });
+      throw toApiError(res.status, body);
+    }
+    const contentType = res.headers.get("content-type") ?? "application/octet-stream";
+    assertNotHtml(contentType, src);
+    const buf = await res.arrayBuffer();
+    return { contentType, base64: Buffer.from(buf).toString("base64") };
+  }
+
   const client: ApiClient = { apiRequest };
   const gqlClient: GqlClient = { gqlRequest };
 
@@ -213,5 +274,6 @@ export function createGitLabClient(token: string, getSettings: () => Settings): 
       cachedCurrentUser = null;
     },
     fetchTicketComments: (fullPath, iid) => commentsFetch(gqlClient, fullPath, iid),
+    fetchUpload,
   };
 }

@@ -100,6 +100,12 @@ export interface GitLabClient {
   clearCurrentUserCache(): void;
   /** Alle Kommentare (Notes) eines Issues (GraphQL, Cursor-Pagination über alle Seiten). */
   fetchTicketComments(projectFullPath: string, issueIid: number): Promise<GitLabComment[]>;
+  /**
+   * Holt eine GitLab-Upload-Datei (Bild) mit Token und gibt Content-Type sowie
+   * die base64-kodierten Bytes zurück. `src` ist die rohe URL aus gerendertem
+   * GitLab-HTML (relativ oder absolut, same-origin).
+   */
+  fetchUpload(src: string): Promise<{ contentType: string; base64: string }>;
 }
 
 /** Test-Double — der einzige legitime Mock im Projekt. */
@@ -129,6 +135,10 @@ export class FakeGitLabClient implements GitLabClient {
   commentsToReturn: GitLabComment[] = [];
   nextTimelogId = 500;
   clearCurrentUserCacheCalls = 0;
+  uploadToReturn: { contentType: string; base64: string } | null = null;
+  uploadShouldThrow: Error | null = null;
+  /** Zeichnet die an fetchUpload übergebenen src-Argumente auf (Tests). */
+  uploadCalls: string[] = [];
 
   async fetchIssues(): Promise<GitLabIssue[]> {
     return this.issuesToReturn;
@@ -204,5 +214,12 @@ export class FakeGitLabClient implements GitLabClient {
 
   async fetchTicketComments(): Promise<GitLabComment[]> {
     return this.commentsToReturn;
+  }
+
+  async fetchUpload(src: string): Promise<{ contentType: string; base64: string }> {
+    this.uploadCalls.push(src);
+    if (this.uploadShouldThrow) throw this.uploadShouldThrow;
+    if (!this.uploadToReturn) throw new Error("FakeGitLabClient: uploadToReturn nicht gesetzt");
+    return this.uploadToReturn;
   }
 }

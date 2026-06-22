@@ -91,6 +91,29 @@ test("syncComments returns silently when the ticket does not exist", async () =>
   expect(svc.getComments(9999)).toEqual([]);
 });
 
+test("getImage builds a data URL from the fetched upload", async () => {
+  gl.uploadToReturn = { contentType: "image/png", base64: "QUJD" };
+  expect(await svc.getImage("/uploads/abc/bild.png")).toBe("data:image/png;base64,QUJD");
+});
+
+test("getImage passes the internal /-/project URL through to fetchUpload unchanged", async () => {
+  // Die Routing-Entscheidung (REST-API vs. Fallback) liegt jetzt im Client;
+  // getImage reicht die original `src` durch.
+  gl.uploadToReturn = { contentType: "image/png", base64: "QUJD" };
+
+  expect(await svc.getImage("/-/project/5/uploads/abc/image.png")).toBe(
+    "data:image/png;base64,QUJD",
+  );
+  expect(gl.uploadCalls).toEqual(["/-/project/5/uploads/abc/image.png"]);
+});
+
+test("getImage passes a non-matching URL through unchanged", async () => {
+  gl.uploadToReturn = { contentType: "image/png", base64: "QUJD" };
+
+  await svc.getImage("/uploads/abc/image.png");
+  expect(gl.uploadCalls).toEqual(["/uploads/abc/image.png"]);
+});
+
 test("syncPinnedAndAssigned covers a pinned and an assigned ticket", async () => {
   const pinnedId = seedTicket(7);
   const assignedId = seedTicket(8);

@@ -52,6 +52,7 @@ export const triggerSync = vi.fn(voidResp);
 export const getSettings = vi.fn(() =>
   okResp({ gitlabUrl: "https://gitlab.example.com", syncIntervalSec: 300 }),
 );
+export const getGitlabImage = vi.fn(() => okResp("data:image/png;base64,AAA"));
 export const saveSettings = vi.fn(voidResp);
 export const setGitLabToken = vi.fn(voidResp);
 export const backupDatabase = vi.fn(voidResp);

@@ -75,7 +75,19 @@ export function createCommentService(repo: Repository, gl: GitLabClient) {
     for (const id of byId.keys()) await syncComments(id);
   }
 
-  return { getComments, syncComments, syncPinnedAndAssigned };
+  /**
+   * Lädt ein GitLab-Upload-Bild über den Token-authentifizierten Proxy und gibt
+   * es als Data-URL zurück, damit das Frontend es inline (ohne eigene Auth)
+   * anzeigen kann.
+   */
+  async function getImage(src: string): Promise<string> {
+    // Die Routing-Entscheidung (REST-API vs. same-origin Fallback) liegt im
+    // GitLab-Client; hier wird die original `src` unverändert durchgereicht.
+    const { contentType, base64 } = await gl.fetchUpload(src);
+    return `data:${contentType};base64,${base64}`;
+  }
+
+  return { getComments, syncComments, syncPinnedAndAssigned, getImage };
 }
 
 export type CommentService = ReturnType<typeof createCommentService>;
