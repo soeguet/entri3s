@@ -1,7 +1,8 @@
 import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link, useParams } from "@tanstack/react-router";
+import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
+import { useHotkey } from "../../lib/useHotkey";
 import {
   getTicket,
   getTicketComments,
@@ -23,6 +24,16 @@ export function TicketDetailPage() {
   const params = useParams({ from: "/tickets/$ticketId" });
   const ticketId = Number(params.ticketId);
   const qc = useQueryClient();
+  const navigate = useNavigate();
+
+  // Zurück zu /tickets per Tastatur. Hooks am Komponenten-Anfang (vor jedem
+  // early return), damit sie unbedingt registriert werden. Der wiederhergestellte
+  // Filter-Zustand kommt beim Remount aus localStorage (ticketsFilterPrefs.ts).
+  // Hinweis: Ctrl/Cmd+W wird in manchen Browser/Electron-Umgebungen vom Host
+  // abgefangen (Fenster/Tab schließen) und erreicht uns dann nicht — darum gibt es
+  // mit Esc bewusst einen zuverlässigen Fallback.
+  useHotkey("mod+w", () => navigate({ to: "/tickets" }), { scope: "global" });
+  useHotkey("escape", () => navigate({ to: "/tickets" }), { scope: "global" });
 
   const ticket = useQuery({
     queryKey: keys.ticketDetail(ticketId),
