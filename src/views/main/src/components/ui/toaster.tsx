@@ -31,13 +31,29 @@ export function Toaster() {
 }
 
 function ToastItem(props: { toast: Toast }) {
+  const action = props.toast.action;
   return (
     <div
       role="status"
       onClick={() => dismissToast(props.toast.id)}
-      className={cn(toastVariants({ variant: props.toast.variant }))}
+      className={cn(toastVariants({ variant: props.toast.variant }), "flex items-center gap-3")}
     >
-      {props.toast.message}
+      <span className="min-w-0 flex-1">{props.toast.message}</span>
+      {action ? (
+        <button
+          type="button"
+          aria-label={action.label}
+          // stopPropagation: sonst feuert zusätzlich der Body-onClick (nur dismiss).
+          onClick={(e) => {
+            e.stopPropagation();
+            action.onAction();
+            dismissToast(props.toast.id);
+          }}
+          className="shrink-0 rounded font-semibold underline underline-offset-2 hover:opacity-80"
+        >
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 }

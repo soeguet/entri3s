@@ -6,6 +6,8 @@ import userEvent from "@testing-library/user-event";
 import * as api from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { todoFixtures } from "../../fixtures/todos";
+import { resetToasts } from "../../lib/toast";
+import { Toaster } from "../../components/ui/toaster";
 import { TodosPage } from "./TodosPage";
 
 vi.mock("../../api");
@@ -29,6 +31,7 @@ function renderPage(client: QueryClient) {
   return render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>,
   );
 }
@@ -41,6 +44,7 @@ function freshClient(): QueryClient {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetToasts();
   vi.mocked(api.getSettings).mockResolvedValue({ data: SETTINGS, error: null });
   vi.mocked(api.getTodoLists).mockResolvedValue({ data: todoFixtures, error: null });
   vi.mocked(api.updateTodoTask).mockResolvedValue({ data: undefined, error: null });
@@ -189,4 +193,43 @@ test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit
   for (const call of vi.mocked(api.updateTodoTask).mock.calls) {
     expect(call[0]).toEqual(expect.objectContaining({ done: true }));
   }
+});
+
+test("Abhaken eines normalen Tasks zeigt Undo-Toast, Klick auf Rückgängig setzt done:false", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, { timeout: 3000 }),
+  );
+
+  const undo = await screen.findByRole("button", { name: "Rückgängig" }, { timeout: 3000 });
+  await user.click(undo);
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Arbeit#0", listId: "Arbeit", done: false }),
+    ),
+  );
+});
+
+test("Abhaken eines wiederkehrenden Tasks zeigt KEINEN Undo-Toast", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // In die Privat-Liste wechseln, dort steht der wiederkehrende Task.
+  await user.click(await screen.findByRole("button", { name: /Privat/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("Wöchentlich Müll rausbringen abhaken", undefined, {
+      timeout: 3000,
+    }),
+  );
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Privat#0", done: true }),
+    ),
+  );
+  expect(screen.queryByRole("button", { name: "Rückgängig" })).not.toBeInTheDocument();
 });

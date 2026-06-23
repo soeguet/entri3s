@@ -5,6 +5,7 @@ import type { TodoTask } from "../../../../../shared/types";
 import { getSettings, getTodoLists } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
+import { toast } from "../../lib/toast";
 import { todayBerlinYmd } from "../../lib/dates";
 import { useTodoKeyboard } from "./useTodoKeyboard";
 import { PageHeader } from "../../components/PageHeader";
@@ -108,7 +109,27 @@ export function TodosPage() {
   const targetListId = selectedList ?? (lists.data ?? [])[0]?.id ?? null;
 
   function onToggle(task: TodoTask) {
-    mut.update.mutate({ id: task.id, listId: task.listId, done: !task.done });
+    const completing = !task.done;
+    // Undo-Toast NUR beim Abhaken nicht-wiederkehrender Tasks. Bei Recurrence
+    // rollt das Backend (src/bun/todos/todos.ts) beim Abhaken eine neue Folge-
+    // Instanz in die Datei; ein simples done:false revertiert diese Instanz NICHT
+    // → ein "Rückgängig" wäre irreführend. Daher kein Undo-Toast für recurrence.
+    const offerUndo = completing && task.recurrence === null;
+    mut.update.mutate(
+      { id: task.id, listId: task.listId, done: completing },
+      offerUndo
+        ? {
+            onSuccess: () => {
+              toast.success(`Erledigt: ${task.title}`, {
+                label: "Rückgängig",
+                // Ohne eigenen onSuccess → kein erneuter Toast (kein Loop).
+                onAction: () =>
+                  mut.update.mutate({ id: task.id, listId: task.listId, done: false }),
+              });
+            },
+          }
+        : undefined,
+    );
   }
   function onRename(task: TodoTask, title: string) {
     mut.update.mutate({ id: task.id, listId: task.listId, title });
