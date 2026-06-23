@@ -223,6 +223,80 @@ export interface BackgroundStatus {
 export interface Settings {
   gitlabUrl: string;
   syncIntervalSec: number;
+  // Absoluter Pfad zum dedizierten Todo-Unterordner (z.B. ".../Vault/todos").
+  // Leer = kein Ordner konfiguriert (Todo-Modul zeigt Empty State).
+  todoFolder: string;
+  // OS-Benachrichtigung (einmal pro Tag) über heute fällige/überfällige Todos.
+  todoRemindersEnabled: boolean;
+}
+
+// ── Todos (Markdown-Vault als Source of Truth, Phase 1, kein SQLite) ──────────
+
+export type TodoPriority = "highest" | "high" | "medium" | "normal" | "low" | "lowest";
+
+export interface TodoTask {
+  // FLÜCHTIGE Laufzeit-Handle (z.B. `listId#seq`), NICHT stabil über Reloads.
+  // Nur zwischen einem getTodoLists/getList und der direkt folgenden Mutation
+  // gültig — Mutationen relokalisieren die Zeile über den Roh-Zeilen-Fingerprint,
+  // nicht über diese id.
+  id: string;
+  listId: string;
+  section: string | null;
+  title: string;
+  done: boolean;
+  priority: TodoPriority;
+  due: string | null; // YYYY-MM-DD
+  scheduled: string | null; // YYYY-MM-DD
+  start: string | null; // YYYY-MM-DD
+  created: string | null; // YYYY-MM-DD
+  doneDate: string | null; // YYYY-MM-DD
+  recurrence: string | null; // Roher Regeltext (z.B. "every week")
+  // false = Regel unbekannt/komplex → read-only-Fallback (in entries nicht
+  // abhakbar, in Obsidian abhaken).
+  recurrenceEditableInApp: boolean;
+  tags: string[];
+  depth: number; // Einrückungstiefe (0 = top-level, >0 = Subtask)
+  // Mehrzeilige Notiz/Beschreibung: die unmittelbar unter der Task-Zeile
+  // folgenden, stärker eingerückten Nicht-Task-Zeilen (Obsidian-Layout-Annahme).
+  // Dedented (ohne die Task-Indent+2-Spaces-Einrückung), Zeilen mit "\n" verbunden;
+  // null = keine Beschreibung. Geschrieben wird nur bei expliziter Änderung.
+  description: string | null;
+}
+
+export interface TodoList {
+  id: string;
+  name: string;
+  tasks: TodoTask[];
+  sections: string[];
+}
+
+export interface TodoTaskCreate {
+  listId: string;
+  section?: string;
+  title: string;
+  priority?: TodoPriority;
+  due?: string;
+  tags?: string[];
+  // Optional: Subtask anlegen. Ist parentId gesetzt, wird der neue Task als
+  // eingerücktes Kind direkt unter den Parent-Block gehängt; section wird dann
+  // ignoriert (der Subtask erbt die Position des Parents).
+  parentId?: string;
+}
+
+export interface TodoTaskPatch {
+  id: string;
+  listId: string;
+  title?: string;
+  done?: boolean;
+  priority?: TodoPriority;
+  due?: string | null;
+  scheduled?: string | null;
+  start?: string | null;
+  tags?: string[];
+  section?: string | null;
+  // Mehrzeilige Beschreibung. undefined = unverändert lassen; null oder "" =
+  // Beschreibung entfernen; sonst neuer Beschreibungstext (dedented, mit "\n").
+  description?: string | null;
 }
 
 // ── RPC Plumbing ─────────────────────────────────────────────────────────────
@@ -297,6 +371,27 @@ export interface AppRPCType {
       saveSettings: { params: Settings; response: RpcResponse<void> };
       setGitLabToken: { params: { token: string }; response: RpcResponse<void> };
       backupDatabase: { params: { destPath: string }; response: RpcResponse<void> };
+
+      // Todos (Markdown-Vault). addTodoTask gibt void zurück (kein id-Return,
+      // da ids flüchtig sind). updateTodoTask deckt done ab (kein toggle-RPC).
+      getTodoLists: { params: Record<string, never>; response: RpcResponse<TodoList[]> };
+      createTodoList: { params: { name: string }; response: RpcResponse<void> };
+      addTodoTask: { params: TodoTaskCreate; response: RpcResponse<void> };
+      updateTodoTask: { params: TodoTaskPatch; response: RpcResponse<void> };
+      deleteTodoTask: { params: { id: string; listId: string }; response: RpcResponse<void> };
+      moveTodoTask: {
+        params: { id: string; fromList: string; toList: string; toSection?: string | null };
+        response: RpcResponse<void>;
+      };
+      reorderTodoTask: {
+        params: { listId: string; id: string; targetId: string; before: boolean };
+        response: RpcResponse<void>;
+      };
+      // Gespeicherte Filter ("Saved Filters"): das Backend bleibt schema-agnostisch
+      // und behandelt den Inhalt als opaken JSON-String (Muster wie Template.payload).
+      // Die Struktur eines SavedFilter gehört dem Frontend.
+      getTodoSavedFilters: { params: Record<string, never>; response: RpcResponse<string> };
+      setTodoSavedFilters: { params: { json: string }; response: RpcResponse<void> };
     };
     messages: Record<string, never>;
   };
@@ -309,6 +404,7 @@ export interface AppRPCType {
       bookingFailed: { error: string };
       orphanDetected: { count: number };
       runningEntryChanged: Record<string, never>;
+      todosChanged: Record<string, never>;
     };
   };
 }

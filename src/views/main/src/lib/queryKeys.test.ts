@@ -41,3 +41,14 @@ test("invalidateQueries({ keys.tickets() }) markiert gefilterte Query als invali
   const state = qc.getQueryState(keys.tickets(filter));
   expect(state?.isInvalidated).toBe(true);
 });
+
+// Der todosChanged-Message-Handler (api/real.ts) invalidiert keys.todos().
+// Die EINE getTodoLists-Query liegt unter diesem Prefix — hier verifiziert.
+test("invalidateQueries({ keys.todos() }) markiert die todos-Query als invalidated", async () => {
+  const qc = new QueryClient();
+  qc.setQueryData(keys.todos(), []);
+
+  await qc.invalidateQueries({ queryKey: keys.todos() });
+
+  expect(qc.getQueryState(keys.todos())?.isInvalidated).toBe(true);
+});

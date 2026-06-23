@@ -50,9 +50,23 @@ export const updateTemplate = vi.fn(voidResp);
 export const deleteTemplate = vi.fn(voidResp);
 export const triggerSync = vi.fn(voidResp);
 export const getSettings = vi.fn(() =>
-  okResp({ gitlabUrl: "https://gitlab.example.com", syncIntervalSec: 300 }),
+  okResp({
+    gitlabUrl: "https://gitlab.example.com",
+    syncIntervalSec: 300,
+    todoFolder: "",
+    todoRemindersEnabled: true,
+  }),
 );
 export const getGitlabImage = vi.fn(() => okResp("data:image/png;base64,AAA"));
 export const saveSettings = vi.fn(voidResp);
 export const setGitLabToken = vi.fn(voidResp);
 export const backupDatabase = vi.fn(voidResp);
+export const getTodoLists = vi.fn(() => okResp(fixtures.todos));
+export const createTodoList = vi.fn(voidResp);
+export const addTodoTask = vi.fn(voidResp);
+export const updateTodoTask = vi.fn(voidResp);
+export const deleteTodoTask = vi.fn(voidResp);
+export const moveTodoTask = vi.fn(voidResp);
+export const reorderTodoTask = vi.fn(voidResp);
+export const getTodoSavedFilters = vi.fn(() => okResp(""));
+export const setTodoSavedFilters = vi.fn(voidResp);

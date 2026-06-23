@@ -3,6 +3,13 @@ import type { Settings, CurrentUser } from "../../shared/types";
 
 const SYNC_SCHEDULE = "gitlab_sync";
 
+// Liest einen als "1"/"0" oder "true"/"false" abgelegten Bool-Wert; fehlt der
+// Eintrag (null), gilt der übergebene Default.
+function parseBool(value: string | null, fallback: boolean): boolean {
+  if (value === null) return fallback;
+  return value === "1" || value === "true";
+}
+
 export function createSettingsRepository(db: Database) {
   function get(key: string): string | null {
     const row = db
@@ -36,11 +43,17 @@ export function createSettingsRepository(db: Database) {
       return {
         gitlabUrl: get("gitlabUrl") ?? "",
         syncIntervalSec: syncIntervalSec(),
+        todoFolder: get("todoFolder") ?? "",
+        // Default an: Reminder sollen out-of-the-box wirken (nur "0"/"false"
+        // schaltet sie ab). So sieht der Nutzer fällige Todos ohne Setup.
+        todoRemindersEnabled: parseBool(get("todoRemindersEnabled"), true),
       };
     },
 
     save(settings: Settings): void {
       set("gitlabUrl", settings.gitlabUrl);
+      set("todoFolder", settings.todoFolder);
+      set("todoRemindersEnabled", settings.todoRemindersEnabled ? "1" : "0");
       db.run("UPDATE schedules SET interval_sec = ? WHERE name = ?", [
         settings.syncIntervalSec,
         SYNC_SCHEDULE,

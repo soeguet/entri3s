@@ -7,6 +7,7 @@ import { TicketDetailPage } from "../features/tickets/TicketDetailPage";
 import { ManagementPage } from "../features/management/ManagementPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { BookingPage } from "../features/booking/BookingPage";
+import { TodosPage } from "../features/todos/TodosPage";
 
 const indexRoute = createRoute({
   getParentRoute: () => rootRoute,
@@ -41,6 +42,12 @@ const bookingRoute = createRoute({
   component: BookingPage,
 });
 
+const todosRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/todos",
+  component: TodosPage,
+});
+
 const managementRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/management",
@@ -59,6 +66,7 @@ const routeTree = rootRoute.addChildren([
   ticketsRoute,
   ticketDetailRoute,
   bookingRoute,
+  todosRoute,
   managementRoute,
   settingsRoute,
 ]);

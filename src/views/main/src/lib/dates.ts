@@ -105,6 +105,44 @@ export function todayBerlinYmd(now: Date = new Date()): string {
   return berlinTodayYmd(now);
 }
 
+// ── Reschedule/Snooze-Presets (Todo-Modul) ───────────────────────────────────
+
+export type ReschedulePreset = "today" | "tomorrow" | "nextWeek" | "weekend";
+
+/**
+ * Liefert das Ziel-Datum (yyyy-MM-dd) für ein Reschedule/Snooze-Preset, Anker
+ * ist `today` (yyyy-MM-dd, in Berlin). Reine Funktion (Vitest-testbar):
+ * - today:    heute
+ * - tomorrow: morgen
+ * - nextWeek: nächster Montag (Start der nächsten ISO-Woche)
+ * - weekend:  nächster Samstag; ist heute schon Samstag/Sonntag → dieses WE
+ */
+export function reschedulePresetDate(preset: ReschedulePreset, today: string): string {
+  if (preset === "today") return today;
+  if (preset === "tomorrow") return shiftDay(today, 1);
+  const base = ymdToUtc(today);
+  if (preset === "nextWeek") {
+    return utcToYmd(addDays(startOfWeek(base), 7));
+  }
+  // weekend: nächster Samstag (Tag 6 in einer Mo-startenden Woche).
+  const dow = base.getUTCDay(); // 0=So .. 6=Sa
+  if (dow === 6 || dow === 0) return today; // schon Wochenende
+  const saturday = addDays(startOfWeek(base), 5);
+  return utcToYmd(saturday);
+}
+
+/**
+ * Nächstes Vorkommen eines ISO-Wochentags (1=Mo .. 7=So) ab `today`
+ * (yyyy-MM-dd). Ist `today` schon dieser Wochentag → `today` selbst.
+ * Rechnet rein über UTC, daher unabhängig von der Host-Zeitzone.
+ */
+export function nextWeekdayYmd(today: string, isoDow: number): string {
+  const base = ymdToUtc(today);
+  const currentIsoDow = ((base.getUTCDay() + 6) % 7) + 1; // 0=So..6=Sa → 1=Mo..7=So
+  const delta = (isoDow - currentIsoDow + 7) % 7;
+  return utcToYmd(addDays(base, delta));
+}
+
 /** Datumsbereich (yyyy-MM-dd) für ein Preset, Anker ist heute in Berlin. */
 export function rangeForPreset(preset: RangePreset, now: Date = new Date()): DateRange {
   const today = ymdToUtc(berlinTodayYmd(now));

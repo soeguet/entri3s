@@ -15,5 +15,6 @@ export function createWindowEmitter(getWin: () => BrowserWindow<AppRpc> | undefi
     syncFailed: (error) => send()?.syncFailed({ error }),
     orphanDetected: (count) => send()?.orphanDetected({ count }),
     runningEntryChanged: () => send()?.runningEntryChanged({}),
+    todosChanged: () => send()?.todosChanged({}),
   };
 }

@@ -1,5 +1,5 @@
 import { createRootRoute, Link, Outlet } from "@tanstack/react-router";
-import { Clock, Ticket, Settings, LayoutGrid, CreditCard } from "lucide-react";
+import { Clock, Ticket, Settings, LayoutGrid, CreditCard, ListChecks } from "lucide-react";
 import type { ComponentType } from "react";
 import { DailyProgress } from "../features/entries/DailyProgress";
 import { BackgroundStatusWidget } from "../features/background/BackgroundStatusWidget";
@@ -11,6 +11,7 @@ import { TicketSearchLauncher } from "../features/tickets/TicketSearchLauncher";
 const NAV: Array<{ to: string; label: string; icon: ComponentType<{ className?: string }> }> = [
   { to: "/entries", label: "Entries", icon: Clock },
   { to: "/tickets", label: "Tickets", icon: Ticket },
+  { to: "/todos", label: "Todos", icon: ListChecks },
   { to: "/booking", label: "Buchungen", icon: CreditCard },
   { to: "/management", label: "Management", icon: LayoutGrid },
   { to: "/settings", label: "Settings", icon: Settings },

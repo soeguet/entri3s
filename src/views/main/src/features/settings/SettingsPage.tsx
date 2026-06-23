@@ -24,11 +24,15 @@ export function SettingsPage() {
   const [intervalMin, setIntervalMin] = useState("5");
   const [token, setToken] = useState("");
   const [backupPath, setBackupPath] = useState("");
+  const [todoFolder, setTodoFolder] = useState("");
+  const [todoRemindersEnabled, setTodoRemindersEnabled] = useState(true);
 
   useEffect(() => {
     if (settings.data) {
       setGitlabUrl(settings.data.gitlabUrl);
       setIntervalMin(String(Math.round(settings.data.syncIntervalSec / 60)));
+      setTodoFolder(settings.data.todoFolder ?? "");
+      setTodoRemindersEnabled(settings.data.todoRemindersEnabled ?? true);
     }
   }, [settings.data]);
 
@@ -38,6 +42,8 @@ export function SettingsPage() {
         await saveSettings({
           gitlabUrl: gitlabUrl.trim(),
           syncIntervalSec: Math.max(1, Number(intervalMin) || 5) * 60,
+          todoFolder: todoFolder.trim(),
+          todoRemindersEnabled,
         }),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.settings() }),
@@ -123,6 +129,42 @@ export function SettingsPage() {
           ) : null}
           {saveToken.isError ? (
             <span className="text-sm text-danger-accent">{errorMessage(saveToken.error)}</span>
+          ) : null}
+        </div>
+      </div>
+
+      <div className="mt-6 space-y-4 rounded-lg border border-border bg-card p-5">
+        <h2 className="text-lg font-semibold">Todos</h2>
+        <div>
+          <Label htmlFor="s-todo-folder">Todo-Ordner</Label>
+          <Input
+            id="s-todo-folder"
+            value={todoFolder}
+            onChange={(e) => setTodoFolder(e.target.value)}
+            placeholder={"C:\\Users\\du\\Vault\\todos"}
+          />
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Dedizierter Vault-Unterordner: jede .md-Datei darin ist eine Liste. Leer = Todo-Modul
+          zeigt den Empty State. Windows z.B. C:\Users\du\Vault\todos, Unix z.B.
+          /home/du/Vault/todos.
+        </p>
+        <div className="flex items-center gap-2">
+          <input
+            id="s-todo-reminders"
+            type="checkbox"
+            checked={todoRemindersEnabled}
+            onChange={(e) => setTodoRemindersEnabled(e.target.checked)}
+          />
+          <Label htmlFor="s-todo-reminders">OS-Benachrichtigungen für fällige Aufgaben</Label>
+        </div>
+        <div className="flex items-center gap-3">
+          <Button disabled={save.isPending} onClick={() => save.mutate()}>
+            Speichern
+          </Button>
+          {save.isSuccess ? <span className="text-sm text-success-accent">Gespeichert</span> : null}
+          {save.isError ? (
+            <span className="text-sm text-danger-accent">{errorMessage(save.error)}</span>
           ) : null}
         </div>
       </div>

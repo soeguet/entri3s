@@ -9,7 +9,12 @@ vi.mock("../../api");
 beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.getSettings).mockResolvedValue({
-    data: { gitlabUrl: "https://gitlab.example.com", syncIntervalSec: 300 },
+    data: {
+      gitlabUrl: "https://gitlab.example.com",
+      syncIntervalSec: 300,
+      todoFolder: "",
+      todoRemindersEnabled: true,
+    },
     error: null,
   });
 });
