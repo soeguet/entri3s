@@ -18,6 +18,9 @@ import { TodoQuickAdd } from "./TodoQuickAdd";
 import { useTodoMutations } from "./useTodoMutations";
 import { useTodoSelection } from "./useTodoSelection";
 import { smartViewFilter, smartViewCounts, type SmartView } from "./smartViewFilter";
+import { allTagsOf, applyFilterSort, isFilterActive } from "./taskFilterSort";
+import { useTodoFilterSort } from "./useTodoFilterSort";
+import { TodoToolbar } from "./TodoToolbar";
 import { isNoFolderError } from "./todoError";
 import { TodoSearchDialog } from "./TodoSearchDialog";
 
@@ -60,11 +63,15 @@ export function TodosPage() {
   const counts = smartViewCounts(allTasks, today);
 
   const selection = useTodoSelection({ allTasks, view, selectedList, bulk: mut.bulk });
+  const fs = useTodoFilterSort();
 
   // Sichtbare Tasks: entweder eine konkrete Liste oder eine Smart-View über alle.
   const activeList = selectedList ? (lists.data ?? []).find((l) => l.id === selectedList) : null;
   const baseTasks = activeList ? activeList.tasks : allTasks;
-  const visible = activeList ? baseTasks : smartViewFilter(baseTasks, view, today);
+  const viewTasks = activeList ? baseTasks : smartViewFilter(baseTasks, view, today);
+  // Nutzergewählter Facetten-Filter + Sortierung NACH der Smart-View/Listen-Auswahl.
+  const visible = applyFilterSort(viewTasks, fs.filter, fs.sort);
+  const availableTags = allTagsOf(baseTasks);
   const sections = activeList ? activeList.sections : [];
 
   // Quick-Add-Ziel: gewählte Liste, sonst die erste Liste (Smart-View-Modus).
@@ -85,7 +92,10 @@ export function TodosPage() {
   }
   // DnD-Umsortieren nur in der konkreten Listenansicht (selectedList gesetzt),
   // nicht in Smart-Views — dort gibt es keine stabile, listengebundene Reihenfolge.
-  const reorderable = selectedList !== null;
+  // Zusätzlich nur in der unveränderten ("pristine") manuellen Ansicht: sobald
+  // gefiltert oder umsortiert wird, entspricht die sichtbare Reihenfolge nicht
+  // mehr der Datei-Reihenfolge, ein Reorder wäre dann mehrdeutig.
+  const reorderable = selectedList !== null && fs.sort === "manual" && !isFilterActive(fs.filter);
   function onReorder(activeId: string, targetId: string, before: boolean) {
     if (selectedList) mut.reorder.mutate({ listId: selectedList, id: activeId, targetId, before });
   }
@@ -229,6 +239,18 @@ export function TodosPage() {
                 {selection.selectMode ? "Auswahl beenden" : "Auswählen"}
               </Button>
             </div>
+
+            <TodoToolbar
+              filter={fs.filter}
+              sort={fs.sort}
+              availableTags={availableTags}
+              onSort={fs.setSort}
+              onToggleTag={fs.toggleTag}
+              onTogglePriority={fs.togglePriority}
+              onSetStatus={fs.setStatus}
+              onReset={fs.reset}
+              active={fs.active}
+            />
 
             {selection.selectMode && selection.selectedIds.size > 0 ? (
               <TodoBulkBar

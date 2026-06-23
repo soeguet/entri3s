@@ -105,6 +105,26 @@ test("Konflikt-UX: TODO_CONFLICT zeigt Spec-Meldung an der betroffenen Zeile", a
   expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();
 });
 
+test("Toolbar: Filtern nach Tag 'backend' zeigt nur passende Tasks", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "Alle"-View, damit alle Tasks unabhängig vom heutigen Datum sichtbar sind.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  expect(
+    await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 }),
+  ).toBeInTheDocument();
+  expect(screen.getByText("Release vorbereiten")).toBeInTheDocument();
+
+  // Tags-Popover öffnen und die "backend"-Checkbox aktivieren.
+  await user.click(await screen.findByRole("button", { name: /^Tags/ }, { timeout: 3000 }));
+  await user.click(await screen.findByLabelText("backend", undefined, { timeout: 3000 }));
+
+  // Nur der Task mit Tag "backend" bleibt sichtbar.
+  await vi.waitFor(() => expect(screen.queryByText("Release vorbereiten")).not.toBeInTheDocument());
+  expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();
+});
+
 test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit done:true", async () => {
   const user = userEvent.setup();
   renderPage(freshClient());
