@@ -36,6 +36,29 @@ test("editing title keeps trailing metadata", () => {
   expect(applyTaskEdit(line, { title: "New title" })).toBe("- [ ] New title 📅 2026-06-23 #tag");
 });
 
+test("setting tags appends them at the end of the body", () => {
+  const line = "- [ ] Task 📅 2026-06-30";
+  expect(applyTaskEdit(line, { tags: ["work", "urgent"] })).toBe(
+    "- [ ] Task 📅 2026-06-30 #work #urgent",
+  );
+});
+
+test("setting tags replaces existing tags (may move them to the end)", () => {
+  const line = "- [ ] Task #old #stale 📅 2026-06-30";
+  expect(applyTaskEdit(line, { tags: ["new"] })).toBe("- [ ] Task 📅 2026-06-30 #new");
+});
+
+test("empty tags array strips all tags", () => {
+  const line = "- [ ] Task #a #b 📅 2026-06-30";
+  expect(applyTaskEdit(line, { tags: [] })).toBe("- [ ] Task 📅 2026-06-30");
+});
+
+test("round-trip stays byte-exact when tags are not in the edit", () => {
+  const line = "- [ ] Task #keep 📅 2026-06-30";
+  expect(applyTaskEdit(line, {})).toBe(line);
+  expect(applyTaskEdit(line, { title: "Task" })).toBe(line);
+});
+
 test("renderNewTask builds checkbox, tags, priority, due in defined order", () => {
   expect(
     renderNewTask({

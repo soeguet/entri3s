@@ -69,6 +69,45 @@ test("addTask appends a rendered line", async () => {
   );
 });
 
+test("addTask with parentId inserts an indented subtask after the parent", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n- [ ] sibling\n");
+  const list = await svc.getList("Inbox");
+  const parent = list.tasks.find((t) => t.title === "parent")!;
+  await svc.addTask({ listId: "Inbox", title: "child", parentId: parent.id });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe(
+    "- [ ] parent\n  - [ ] child\n- [ ] sibling\n",
+  );
+  const reloaded = await svc.getList("Inbox");
+  const parentNow = reloaded.tasks.find((t) => t.title === "parent")!;
+  const child = reloaded.tasks.find((t) => t.title === "child")!;
+  expect(child.depth).toBe(parentNow.depth + 1);
+});
+
+test("addTask with parentId appends after existing subtasks", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] first\n- [ ] sibling\n");
+  const list = await svc.getList("Inbox");
+  const parent = list.tasks.find((t) => t.title === "parent")!;
+  await svc.addTask({ listId: "Inbox", title: "second", parentId: parent.id });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe(
+    "- [ ] parent\n  - [ ] first\n  - [ ] second\n- [ ] sibling\n",
+  );
+});
+
+test("addTask with unknown parentId -> TODO_CONFLICT", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n");
+  await expect(
+    svc.addTask({ listId: "Inbox", title: "child", parentId: "Inbox#999" }),
+  ).rejects.toMatchObject({ code: "TODO_CONFLICT" });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] parent\n");
+});
+
+test("updateTask with tags writes them into the file", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] task #old\n");
+  const list = await svc.getList("Inbox");
+  await svc.updateTask({ id: list.tasks[0].id, listId: "Inbox", tags: ["new", "fresh"] });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] task #new #fresh\n");
+});
+
 test("updateTask toggling done adds ✅ doneDate", async () => {
   writeFileSync(join(dir, "Inbox.md"), "- [ ] task\n");
   const list = await svc.getList("Inbox");

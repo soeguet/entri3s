@@ -7,7 +7,7 @@ import { parseList } from "./parser";
 import { computeNext, parseRule } from "./recurrence";
 import { applyTaskEdit, renderNewTask, renderTask, type TaskEdit } from "./serializer";
 import { mutateFile, writeContent } from "./mutate";
-import { reorderLines } from "./reorder";
+import { blockRange, reorderLines } from "./reorder";
 import { fileForList, listMd, read } from "./vault";
 
 // Todo-Service. Liest todoFolder live aus den Settings; TODO_NO_FOLDER wenn der
@@ -102,6 +102,12 @@ export function createTodoService(repo: Repository) {
       const dir = folder();
       const file = fileForList(dir, input.listId);
       const r = await read(file);
+      // Subtask: hinter den Parent-Block, eingerückt eine Ebene tiefer. section
+      // wird dabei ignoriert (der Subtask erbt die Position des Parents).
+      if (input.parentId) {
+        writeContent(file, insertSubtask(r.content, input));
+        return;
+      }
       const line = renderNewTask(input);
       // Section-Insert: nach der passenden Überschrift, sonst ans Ende.
       const lines = r.content.length ? r.content.replace(/\n$/, "").split("\n") : [];
@@ -207,6 +213,7 @@ function applyUpdate(srcLines: string[], idx: number, patch: TodoTaskPatch): str
     scheduled: patch.scheduled,
     start: patch.start,
   };
+  if (patch.tags !== undefined) edit.tags = patch.tags;
 
   const turningDone = patch.done === true;
   const today = todayBerlinYmd();
@@ -242,6 +249,23 @@ function applyUpdate(srcLines: string[], idx: number, patch: TodoTaskPatch): str
 // Minimaler Single-Line-Parse über den vollen Parser (eine Zeile).
 function parseSingle(line: string) {
   return parseList("_", "_", line).list.tasks[0];
+}
+
+// Fügt eine Subtask-Zeile direkt nach dem Block des Parents ein (neuer Task =
+// letztes Kind). Einrückung = parent.depth + 1 Ebenen (2 Spaces/Ebene, passend
+// zu parser.depth = floor(indent/2)). Parent wird über die flüchtige id gefunden;
+// fehlt er -> TODO_CONFLICT. section/parentId landen NICHT in der Zeile.
+function insertSubtask(content: string, input: TodoTaskCreate): string {
+  const parsed = parseList(input.listId, input.listId, content);
+  const parent = parsed.raw.find((x) => x.task.id === input.parentId);
+  if (!parent) throw appError("TODO_CONFLICT", "Übergeordnete Aufgabe nicht gefunden.", false);
+  const indent = "  ".repeat(parent.task.depth + 1);
+  const line = indent + renderNewTask(input);
+  const block = blockRange(parsed.raw, parent);
+  const lines = [...parsed.lines];
+  lines.splice(block.end, 0, line);
+  // Wie der Nicht-Subtask-Pfad: die Datei endet immer mit genau einem \n.
+  return lines.join("\n") + "\n";
 }
 
 function insertUnderSection(lines: string[], section: string, newLine: string): void {

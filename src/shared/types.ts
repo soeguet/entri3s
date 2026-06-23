@@ -270,6 +270,10 @@ export interface TodoTaskCreate {
   priority?: TodoPriority;
   due?: string;
   tags?: string[];
+  // Optional: Subtask anlegen. Ist parentId gesetzt, wird der neue Task als
+  // eingerücktes Kind direkt unter den Parent-Block gehängt; section wird dann
+  // ignoriert (der Subtask erbt die Position des Parents).
+  parentId?: string;
 }
 
 export interface TodoTaskPatch {

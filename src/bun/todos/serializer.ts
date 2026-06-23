@@ -5,6 +5,7 @@ import {
   PRIORITY_EMOJI,
   PRIORITY_TOKENS,
   RECURRENCE_TOKEN,
+  TAG_RE,
   type DateField,
 } from "./tokens";
 
@@ -27,6 +28,7 @@ export interface TaskEdit {
   start?: string | null;
   doneDate?: string | null;
   recurrence?: string | null;
+  tags?: string[];
 }
 
 function setCheckbox(line: string, done: boolean): string {
@@ -59,6 +61,19 @@ function setRecurrence(line: string, text: string | null): string {
   return `${stripped.replace(/\s+$/, "")} ${RECURRENCE_TOKEN} ${text}`;
 }
 
+// Ersetzt ALLE #tag-Token (gleiche TAG_RE-Konvention wie parser/tokens) und
+// hängt die neuen Tags ans Ende des Bodys. Bewusst surgical-simpel: beim Ändern
+// der Tags können sie ans Zeilenende wandern (Reihenfolge/Position der übrigen
+// Tokens bleibt erhalten). Leeres Array entfernt alle Tags.
+function setTags(line: string, tags: string[]): string {
+  // TAG_RE samt EINEM führenden Space entfernen, damit beim Entfernen mittiger
+  // Tags keine Doppel-Leerzeichen zurückbleiben.
+  const tagWithSpace = new RegExp(`\\s?${TAG_RE.source}`, "gu");
+  const stripped = line.replace(tagWithSpace, "").replace(/\s+$/, "");
+  if (tags.length === 0) return stripped;
+  return `${stripped} ${tags.map((t) => `#${t}`).join(" ")}`;
+}
+
 // Ersetzt den sichtbaren Titel (Text vor dem ersten Metadaten-Emoji/#tag).
 function setTitle(line: string, title: string): string {
   const m = line.match(/^(\s*-\s\[(?: |x|X)\]\s?)(.*)$/);
@@ -73,6 +88,7 @@ function setTitle(line: string, title: string): string {
 export function applyTaskEdit(rawLine: string, edit: TaskEdit): string {
   let line = rawLine;
   if (edit.title !== undefined) line = setTitle(line, edit.title);
+  if (edit.tags !== undefined) line = setTags(line, edit.tags);
   if (edit.priority !== undefined) line = setPriority(line, edit.priority);
   if (edit.recurrence !== undefined) line = setRecurrence(line, edit.recurrence);
   if (edit.start !== undefined) line = setDate(line, "start", edit.start);

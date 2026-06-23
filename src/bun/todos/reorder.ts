@@ -22,7 +22,7 @@ function locate(raw: RawTask[], fingerprint: string): RawTask {
 // KEINE tiefere Task-Zeile ist (Sibling-Task, Sektion, Leerzeile, Nicht-Task)
 // oder am Listenende. Nutzt parsed.raw, um Folgezeilen als tiefere Tasks zu
 // erkennen — Nicht-Task-Zeilen tauchen dort nicht auf und brechen den Block.
-function blockRange(raw: RawTask[], head: RawTask): { start: number; end: number } {
+export function blockRange(raw: RawTask[], head: RawTask): { start: number; end: number } {
   const start = head.lineIndex;
   let end = start + 1;
   // raw ist nach lineIndex sortiert (Parse-Reihenfolge). Folge-Tasks sind nur
