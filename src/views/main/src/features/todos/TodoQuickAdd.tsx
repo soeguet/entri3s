@@ -26,7 +26,9 @@ const PRIORITY_LABEL: Record<TodoPriority, string> = {
 };
 
 // Quick-Add-Zeile mit Natural-Language-Eingabe: Priorität (p1..p4), #tags und
-// Fälligkeit (heute/morgen/Wochentag/Datum) werden aus dem Titeltext geparst.
+// Fälligkeit (@heute/@morgen/@montag/@1.7. …) werden aus dem Titeltext geparst.
+// Datums-Tokens nur noch mit "@"-Präfix, damit bloße Wörter (z.B. "so") nicht
+// fälschlich als Datum gelten.
 // Manuelle Priority-/Datum-Selektoren wurden bewusst durch das NL-Feld ersetzt;
 // der Section-Selektor bleibt (Sektion ist nicht aus dem Freitext ableitbar).
 // Bei Konflikt oder Fehler bleibt die getippte Eingabe erhalten (kein Reset).
@@ -60,7 +62,7 @@ export const TodoQuickAdd = forwardRef<HTMLInputElement, TodoQuickAddProps>(
             ref={ref}
             value={title}
             aria-label="Neue Aufgabe"
-            placeholder="Neue Aufgabe… (z.B. 'Angebot morgen #arbeit p1')"
+            placeholder="Neue Aufgabe… (z.B. 'Angebot @morgen #arbeit p1')"
             disabled={props.listId === null}
             onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {

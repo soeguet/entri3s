@@ -30,6 +30,9 @@ const PRIORITY_TOKENS: Record<string, TodoPriority> = {
 };
 
 // ISO 1=Mo .. 7=So für lange und kurze Wochentagsformen.
+// Alle Datums-Tokens werden nur noch mit "@"-Präfix erkannt (siehe findDate),
+// daher ist die Kurzform "so" für Sonntag unproblematisch: "@so" kollidiert
+// nicht mehr mit dem bloßen deutschen Wort "so" im Titel.
 const WEEKDAY_DOW: Record<string, number> = {
   montag: 1,
   dienstag: 2,
@@ -44,9 +47,7 @@ const WEEKDAY_DOW: Record<string, number> = {
   do: 4,
   fr: 5,
   sa: 6,
-  // Kurzform "so" bewusst NICHT aufgenommen: kollidiert mit dem häufigen
-  // deutschen Wort "so" (z.B. "mach es so") und würde fälschlich Sonntag setzen.
-  // Für Sonntag die Langform "sonntag" verwenden.
+  so: 7,
 };
 
 /** Erste Priorität (p1..p4) als ganzes Wort; gibt Wert + Bereich zurück. */
@@ -82,7 +83,16 @@ interface DateHit {
   range: Range;
 }
 
-/** Erstes (kleinster Index) erkanntes Datum. */
+/**
+ * Datums-Token mit "@"-Präfix als ganzes Wort. Das "@" gehört zum Match (und
+ * wird damit aus dem Titel entfernt). Vor dem "@" muss eine Wortgrenze liegen,
+ * nach dem Token-Body ebenfalls, damit z.B. "@morgen" nicht über "@mo" matcht.
+ */
+function atWord(body: string): RegExp {
+  return new RegExp(BOUNDARY_BEFORE + "@" + body + BOUNDARY_AFTER, "giu");
+}
+
+/** Erstes (kleinster Index) erkanntes "@"-Datum. */
 function findDate(raw: string, today: string): DateHit | null {
   const hits: DateHit[] = [];
 
@@ -90,7 +100,7 @@ function findDate(raw: string, today: string): DateHit | null {
     hits.push({ due, range: { start: index, end: index + length } });
 
   const keyword = (word: string, due: string) => {
-    const m = wholeWord(word).exec(raw);
+    const m = atWord(word).exec(raw);
     if (m) push(due, m.index, m[0].length);
   };
 
@@ -99,14 +109,14 @@ function findDate(raw: string, today: string): DateHit | null {
   keyword("übermorgen", shiftDay(today, 2));
   keyword("wochenende", reschedulePresetDate("weekend", today));
 
-  // "nächste woche" / "naechste woche" (Whitespace flexibel).
-  const nextWeek = wholeWord("n(?:ä|ae)chste\\s+woche").exec(raw);
+  // "@nächste woche" / "@naechste woche" (Whitespace flexibel).
+  const nextWeek = atWord("n(?:ä|ae)chste\\s+woche").exec(raw);
   if (nextWeek) {
     push(reschedulePresetDate("nextWeek", today), nextWeek.index, nextWeek[0].length);
   }
 
   for (const word of Object.keys(WEEKDAY_DOW)) {
-    const m = wholeWord(word).exec(raw);
+    const m = atWord(word).exec(raw);
     if (m) push(nextWeekdayYmd(today, WEEKDAY_DOW[word]), m.index, m[0].length);
   }
 
@@ -117,7 +127,8 @@ function findDate(raw: string, today: string): DateHit | null {
 }
 
 /**
- * Explizite Datumsangaben: d.m. / d.m.yyyy und ISO yyyy-mm-dd.
+ * Explizite Datumsangaben mit "@"-Präfix: @d.m. / @d.m.yyyy und ISO @yyyy-mm-dd.
+ * Das "@" gehört zum Match und wird mit entfernt.
  * Fehlt das Jahr, wird bewusst das aktuelle Jahr aus `today` genommen und es
  * gibt KEINEN Roll-over ins Folgejahr (Phase 1, absichtlich simpel gehalten).
  */
@@ -130,7 +141,7 @@ function findExplicitDates(
   const pad = (s: string) => s.padStart(2, "0");
 
   const german = new RegExp(
-    BOUNDARY_BEFORE + "(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})?" + BOUNDARY_AFTER,
+    BOUNDARY_BEFORE + "@(\\d{1,2})\\.(\\d{1,2})\\.(\\d{4})?" + BOUNDARY_AFTER,
     "gu",
   );
   for (let m = german.exec(raw); m !== null; m = german.exec(raw)) {
@@ -138,7 +149,7 @@ function findExplicitDates(
     push(`${year}-${pad(m[2])}-${pad(m[1])}`, m.index, m[0].length);
   }
 
-  const iso = new RegExp(BOUNDARY_BEFORE + "(\\d{4})-(\\d{2})-(\\d{2})" + BOUNDARY_AFTER, "gu");
+  const iso = new RegExp(BOUNDARY_BEFORE + "@(\\d{4})-(\\d{2})-(\\d{2})" + BOUNDARY_AFTER, "gu");
   for (let m = iso.exec(raw); m !== null; m = iso.exec(raw)) {
     push(`${m[1]}-${m[2]}-${m[3]}`, m.index, m[0].length);
   }

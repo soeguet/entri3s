@@ -12,7 +12,7 @@ test("Quick-Add parst Natural-Language und ruft onAdd mit den Feldern", async ()
     <TodoQuickAdd listId="Arbeit" sections={["Heute"]} today={TODAY} onAdd={onAdd} error={null} />,
   );
 
-  await user.type(screen.getByLabelText("Neue Aufgabe"), "Angebot schreiben morgen #arbeit p1");
+  await user.type(screen.getByLabelText("Neue Aufgabe"), "Angebot schreiben @morgen #arbeit p1");
   await user.click(screen.getByRole("button", { name: "Hinzufügen" }));
 
   expect(onAdd).toHaveBeenCalledWith({
@@ -28,7 +28,7 @@ test("Quick-Add zeigt Preview-Chips für erkanntes Due, Priorität und #tags", a
   const user = userEvent.setup();
   render(<TodoQuickAdd listId="Arbeit" sections={[]} today={TODAY} onAdd={vi.fn()} error={null} />);
 
-  await user.type(screen.getByLabelText("Neue Aufgabe"), "Angebot morgen #arbeit p1");
+  await user.type(screen.getByLabelText("Neue Aufgabe"), "Angebot @morgen #arbeit p1");
 
   const chips = screen.getByLabelText("Erkannt");
   expect(chips).toHaveTextContent("2026-06-23");
