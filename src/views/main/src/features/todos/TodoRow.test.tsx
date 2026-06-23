@@ -221,6 +221,70 @@ test("ohne description keine Notiz-Vorschau", () => {
   expect(screen.queryByLabelText("Notiz öffnen")).not.toBeInTheDocument();
 });
 
+test("sortable + canIndent: Klick auf Einrücken ruft onReindent('indent')", async () => {
+  const onReindent = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      sortable
+      canIndent
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onReindent={onReindent}
+    />,
+  );
+  await user.click(screen.getByLabelText("Einrücken"));
+  expect(onReindent).toHaveBeenCalledWith("indent");
+});
+
+test("sortable + canOutdent=false: Ausrücken-Button ist deaktiviert", () => {
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      sortable
+      canOutdent={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onReindent={noop}
+    />,
+  );
+  expect(screen.getByLabelText("Ausrücken")).toBeDisabled();
+});
+
+test("ohne sortable: keine Einrücken/Ausrücken-Buttons", () => {
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+    />,
+  );
+  expect(screen.queryByLabelText("Einrücken")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Ausrücken")).not.toBeInTheDocument();
+});
+
 test("Details-öffnen-Button ruft onOpenDetail", async () => {
   const onOpenDetail = vi.fn();
   const user = userEvent.setup();

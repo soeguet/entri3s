@@ -5,6 +5,7 @@ import {
   createTodoList,
   deleteTodoTask,
   moveTodoTask,
+  reindentTodoTask,
   reorderTodoTask,
   updateTodoTask,
 } from "../../api";
@@ -84,6 +85,13 @@ export function useTodoMutations() {
     meta: { silentError: true },
   });
 
+  const reindent = useMutation({
+    mutationFn: async (vars: { listId: string; id: string; direction: "indent" | "outdent" }) =>
+      unwrap(await reindentTodoTask(vars.listId, vars.id, vars.direction)),
+    onSuccess: invalidate,
+    meta: { silentError: true },
+  });
+
   const createList = useMutation({
     mutationFn: async (name: string) => unwrap(await createTodoList(name)),
     onSuccess: invalidate,
@@ -115,5 +123,5 @@ export function useTodoMutations() {
     meta: { silentError: true },
   });
 
-  return { add, update, remove, move, reorder, createList, bulk };
+  return { add, update, remove, move, reorder, reindent, createList, bulk };
 }

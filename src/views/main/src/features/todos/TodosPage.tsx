@@ -150,6 +150,11 @@ export function TodosPage() {
   function onReorder(activeId: string, targetId: string, before: boolean) {
     if (selectedList) mut.reorder.mutate({ listId: selectedList, id: activeId, targetId, before });
   }
+  // Einrücken/Ausrücken: nur in der konkreten Liste (Buttons erscheinen ohnehin
+  // nur in der reorderable-Ansicht). Backend verschiebt den Subtree fail-closed.
+  function onReindent(task: TodoTask, direction: "indent" | "outdent") {
+    if (selectedList) mut.reindent.mutate({ listId: selectedList, id: task.id, direction });
+  }
 
   // Eingaben leeren, sobald Add/CreateList durchläuft (Remount via key).
   useEffect(() => {
@@ -298,6 +303,7 @@ export function TodosPage() {
                 onMove={onMove}
                 onOpenDetail={(task) => setDetailTaskId(task.id)}
                 onReorder={onReorder}
+                onReindent={onReindent}
                 selectMode={selection.selectMode}
                 selectedIds={selection.selectedIds}
                 onSelectBulk={selection.onSelectBulk}

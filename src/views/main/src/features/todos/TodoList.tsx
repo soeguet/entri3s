@@ -1,5 +1,6 @@
 import type { TodoTask } from "../../../../../shared/types";
 import { TodoSection } from "./TodoSection";
+import { reindentAbility } from "./reindentAbility";
 
 interface TodoListProps {
   // Die bereits durch die Smart-View gefilterten Tasks, die angezeigt werden.
@@ -21,6 +22,8 @@ interface TodoListProps {
   onMove: (task: TodoTask, toList: string) => void;
   onOpenDetail: (task: TodoTask) => void;
   onReorder: (activeId: string, targetId: string, before: boolean) => void;
+  // Einrücken/Ausrücken eines Tasks (nur in der reorderable-Ansicht sinnvoll).
+  onReindent: (task: TodoTask, direction: "indent" | "outdent") => void;
   // Mehrfachauswahl: durchgereicht bis TodoRow.
   selectMode: boolean;
   selectedIds: Set<string>;
@@ -49,6 +52,9 @@ export function TodoList(props: TodoListProps) {
   if (props.tasks.length === 0) {
     return <p className="py-10 text-center text-sm text-muted-foreground">Keine Aufgaben.</p>;
   }
+  // Aus der VOLLEN geordneten Liste (vor dem Section-Grouping) — canIndent hängt
+  // vom globalen, unmittelbaren Vorgänger ab, nicht von der Section-Gruppe.
+  const ability = reindentAbility(props.tasks);
   const groups = groupBySection(props.tasks, props.sections);
   return (
     <div className="rounded-lg border border-border bg-card">
@@ -69,6 +75,8 @@ export function TodoList(props: TodoListProps) {
           onMove={props.onMove}
           onOpenDetail={props.onOpenDetail}
           onReorder={props.onReorder}
+          ability={ability}
+          onReindent={props.onReindent}
           selectMode={props.selectMode}
           selectedIds={props.selectedIds}
           onSelectBulk={props.onSelectBulk}

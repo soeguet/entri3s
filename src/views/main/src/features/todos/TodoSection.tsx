@@ -35,6 +35,9 @@ interface TodoSectionProps {
   onMove: (task: TodoTask, toList: string) => void;
   onOpenDetail: (task: TodoTask) => void;
   onReorder: (activeId: string, targetId: string, before: boolean) => void;
+  // Einrück-Fähigkeit je Task-id (aus der globalen Reihenfolge berechnet).
+  ability: Map<string, { canIndent: boolean; canOutdent: boolean }>;
+  onReindent: (task: TodoTask, direction: "indent" | "outdent") => void;
   // Mehrfachauswahl: aktiviert die Auswahl-Checkbox je Zeile.
   selectMode: boolean;
   selectedIds: Set<string>;
@@ -73,6 +76,9 @@ export function TodoSection(props: TodoSectionProps) {
       onReschedule={(due) => props.onReschedule(task, due)}
       onMove={(toList) => props.onMove(task, toList)}
       onOpenDetail={() => props.onOpenDetail(task)}
+      canIndent={props.ability.get(task.id)?.canIndent ?? false}
+      canOutdent={props.ability.get(task.id)?.canOutdent ?? false}
+      onReindent={(direction) => props.onReindent(task, direction)}
       selectMode={props.selectMode}
       selectedForBulk={props.selectedIds.has(task.id)}
       onSelectBulk={() => props.onSelectBulk(task)}

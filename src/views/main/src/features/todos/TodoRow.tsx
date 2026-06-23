@@ -1,7 +1,16 @@
 import { useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, FolderInput, GripVertical, PanelRight, Repeat, StickyNote } from "lucide-react";
+import {
+  Calendar,
+  FolderInput,
+  GripVertical,
+  ListIndentDecrease,
+  ListIndentIncrease,
+  PanelRight,
+  Repeat,
+  StickyNote,
+} from "lucide-react";
 import type { TodoTask } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
@@ -33,6 +42,11 @@ interface TodoRowProps {
   selectMode?: boolean;
   selectedForBulk?: boolean;
   onSelectBulk?: () => void;
+  // Einrücken/Ausrücken: Buttons nur in der sortierbaren Ansicht (= sortable).
+  // canIndent/canOutdent disablen den jeweiligen Button (spiegelt Backend-Regel).
+  canIndent?: boolean;
+  canOutdent?: boolean;
+  onReindent?: (direction: "indent" | "outdent") => void;
 }
 
 // Priorität als kompaktes Emoji-Badge (Obsidian-Tasks-Konvention). "normal"
@@ -121,6 +135,35 @@ export function TodoRow(props: TodoRowProps) {
         >
           <GripVertical className="h-4 w-4" />
         </button>
+      ) : null}
+
+      {props.sortable ? (
+        <>
+          <button
+            type="button"
+            aria-label="Einrücken"
+            disabled={!props.canIndent}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onReindent?.("indent");
+            }}
+            className="flex shrink-0 items-center rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
+          >
+            <ListIndentIncrease className="h-4 w-4" />
+          </button>
+          <button
+            type="button"
+            aria-label="Ausrücken"
+            disabled={!props.canOutdent}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onReindent?.("outdent");
+            }}
+            className="flex shrink-0 items-center rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
+          >
+            <ListIndentDecrease className="h-4 w-4" />
+          </button>
+        </>
       ) : null}
 
       <input
