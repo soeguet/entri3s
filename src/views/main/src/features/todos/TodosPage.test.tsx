@@ -214,6 +214,41 @@ test("Abhaken eines normalen Tasks zeigt Undo-Toast, Klick auf Rückgängig setz
   );
 });
 
+test("Tastatur: 'o' öffnet den Detail-Dialog für die selektierte Zeile", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "Alle"-View, damit der Task unabhängig vom heutigen Datum sichtbar ist.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+
+  // Zeile selektieren: Klick auf den Titel bubbelt zum onClick der Zeile
+  // (role="listitem" → onSelect) — öffnet selbst KEINEN Dialog.
+  await user.click(await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 }));
+
+  // Vor 'o': kein Dialog offen.
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  await user.keyboard("o");
+
+  // Detail-Dialog ist offen und zeigt den selektierten Task (Titel-Feld).
+  const dialog = await screen.findByRole("dialog", undefined, { timeout: 3000 });
+  expect(dialog).toBeInTheDocument();
+  expect(screen.getByLabelText("Titel")).toHaveValue("OAuth-Redirect testen");
+});
+
+test("Tastatur: 'o' ohne selektierte Zeile öffnet keinen Dialog", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  // Warten bis die Liste da ist, aber KEINE Zeile selektieren.
+  await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 });
+
+  await user.keyboard("o");
+
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
 test("Abhaken eines wiederkehrenden Tasks zeigt KEINEN Undo-Toast", async () => {
   const user = userEvent.setup();
   renderPage(freshClient());

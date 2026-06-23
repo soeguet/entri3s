@@ -190,6 +190,7 @@ export function TodosPage() {
     selectedTask,
     onToggle,
     onReschedule,
+    openDetail: (task) => setDetailTaskId(task.id),
     openSearch: () => setSearchOpen(true),
     setView,
     setSelectedList,
