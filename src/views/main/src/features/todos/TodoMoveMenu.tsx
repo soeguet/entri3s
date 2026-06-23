@@ -1,5 +1,6 @@
 import { Popover } from "../../components/ui/popover";
 import { Button } from "../../components/ui/button";
+import { breadcrumbLabel } from "./listHierarchy";
 
 interface TodoMoveMenuProps {
   open: boolean;
@@ -30,7 +31,7 @@ export function TodoMoveMenu(props: TodoMoveMenuProps) {
               className="w-full justify-start"
               onClick={() => props.onMove(name)}
             >
-              {name}
+              {breadcrumbLabel(name)}
             </Button>
           ))}
         </div>

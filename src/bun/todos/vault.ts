@@ -24,10 +24,14 @@ export function hashContent(content: string): string {
 export function sanitizeListName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed) throw appError("INVALID_NAME", "Listenname darf nicht leer sein.", false);
-  if (!/^[\p{L}\p{N} _-]+$/u.test(trimmed)) {
+  // `~` ist der reservierte Sub-Listen-Delimiter (z.B. "Arbeit~ProjektA").
+  // Bisher war `~` verboten -> null Migrations-/Kollisionsrisiko mit Altdaten.
+  // `~` ist weder Pfad-Separator noch `.`, daher kein Traversal/Hidden-File.
+  // Das abschliessende `-` ist literal (kein Range), `~` steht direkt davor.
+  if (!/^[\p{L}\p{N} _~-]+$/u.test(trimmed)) {
     throw appError(
       "INVALID_NAME",
-      "Listenname darf nur Buchstaben, Zahlen, Leerzeichen, _ und - enthalten.",
+      "Listenname darf nur Buchstaben, Zahlen, Leerzeichen, _, ~ und - enthalten.",
       false,
     );
   }

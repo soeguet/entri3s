@@ -26,6 +26,14 @@ test("sanitizeListName accepts normal names with unicode", () => {
   expect(sanitizeListName("Übung_1-foo")).toBe("Übung_1-foo");
 });
 
+test("sanitizeListName accepts the sub-list delimiter ~", () => {
+  expect(sanitizeListName("Arbeit~ProjektA")).toBe("Arbeit~ProjektA");
+});
+
+test("fileForList builds a path for a sub-list name with ~", () => {
+  expect(fileForList(dir, "Arbeit~ProjektA")).toBe(join(dir, "Arbeit~ProjektA.md"));
+});
+
 test("fileForList stays inside dir (no traversal)", () => {
   const f = fileForList(dir, "Inbox");
   expect(f).toBe(join(dir, "Inbox.md"));

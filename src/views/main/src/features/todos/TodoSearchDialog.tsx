@@ -3,6 +3,7 @@ import type { TodoList, TodoTask } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Dialog } from "../../components/ui/dialog";
 import { CommandList, type CommandListSection } from "../../components/CommandList";
+import { breadcrumbLabel } from "./listHierarchy";
 
 interface TodoSearchDialogProps {
   open: boolean;
@@ -55,7 +56,7 @@ export function TodoSearchDialog(props: TodoSearchDialogProps) {
       if (sorted.length === 0) continue;
 
       result.push({
-        label: list.name,
+        label: breadcrumbLabel(list.name),
         items: sorted.map((task) => {
           const mark = PRIORITY_MARK[task.priority];
           return {
@@ -72,7 +73,9 @@ export function TodoSearchDialog(props: TodoSearchDialogProps) {
                 >
                   {task.title}
                 </span>
-                <span className="shrink-0 text-xs text-muted-foreground">{list.name}</span>
+                <span className="shrink-0 text-xs text-muted-foreground">
+                  {breadcrumbLabel(list.name)}
+                </span>
                 {task.due ? (
                   <span className="shrink-0 text-xs text-muted-foreground">{task.due}</span>
                 ) : null}

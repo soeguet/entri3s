@@ -219,7 +219,7 @@ test("Abhaken eines wiederkehrenden Tasks zeigt KEINEN Undo-Toast", async () => 
   renderPage(freshClient());
 
   // In die Privat-Liste wechseln, dort steht der wiederkehrende Task.
-  await user.click(await screen.findByRole("button", { name: /Privat/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: "Privat" }, { timeout: 3000 }));
   await user.click(
     await screen.findByLabelText("Wöchentlich Müll rausbringen abhaken", undefined, {
       timeout: 3000,

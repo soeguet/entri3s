@@ -5,6 +5,7 @@ import { cn } from "../../lib/utils";
 import { Input } from "../../components/ui/input";
 import { Button } from "../../components/ui/button";
 import { todoErrorMessage } from "./todoError";
+import { TodoSidebarLists } from "./TodoSidebarLists";
 import type { SmartView } from "./smartViewFilter";
 import type { SavedFilter } from "./savedFilters";
 
@@ -79,24 +80,12 @@ export function TodoSidebar(props: TodoSidebarProps) {
         <p className="mb-1 px-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
           Listen
         </p>
-        <div className="space-y-1">
-          {props.lists.map((list) => (
-            <button
-              key={list.id}
-              type="button"
-              onClick={() => props.onList(list.id)}
-              className={cn(
-                "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm",
-                props.selectedList === list.id
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-muted",
-              )}
-            >
-              <span className="truncate">{list.name}</span>
-              <span className="text-xs">{list.tasks.filter((t) => !t.done).length}</span>
-            </button>
-          ))}
-        </div>
+        <TodoSidebarLists
+          lists={props.lists}
+          selectedList={props.selectedList}
+          onList={props.onList}
+          onCreateList={props.onCreateList}
+        />
       </div>
 
       <div>
