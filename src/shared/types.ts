@@ -226,6 +226,8 @@ export interface Settings {
   // Absoluter Pfad zum dedizierten Todo-Unterordner (z.B. ".../Vault/todos").
   // Leer = kein Ordner konfiguriert (Todo-Modul zeigt Empty State).
   todoFolder: string;
+  // OS-Benachrichtigung (einmal pro Tag) über heute fällige/überfällige Todos.
+  todoRemindersEnabled: boolean;
 }
 
 // ── Todos (Markdown-Vault als Source of Truth, Phase 1, kein SQLite) ──────────

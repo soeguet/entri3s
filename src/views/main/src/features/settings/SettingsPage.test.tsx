@@ -7,7 +7,12 @@ import { SettingsPage } from "./SettingsPage";
 
 vi.mock("../../api");
 
-const SETTINGS = { gitlabUrl: "", syncIntervalSec: 300, todoFolder: "/Vault/todos" };
+const SETTINGS = {
+  gitlabUrl: "",
+  syncIntervalSec: 300,
+  todoFolder: "/Vault/todos",
+  todoRemindersEnabled: true,
+};
 
 function renderPage(client: QueryClient) {
   // SettingsPage nutzt keinen <Link>, daher kein Router nötig.

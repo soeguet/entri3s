@@ -25,12 +25,14 @@ export function SettingsPage() {
   const [token, setToken] = useState("");
   const [backupPath, setBackupPath] = useState("");
   const [todoFolder, setTodoFolder] = useState("");
+  const [todoRemindersEnabled, setTodoRemindersEnabled] = useState(true);
 
   useEffect(() => {
     if (settings.data) {
       setGitlabUrl(settings.data.gitlabUrl);
       setIntervalMin(String(Math.round(settings.data.syncIntervalSec / 60)));
       setTodoFolder(settings.data.todoFolder ?? "");
+      setTodoRemindersEnabled(settings.data.todoRemindersEnabled ?? true);
     }
   }, [settings.data]);
 
@@ -41,6 +43,7 @@ export function SettingsPage() {
           gitlabUrl: gitlabUrl.trim(),
           syncIntervalSec: Math.max(1, Number(intervalMin) || 5) * 60,
           todoFolder: todoFolder.trim(),
+          todoRemindersEnabled,
         }),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.settings() }),
@@ -146,6 +149,15 @@ export function SettingsPage() {
           zeigt den Empty State. Windows z.B. C:\Users\du\Vault\todos, Unix z.B.
           /home/du/Vault/todos.
         </p>
+        <div className="flex items-center gap-2">
+          <input
+            id="s-todo-reminders"
+            type="checkbox"
+            checked={todoRemindersEnabled}
+            onChange={(e) => setTodoRemindersEnabled(e.target.checked)}
+          />
+          <Label htmlFor="s-todo-reminders">OS-Benachrichtigungen für fällige Aufgaben</Label>
+        </div>
         <div className="flex items-center gap-3">
           <Button disabled={save.isPending} onClick={() => save.mutate()}>
             Speichern

@@ -15,7 +15,7 @@ import { fileForList, listMd, read } from "./vault";
 // (detect-before-write, fail-closed). Datums-/Recurrence-Logik liegt rein in
 // recurrence.ts.
 
-function todayBerlinYmd(): string {
+export function todayBerlinYmd(): string {
   // Recurrence "when done" verankert am heutigen Datum. Europe/Berlin, da der
   // Nutzer in dieser Zone arbeitet (Spec: TZ nur außerhalb von SQLite).
   return new Intl.DateTimeFormat("en-CA", {

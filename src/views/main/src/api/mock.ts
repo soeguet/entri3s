@@ -47,6 +47,7 @@ const store = {
     // Im Dev-Modus (vite --mode mock) gesetzt, damit /todos die Fixtures zeigt
     // statt des Empty States. Den Empty State testet das Vitest-Modul-Mock.
     todoFolder: "/Vault/todos",
+    todoRemindersEnabled: true,
   } as Settings,
   currentUser: { id: 1, username: "mockuser", name: "Mock User" } as CurrentUser,
   nextId: 1000,

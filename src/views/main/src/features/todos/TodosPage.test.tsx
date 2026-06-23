@@ -10,7 +10,12 @@ import { TodosPage } from "./TodosPage";
 
 vi.mock("../../api");
 
-const SETTINGS = { gitlabUrl: "", syncIntervalSec: 300, todoFolder: "/Vault/todos" };
+const SETTINGS = {
+  gitlabUrl: "",
+  syncIntervalSec: 300,
+  todoFolder: "/Vault/todos",
+  todoRemindersEnabled: true,
+};
 
 function renderPage(client: QueryClient) {
   // Minimaler Router, weil TodosPage <Link to="/settings"> nutzt.

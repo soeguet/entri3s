@@ -7,6 +7,7 @@ const settings: Settings = {
   gitlabUrl: "https://gl.example.com",
   syncIntervalSec: 300,
   todoFolder: "",
+  todoRemindersEnabled: true,
 };
 const originalFetch = globalThis.fetch;
 
@@ -62,6 +63,7 @@ test("rejects an unconfigured gitlabUrl with NO_GITLAB_URL before any fetch", as
     gitlabUrl: "",
     syncIntervalSec: 300,
     todoFolder: "",
+    todoRemindersEnabled: true,
   }));
   let threw: AppErrorError | null = null;
   try {

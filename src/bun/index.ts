@@ -1,4 +1,4 @@
-import { BrowserWindow } from "electrobun/bun";
+import { BrowserWindow, Utils } from "electrobun/bun";
 import { openDatabase } from "./repository/db";
 import { createRepository } from "./repository";
 import { createGitLabClient } from "./gitlab/client";
@@ -10,6 +10,8 @@ import { startWorker } from "./worker/worker";
 import { startScheduler } from "./scheduler/scheduler";
 import { getToken } from "./keychain/keychain";
 import { startTodoWatcher } from "./todos/watcher";
+import { startTodoReminders } from "./todos/reminders";
+import { todayBerlinYmd } from "./todos/todos";
 import { resolveDataDir } from "./lib/paths";
 import { resolveViewUrl } from "./lib/window-url";
 import { parseWindowFrame } from "./lib/window-frame";
@@ -45,6 +47,17 @@ const workerHandle = startWorker(repo, glClient, emit);
 const schedulerHandle = startScheduler(repo, svc, emit);
 const todoWatcher = startTodoWatcher(repo, emit);
 
+// lastReminderDate liegt als roher Settings-Key (nicht im typisierten Settings-
+// Objekt), da es reiner Job-State ist und nicht ins UI gehört.
+const todoReminders = startTodoReminders({
+  getAll: () => repo.settings.getAll(),
+  getLists: () => svc.todo.getLists(),
+  getLastDate: () => repo.settings.get("todoLastReminderDate") ?? "",
+  setLastDate: (d) => repo.settings.set("todoLastReminderDate", d),
+  notify: (title, body) => Utils.showNotification({ title, body }),
+  today: () => todayBerlinYmd(),
+});
+
 const trayCtl = createTrayController({
   getRunning: () => svc.entry.getRunning(),
   stopRunning: () => {
@@ -73,6 +86,7 @@ win.on("close", () => {
   clearInterval(workerHandle);
   clearInterval(schedulerHandle);
   todoWatcher.close();
+  todoReminders.close();
   trayCtl.dispose();
   db.close();
 });
