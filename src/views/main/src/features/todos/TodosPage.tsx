@@ -5,9 +5,8 @@ import type { TodoTask } from "../../../../../shared/types";
 import { getSettings, getTodoLists } from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
-import { todayBerlinYmd, reschedulePresetDate } from "../../lib/dates";
-import { useHotkey } from "../../lib/useHotkey";
-import { useCommands } from "../../lib/useCommand";
+import { todayBerlinYmd } from "../../lib/dates";
+import { useTodoKeyboard } from "./useTodoKeyboard";
 import { PageHeader } from "../../components/PageHeader";
 import { ErrorNote } from "../../components/ErrorNote";
 import { Button } from "../../components/ui/button";
@@ -136,77 +135,17 @@ export function TodosPage() {
     setSelectedId(visible[next].id);
   }
 
-  useHotkey("n", () => quickAddRef.current?.focus());
-  useHotkey("j", () => moveSelection(1));
-  useHotkey("k", () => moveSelection(-1));
-  useHotkey("space", () => {
-    const t = selectedTask();
-    if (t && !(t.recurrence !== null && !t.recurrenceEditableInApp)) onToggle(t);
+  useTodoKeyboard({
+    quickAddRef,
+    today,
+    moveSelection,
+    selectedTask,
+    onToggle,
+    onReschedule,
+    openSearch: () => setSearchOpen(true),
+    setView,
+    setSelectedList,
   });
-  useHotkey("x", () => {
-    const t = selectedTask();
-    if (t && !(t.recurrence !== null && !t.recurrenceEditableInApp)) onToggle(t);
-  });
-  useHotkey("t", () => {
-    const t = selectedTask();
-    if (t) onReschedule(t, today);
-  });
-  useHotkey("#", () => {
-    const t = selectedTask();
-    if (t) onReschedule(t, reschedulePresetDate("tomorrow", today));
-  });
-  useHotkey("f", () => setSearchOpen(true));
-
-  useCommands([
-    {
-      id: "todos:add",
-      label: "Aufgabe hinzufügen",
-      section: "Todos",
-      run: () => quickAddRef.current?.focus(),
-    },
-    {
-      id: "todos:search",
-      label: "Aufgabe suchen",
-      section: "Todos",
-      run: () => setSearchOpen(true),
-    },
-    {
-      id: "todos:today",
-      label: "Smart-View: Heute",
-      section: "Todos",
-      run: () => {
-        setSelectedList(null);
-        setView("today");
-      },
-    },
-    {
-      id: "todos:overdue",
-      label: "Smart-View: Überfällig",
-      section: "Todos",
-      run: () => {
-        setSelectedList(null);
-        setView("overdue");
-      },
-    },
-    {
-      id: "todos:upcoming",
-      label: "Smart-View: Anstehend",
-      section: "Todos",
-      run: () => {
-        setSelectedList(null);
-        setView("upcoming");
-      },
-    },
-    {
-      id: "todos:all",
-      label: "Smart-View: Alle",
-      section: "Todos",
-      run: () => {
-        setSelectedList(null);
-        setView("all");
-      },
-    },
-  ]);
 
   // Empty State: todoFolder leer ODER Backend liefert TODO_NO_FOLDER.
   const noFolder =
