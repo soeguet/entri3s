@@ -156,3 +156,64 @@ test("Move-Button: öffnen zeigt nur die anderen Listen, Klick ruft onMove mit Z
   await user.click(screen.getByRole("button", { name: "Privat" }));
   expect(onMove).toHaveBeenCalledWith("Privat");
 });
+
+test("Notiz-Vorschau erscheint bei gesetzter description und Klick öffnet das Detail", async () => {
+  const onOpenDetail = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task({ description: "Eine kurze Notiz" })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={onOpenDetail}
+    />,
+  );
+  expect(screen.getByText("Eine kurze Notiz")).toBeInTheDocument();
+  await user.click(screen.getByLabelText("Notiz öffnen"));
+  expect(onOpenDetail).toHaveBeenCalledTimes(1);
+});
+
+test("ohne description keine Notiz-Vorschau", () => {
+  render(
+    <TodoRow
+      task={task({ description: null })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+    />,
+  );
+  expect(screen.queryByLabelText("Notiz öffnen")).not.toBeInTheDocument();
+});
+
+test("Details-öffnen-Button ruft onOpenDetail", async () => {
+  const onOpenDetail = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={onOpenDetail}
+    />,
+  );
+  await user.click(screen.getByLabelText("Details öffnen"));
+  expect(onOpenDetail).toHaveBeenCalledTimes(1);
+});

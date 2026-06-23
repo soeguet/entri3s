@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, FolderInput, GripVertical, PanelRight, Repeat } from "lucide-react";
+import { Calendar, FolderInput, GripVertical, PanelRight, Repeat, StickyNote } from "lucide-react";
 import type { TodoTask } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
@@ -69,6 +69,7 @@ export function TodoRow(props: TodoRowProps) {
   // recurrenceEditableInApp === false → nicht abhakbar, Badge "in Obsidian abhaken".
   const readOnlyRecurrence = props.task.recurrence !== null && !props.task.recurrenceEditableInApp;
   const mark = PRIORITY_MARK[props.task.priority];
+  const hasDescription = props.task.description !== null && props.task.description.trim() !== "";
 
   function startEdit() {
     setDraft(props.task.title);
@@ -146,18 +147,48 @@ export function TodoRow(props: TodoRowProps) {
           className="flex-1 rounded border border-input bg-card px-2 py-0.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       ) : (
-        <button
-          type="button"
-          onDoubleClick={startEdit}
-          className={cn(
-            "flex-1 truncate text-left",
-            props.task.done && "text-muted-foreground line-through",
-          )}
-        >
-          {mark ? <span className="mr-1">{mark}</span> : null}
-          {props.task.title}
-        </button>
+        // Titel + Notiz-Vorschau vertikal gruppiert, damit die Beschreibung
+        // schon in der Zeile sichtbar ist (vorher nur im Detail-Modal).
+        <div className="flex min-w-0 flex-1 flex-col">
+          <button
+            type="button"
+            onDoubleClick={startEdit}
+            className={cn(
+              "truncate text-left",
+              props.task.done && "text-muted-foreground line-through",
+            )}
+          >
+            {mark ? <span className="mr-1">{mark}</span> : null}
+            {props.task.title}
+          </button>
+          {hasDescription ? (
+            <button
+              type="button"
+              aria-label="Notiz öffnen"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onOpenDetail();
+              }}
+              className="flex min-w-0 items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
+            >
+              <StickyNote className="h-3 w-3 shrink-0" />
+              <span className="line-clamp-1 min-w-0">{props.task.description}</span>
+            </button>
+          ) : null}
+        </div>
       )}
+
+      <button
+        type="button"
+        aria-label="Details öffnen"
+        onClick={(e) => {
+          e.stopPropagation();
+          props.onOpenDetail();
+        }}
+        className="flex shrink-0 items-center rounded p-1 text-muted-foreground hover:bg-muted"
+      >
+        <PanelRight className="h-4 w-4" />
+      </button>
 
       {props.task.tags.map((tag) => (
         <Badge key={tag} variant="secondary" className="shrink-0">
@@ -211,18 +242,6 @@ export function TodoRow(props: TodoRowProps) {
           <FolderInput className="h-3 w-3" />
         </button>
       ) : null}
-
-      <button
-        type="button"
-        aria-label="Details öffnen"
-        onClick={(e) => {
-          e.stopPropagation();
-          props.onOpenDetail();
-        }}
-        className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-      >
-        <PanelRight className="h-3 w-3" />
-      </button>
 
       <TodoMoveMenu
         open={moveOpen}
