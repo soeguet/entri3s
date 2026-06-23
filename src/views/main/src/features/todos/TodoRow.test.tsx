@@ -285,6 +285,27 @@ test("ohne sortable: keine Einrücken/Ausrücken-Buttons", () => {
   expect(screen.queryByLabelText("Ausrücken")).not.toBeInTheDocument();
 });
 
+test("ohne due: kein Datum-Label im Ruhezustand (kein '—'-Platzhalter)", () => {
+  render(
+    <TodoRow
+      task={task({ due: null })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+    />,
+  );
+  // Das statische Datum-Label fehlt vollständig; der "—"-Platzhalter ist weg.
+  expect(screen.queryByText("—")).not.toBeInTheDocument();
+  // Der interaktive Reschedule-Button bleibt jedoch (per Hover enthüllt, im DOM).
+  expect(screen.getByLabelText("Datum / Reschedule")).toBeInTheDocument();
+});
+
 test("Details-öffnen-Button ruft onOpenDetail", async () => {
   const onOpenDetail = vi.fn();
   const user = userEvent.setup();

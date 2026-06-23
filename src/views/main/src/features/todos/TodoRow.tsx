@@ -105,9 +105,15 @@ export function TodoRow(props: TodoRowProps) {
       onClick={props.onSelect}
       style={{ paddingLeft: `${props.task.depth * 1.5 + 0.75}rem`, ...sortableStyle }}
       className={cn(
-        "flex items-center gap-2 border-b border-border py-1.5 pr-3 text-sm",
+        // group: erlaubt den Hover-/Fokus-gesteuerten Aktionen (Drag-Handle +
+        // rechte Aktions-Gruppe) per group-hover/group-focus-within sichtbar zu
+        // werden, ohne im Ruhezustand die Zeile zu überladen.
+        "group flex items-center gap-2 border-b border-border py-1.5 pr-3 text-sm",
         props.selected && "bg-muted",
         props.sortable && sortable.isDragging && "opacity-50",
+        // Subtiler Verschachtelungs-Hinweis für Subtasks (zusätzlich zur
+        // depth-basierten Einrückung über paddingLeft).
+        props.task.depth > 0 && "border-l border-l-border",
       )}
     >
       {props.selectMode ? (
@@ -131,39 +137,13 @@ export function TodoRow(props: TodoRowProps) {
           {...sortable.attributes}
           {...sortable.listeners}
           onClick={(e) => e.stopPropagation()}
-          className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground hover:text-foreground"
+          // Im Ruhezustand transparent (NICHT unmounted, damit kein
+          // Layout-Springen + Tests den Button per aria-label finden), bei
+          // Hover/Fokus innerhalb der Zeile sichtbar.
+          className="flex shrink-0 cursor-grab touch-none items-center text-muted-foreground opacity-0 transition-opacity hover:text-foreground group-hover:opacity-100 group-focus-within:opacity-100"
         >
           <GripVertical className="h-4 w-4" />
         </button>
-      ) : null}
-
-      {props.sortable ? (
-        <>
-          <button
-            type="button"
-            aria-label="Einrücken"
-            disabled={!props.canIndent}
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onReindent?.("indent");
-            }}
-            className="flex shrink-0 items-center rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
-          >
-            <ListIndentIncrease className="h-4 w-4" />
-          </button>
-          <button
-            type="button"
-            aria-label="Ausrücken"
-            disabled={!props.canOutdent}
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onReindent?.("outdent");
-            }}
-            className="flex shrink-0 items-center rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
-          >
-            <ListIndentDecrease className="h-4 w-4" />
-          </button>
-        </>
       ) : null}
 
       <input
@@ -225,18 +205,6 @@ export function TodoRow(props: TodoRowProps) {
         </div>
       )}
 
-      <button
-        type="button"
-        aria-label="Details öffnen"
-        onClick={(e) => {
-          e.stopPropagation();
-          props.onOpenDetail();
-        }}
-        className="flex shrink-0 items-center rounded p-1 text-muted-foreground hover:bg-muted"
-      >
-        <PanelRight className="h-4 w-4" />
-      </button>
-
       {props.task.tags.map((tag) => (
         <Badge key={tag} variant="secondary" className="shrink-0">
           #{tag}
@@ -250,19 +218,99 @@ export function TodoRow(props: TodoRowProps) {
         </Badge>
       ) : null}
 
-      <button
-        ref={dateBtnRef}
-        type="button"
-        aria-label="Datum / Reschedule"
-        onClick={(e) => {
-          e.stopPropagation();
-          setPickerOpen(true);
-        }}
-        className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+      {props.error ? (
+        <span className="shrink-0 text-xs text-danger-accent">{todoErrorMessage(props.error)}</span>
+      ) : null}
+
+      {/* Statisches, IMMER sichtbares Fälligkeitsdatum NUR wenn gesetzt — kein
+          "—"-Platzhalter mehr im Ruhezustand. Das interaktive Reschedule läuft
+          über den Kalender-Button in der Hover-Aktions-Gruppe. */}
+      {props.task.due !== null ? (
+        <span className="ml-auto flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
+          <Calendar className="h-3 w-3" />
+          {props.task.due}
+        </span>
+      ) : null}
+
+      {/* Rechte Aktions-Gruppe. ml-auto nur, wenn KEIN Datum-Label gesetzt ist
+          (sonst trägt das Datum-Label schon ml-auto und schiebt beide nach
+          rechts). Im Ruhezustand transparent, enthüllt bei Hover/Fokus.
+          Buttons bleiben gemountet (Tests + kein Layout-Sprung). */}
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100",
+          props.task.due === null && "ml-auto",
+        )}
       >
-        <Calendar className="h-3 w-3" />
-        {props.task.due ?? "—"}
-      </button>
+        {props.sortable ? (
+          <>
+            <button
+              type="button"
+              aria-label="Einrücken"
+              disabled={!props.canIndent}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onReindent?.("indent");
+              }}
+              className="flex shrink-0 items-center rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
+            >
+              <ListIndentIncrease className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Ausrücken"
+              disabled={!props.canOutdent}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onReindent?.("outdent");
+              }}
+              className="flex shrink-0 items-center rounded p-0.5 text-muted-foreground hover:bg-muted disabled:opacity-30"
+            >
+              <ListIndentDecrease className="h-4 w-4" />
+            </button>
+          </>
+        ) : null}
+
+        <button
+          ref={dateBtnRef}
+          type="button"
+          aria-label="Datum / Reschedule"
+          onClick={(e) => {
+            e.stopPropagation();
+            setPickerOpen(true);
+          }}
+          className="flex shrink-0 items-center rounded p-1 text-muted-foreground hover:bg-muted"
+        >
+          <Calendar className="h-4 w-4" />
+        </button>
+
+        {moveTargets.length > 0 ? (
+          <button
+            ref={moveBtnRef}
+            type="button"
+            aria-label="In andere Liste verschieben"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMoveOpen(true);
+            }}
+            className="flex shrink-0 items-center rounded p-1 text-muted-foreground hover:bg-muted"
+          >
+            <FolderInput className="h-4 w-4" />
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          aria-label="Details öffnen"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onOpenDetail();
+          }}
+          className="flex shrink-0 items-center rounded p-1 text-muted-foreground hover:bg-muted"
+        >
+          <PanelRight className="h-4 w-4" />
+        </button>
+      </div>
 
       <TodoDatePicker
         open={pickerOpen}
@@ -275,21 +323,6 @@ export function TodoRow(props: TodoRowProps) {
         }}
       />
 
-      {moveTargets.length > 0 ? (
-        <button
-          ref={moveBtnRef}
-          type="button"
-          aria-label="In andere Liste verschieben"
-          onClick={(e) => {
-            e.stopPropagation();
-            setMoveOpen(true);
-          }}
-          className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-        >
-          <FolderInput className="h-3 w-3" />
-        </button>
-      ) : null}
-
       <TodoMoveMenu
         open={moveOpen}
         anchor={moveBtnRef.current}
@@ -300,10 +333,6 @@ export function TodoRow(props: TodoRowProps) {
           props.onMove(toList);
         }}
       />
-
-      {props.error ? (
-        <span className="shrink-0 text-xs text-danger-accent">{todoErrorMessage(props.error)}</span>
-      ) : null}
     </div>
   );
 }
