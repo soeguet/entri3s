@@ -322,6 +322,7 @@ export function TodosPage() {
           }
         }}
         onToggleSubtask={onToggle}
+        onOpenSubtask={(st) => setDetailTaskId(st.id)}
         error={mut.update.isError ? mut.update.error : null}
       />
 

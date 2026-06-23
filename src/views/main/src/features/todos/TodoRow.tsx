@@ -169,10 +169,14 @@ export function TodoRow(props: TodoRowProps) {
                 e.stopPropagation();
                 props.onOpenDetail();
               }}
-              className="flex min-w-0 items-center gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
+              className="flex min-w-0 items-start gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
             >
-              <StickyNote className="h-3 w-3 shrink-0" />
-              <span className="line-clamp-1 min-w-0">{props.task.description}</span>
+              <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+              {/* line-clamp-3 + whitespace-pre-line: echte "\n" als Umbrüche, bis
+                  zu 3 Zeilen mit automatischem "…" bei Überlauf. */}
+              <span className="line-clamp-3 min-w-0 whitespace-pre-line">
+                {props.task.description}
+              </span>
             </button>
           ) : null}
         </div>

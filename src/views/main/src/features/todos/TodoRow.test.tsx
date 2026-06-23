@@ -179,6 +179,30 @@ test("Notiz-Vorschau erscheint bei gesetzter description und Klick öffnet das D
   expect(onOpenDetail).toHaveBeenCalledTimes(1);
 });
 
+test("mehrzeilige description wird mehrzeilig dargestellt (whitespace-pre-line + line-clamp-3)", () => {
+  render(
+    <TodoRow
+      task={task({ description: "Zeile eins\nZeile zwei" })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+    />,
+  );
+  // Beide Zeilen stehen im selben Vorschau-Element; "\n" bleibt erhalten und
+  // wird per CSS (whitespace-pre-line) als echter Umbruch dargestellt.
+  const preview = screen.getByText(
+    (_, el) => el?.tagName === "SPAN" && el.textContent === "Zeile eins\nZeile zwei",
+  );
+  expect(preview).toHaveClass("whitespace-pre-line");
+  expect(preview).toHaveClass("line-clamp-3");
+});
+
 test("ohne description keine Notiz-Vorschau", () => {
   render(
     <TodoRow
