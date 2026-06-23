@@ -20,6 +20,8 @@ import { useTodoSelection } from "./useTodoSelection";
 import { smartViewFilter, smartViewCounts, type SmartView } from "./smartViewFilter";
 import { allTagsOf, applyFilterSort, isFilterActive } from "./taskFilterSort";
 import { useTodoFilterSort } from "./useTodoFilterSort";
+import { useSavedFilters } from "./useSavedFilters";
+import type { SavedFilter } from "./savedFilters";
 import { TodoToolbar } from "./TodoToolbar";
 import { isNoFolderError } from "./todoError";
 import { TodoSearchDialog } from "./TodoSearchDialog";
@@ -64,6 +66,25 @@ export function TodosPage() {
 
   const selection = useTodoSelection({ allTasks, view, selectedList, bulk: mut.bulk });
   const fs = useTodoFilterSort();
+  const saved = useSavedFilters();
+
+  // Aktuellen Zustand (View/Liste + Filter + Sort) als benannten Filter sichern.
+  function onSaveCurrent(name: string) {
+    saved.addFilter({
+      id: crypto.randomUUID(),
+      name,
+      view: selectedList ? null : view,
+      listId: selectedList,
+      filter: fs.filter,
+      sort: fs.sort,
+    });
+  }
+  // Gespeicherten Filter komplett anwenden: View/Liste setzen, dann Filter+Sort.
+  function onApplyFilter(sf: SavedFilter) {
+    setSelectedList(sf.listId);
+    if (!sf.listId) setView(sf.view ?? "today");
+    fs.setAll(sf.filter, sf.sort);
+  }
 
   // Sichtbare Tasks: entweder eine konkrete Liste oder eine Smart-View über alle.
   const activeList = selectedList ? (lists.data ?? []).find((l) => l.id === selectedList) : null;
@@ -215,6 +236,10 @@ export function TodosPage() {
             onList={setSelectedList}
             onCreateList={(name) => mut.createList.mutate(name)}
             createError={mut.createList.isError ? mut.createList.error : null}
+            savedFilters={saved.filters}
+            onApplyFilter={onApplyFilter}
+            onDeleteFilter={saved.removeFilter}
+            onSaveCurrent={onSaveCurrent}
           />
 
           <div className="min-w-0 flex-1">

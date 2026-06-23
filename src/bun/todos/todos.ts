@@ -182,6 +182,15 @@ export function createTodoService(repo: Repository) {
       const next = reorderLines(r.content, moved.raw, target.raw, before);
       writeContent(file, next);
     },
+
+    // Saved Filters: schema-agnostisch als opaker JSON-String in den Settings
+    // abgelegt (Muster wie Template.payload). Der Inhalt gehört dem Frontend.
+    getSavedFilters(): string {
+      return repo.settings.get("todoSavedFilters") ?? "";
+    },
+    setSavedFilters(json: string): void {
+      repo.settings.set("todoSavedFilters", json);
+    },
   };
 }
 

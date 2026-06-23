@@ -33,6 +33,9 @@ export const keys = {
   // Reiner Prefix ["todos"] (wie keys.entries()): EINE getTodoLists-Query speist
   // alle Smart-Views, daher kein Argument. todosChanged invalidiert per Prefix.
   todos: () => ["todos"] as readonly unknown[],
+  // Gespeicherte Filter (Saved Filters) als eigener Prefix; ändert sich nur durch
+  // die eigenen Mutationen, NICHT über todosChanged.
+  todoSavedFilters: () => ["todoSavedFilters"] as readonly unknown[],
   // Letzter Sync-Status. triggerSync ist Fire-and-Forget — das Ergebnis kommt
   // asynchron über die syncCompleted/syncFailed-Events; hier zwischengespeichert,
   // damit die TicketsPage einen Sync-Fehler anzeigen kann.

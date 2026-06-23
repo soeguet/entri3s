@@ -444,6 +444,14 @@ export const reorderTodoTask = (listId: string, id: string, targetId: string, be
   return ok(undefined as void);
 };
 
+// Saved Filters: modul-lokaler String-Store (opaker JSON-String, initial leer).
+let todoSavedFilters = "";
+export const getTodoSavedFilters = () => ok(todoSavedFilters);
+export const setTodoSavedFilters = (json: string) => {
+  todoSavedFilters = json;
+  return ok(undefined as void);
+};
+
 export const getCommitsForDate = (_date: string): Promise<RpcResponse<Commit[]>> =>
   ok([
     {

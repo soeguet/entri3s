@@ -39,6 +39,8 @@ beforeEach(() => {
   vi.mocked(api.getSettings).mockResolvedValue({ data: SETTINGS, error: null });
   vi.mocked(api.getTodoLists).mockResolvedValue({ data: todoFixtures, error: null });
   vi.mocked(api.updateTodoTask).mockResolvedValue({ data: undefined, error: null });
+  vi.mocked(api.getTodoSavedFilters).mockResolvedValue({ data: "", error: null });
+  vi.mocked(api.setTodoSavedFilters).mockResolvedValue({ data: undefined, error: null });
 });
 
 test("Empty State wenn todoFolder leer ist", async () => {
@@ -121,6 +123,41 @@ test("Toolbar: Filtern nach Tag 'backend' zeigt nur passende Tasks", async () =>
   await user.click(await screen.findByLabelText("backend", undefined, { timeout: 3000 }));
 
   // Nur der Task mit Tag "backend" bleibt sichtbar.
+  await vi.waitFor(() => expect(screen.queryByText("Release vorbereiten")).not.toBeInTheDocument());
+  expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();
+});
+
+test("Saved Filter: 'backend'-Tag-Filter speichern, neu laden, anwenden filtert die Liste", async () => {
+  const user = userEvent.setup();
+  const client = freshClient();
+  renderPage(client);
+
+  // "Alle"-View + backend-Tag aktivieren, damit ein nicht-trivialer Filter aktiv ist.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /^Tags/ }, { timeout: 3000 }));
+  await user.click(await screen.findByLabelText("backend", undefined, { timeout: 3000 }));
+
+  // Filter unter einem Namen speichern.
+  await user.type(await screen.findByLabelText("Filter speichern"), "Backend");
+  await user.click(screen.getByRole("button", { name: "Filter sichern" }));
+
+  // setTodoSavedFilters wurde mit serialisiertem Inhalt (inkl. backend-Tag) aufgerufen.
+  await vi.waitFor(() => expect(api.setTodoSavedFilters).toHaveBeenCalledTimes(1));
+  const json = vi.mocked(api.setTodoSavedFilters).mock.calls[0][0] as string;
+  expect(json).toContain("backend");
+  expect(json).toContain("Backend");
+
+  // Persistenz simulieren: nächster Reload liefert genau diesen String zurück.
+  vi.mocked(api.getTodoSavedFilters).mockResolvedValue({ data: json, error: null });
+  client.invalidateQueries({ queryKey: keys.todoSavedFilters() });
+
+  // Filter zurücksetzen, dann über den gespeicherten Eintrag erneut anwenden.
+  await user.click(await screen.findByRole("button", { name: /Zurücksetzen/ }, { timeout: 3000 }));
+  await vi.waitFor(() => expect(screen.getByText("Release vorbereiten")).toBeInTheDocument());
+
+  await user.click(await screen.findByRole("button", { name: "Backend" }, { timeout: 3000 }));
+
+  // Anwenden filtert wieder: nur der backend-Task bleibt sichtbar.
   await vi.waitFor(() => expect(screen.queryByText("Release vorbereiten")).not.toBeInTheDocument());
   expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();
 });

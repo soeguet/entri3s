@@ -100,6 +100,13 @@ test("deleteTask removes the line", async () => {
   expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] a\n");
 });
 
+test("saved filters: empty initially, round-trips the same string", () => {
+  expect(svc.getSavedFilters()).toBe("");
+  const json = '[{"id":"a","name":"Wichtig"}]';
+  svc.setSavedFilters(json);
+  expect(svc.getSavedFilters()).toBe(json);
+});
+
 test("moveTask writes destination first then removes source", async () => {
   writeFileSync(join(dir, "Inbox.md"), "- [ ] move me\n- [ ] stay\n");
   writeFileSync(join(dir, "Done.md"), "");

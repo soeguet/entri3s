@@ -12,6 +12,7 @@ export function useTodoFilterSort(): {
   toggleTag: (tag: string) => void;
   togglePriority: (priority: TodoPriority) => void;
   setStatus: (status: TodoFilter["status"]) => void;
+  setAll: (filter: TodoFilter, sort: TodoSort) => void;
   reset: () => void;
   active: boolean;
 } {
@@ -35,6 +36,11 @@ export function useTodoFilterSort(): {
   function setStatus(status: TodoFilter["status"]) {
     setFilter((prev) => ({ ...prev, status }));
   }
+  // Komplette Filter+Sort-Übernahme (z.B. beim Anwenden eines Saved Filter).
+  function setAll(nextFilter: TodoFilter, nextSort: TodoSort) {
+    setFilter(nextFilter);
+    setSort(nextSort);
+  }
   function reset() {
     setFilter(EMPTY_FILTER);
     setSort("manual");
@@ -47,6 +53,7 @@ export function useTodoFilterSort(): {
     toggleTag,
     togglePriority,
     setStatus,
+    setAll,
     reset,
     active: isFilterActive(filter) || sort !== "manual",
   };
