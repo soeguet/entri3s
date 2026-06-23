@@ -182,6 +182,9 @@ export function EntriesPage() {
   });
   useHotkey("t", () => onDay(todayBerlinYmd()));
   useHotkey("f", () => setSearchOpen(true));
+  // mod+shift+f öffnet hier die Entries-Suche. Der globale Ticket-Such-Launcher
+  // deaktiviert seine gleiche Kombination auf /entries, damit diese Bindung gewinnt.
+  useHotkey("mod+shift+f", () => setSearchOpen(true));
 
   useCommands([
     { id: "entries:create", label: "Neuer Entry", section: "Entries", run: openCreate },

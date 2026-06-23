@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 interface NoteQuickEditProps {
   initialNotes: string | null;
@@ -8,16 +8,28 @@ interface NoteQuickEditProps {
 }
 
 /**
- * Präsentationaler Notiz-Editor fürs Inline-Quick-Edit im Modal. Hält nur den
+ * Präsentationaler Notiz-Editor fürs Inline-Quick-Edit im Popover. Hält nur den
  * lokalen Entwurf; das Speichern/Persistieren übernimmt der Parent-Dialog.
  */
 export function NoteQuickEdit(props: NoteQuickEditProps) {
   const [value, setValue] = useState(props.initialNotes ?? "");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Beim Öffnen fokussieren und den Cursor ans ENDE setzen (nicht alles
+  // markieren), damit der Nutzer sofort weiterschreiben/anhängen kann.
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (el === null) return;
+    el.focus();
+    const end = el.value.length;
+    el.setSelectionRange(end, end);
+  }, []);
 
   return (
     <div>
       <h3 className="mb-3 text-base font-semibold">Notiz bearbeiten</h3>
       <textarea
+        ref={textareaRef}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         rows={5}

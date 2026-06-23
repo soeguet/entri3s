@@ -5,6 +5,10 @@ import { useFocusTrap } from "./useFocusTrap";
 interface DialogProps {
   open: boolean;
   onClose: () => void;
+  // Optionaler Esc-Handler: erlaubt z.B. ein "einen Schritt zurück" in
+  // Sub-Views, statt den ganzen Dialog zu schliessen. Fehlt er, schliesst Esc
+  // wie gehabt (onClose).
+  onEscape?: () => void;
   title?: string;
   size?: "md" | "lg" | "xl"; // md = Standard (max-w-lg)
   children: ReactNode;
@@ -19,19 +23,21 @@ const SIZE_CLASS: Record<NonNullable<DialogProps["size"]>, string> = {
 /** Schlichter, kontrollierter Modal-Dialog (Overlay + Box). */
 export function Dialog(props: DialogProps) {
   const onClose = props.onClose;
+  const onEscape = props.onEscape;
   const titleId = useId();
   const trapRef = useFocusTrap(props.open);
 
   // Esc schliesst den Dialog – fokus-unabhängig (global), damit das Wegklicken
   // auch funktioniert, wenn der Fokus nicht in einem Eingabefeld liegt.
+  // onEscape erlaubt ein abweichendes Verhalten (z.B. "zurück" in einer Sub-View).
   useEffect(() => {
     if (!props.open) return;
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") (onEscape ?? onClose)();
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [props.open, onClose]);
+  }, [props.open, onClose, onEscape]);
 
   if (!props.open) return null;
   return (

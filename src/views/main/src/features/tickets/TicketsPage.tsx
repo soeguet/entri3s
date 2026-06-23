@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { RefreshCw } from "lucide-react";
@@ -27,6 +28,7 @@ import { ProjectGroup, type Group } from "./ProjectGroup";
 import { SortableTH } from "./SortableTH";
 import { sortTickets, type TicketSortBy, type TicketSortDir } from "./ticketsSort";
 import { useTicketsSearch } from "./useTicketsSearch";
+import { loadTicketsFilterState, saveTicketsFilterState } from "./ticketsFilterPrefs";
 
 // Tabellenkopf: by=null → nicht sortierbar (Assignee bewusst ohne Sortierung).
 const SORT_COLUMNS: { by: TicketSortBy | null; label: string }[] = [
@@ -72,6 +74,25 @@ export function TicketsPage() {
   // Filter/Suche/Auswahl/Sortierung kommen aus den URL-Search-Params (siehe router.tsx),
   // damit sie beim Zurücknavigieren aus der Detailseite erhalten bleiben.
   const { search: params, update, toggleSort } = useTicketsSearch();
+
+  // Beim Mount einmal aus localStorage hydratisieren: Sidebar-<Link> und der
+  // Detail-BackLink tragen keine Search-Params, also remountet TicketsPage ohne
+  // Filter. Wir spielen den persistierten Zustand per replace:true in die URL
+  // (kein zusätzlicher History-Eintrag). once-Guard verhindert eine Endlosschleife
+  // und übersteht den StrictMode-Doppel-Mount (Ref bleibt pro Mount erhalten).
+  const hydrated = useRef(false);
+  useEffect(() => {
+    if (hydrated.current) return;
+    hydrated.current = true;
+    const saved = loadTicketsFilterState();
+    if (saved) update(saved);
+    // Nur beim Mount; `update` ist über die Router-Instanz stabil.
+  }, []);
+
+  // Jede Änderung persistieren — localStorage spiegelt die Live-URL-Params.
+  useEffect(() => {
+    saveTicketsFilterState(params);
+  }, [params]);
 
   const filter: TicketFilter = {};
   if (params.status) filter.status = params.status;

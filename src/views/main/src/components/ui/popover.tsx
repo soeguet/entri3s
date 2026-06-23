@@ -13,10 +13,19 @@ interface PopoverProps {
 export function Popover(props: PopoverProps) {
   const trapRef = useFocusTrap(props.open);
   const [pos, setPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+  // "ready" verhindert ein sichtbares Aufblitzen oben-links: Solange die
+  // Position noch nicht aus dem Anker berechnet wurde, bleibt das Popover
+  // unsichtbar. useLayoutEffect berechnet die Position synchron VOR dem Paint
+  // (und läuft auch in jsdom), daher sind die Children stets im DOM, nur eben
+  // bis zur Berechnung visuell versteckt — Tests sehen die Children trotzdem.
+  const [ready, setReady] = useState(false);
 
   // Position berechnen und bei Scroll/Resize aktualisieren.
   useLayoutEffect(() => {
-    if (!props.open || !props.anchor) return;
+    if (!props.open || !props.anchor) {
+      setReady(false);
+      return;
+    }
     function update() {
       const rect = props.anchor!.getBoundingClientRect();
       const popW = 320; // w-80 = 20rem = 320px
@@ -32,6 +41,7 @@ export function Popover(props: PopoverProps) {
       if (left < 8) left = 8;
 
       setPos({ top, left });
+      setReady(true);
     }
     update();
     window.addEventListener("scroll", update, true);
@@ -75,7 +85,14 @@ export function Popover(props: PopoverProps) {
       ref={trapRef}
       role="dialog"
       aria-modal="true"
-      style={{ position: "fixed", top: pos.top, left: pos.left }}
+      style={{
+        position: "fixed",
+        top: pos.top,
+        left: pos.left,
+        // Bis die Position aus dem Anker berechnet ist, verstecken — vermeidet
+        // das Aufblitzen oben-links bei {0,0}. Children bleiben im DOM.
+        visibility: ready ? "visible" : "hidden",
+      }}
       className="z-50 w-80 rounded-lg border bg-card p-4 shadow-lg"
     >
       {props.children}
