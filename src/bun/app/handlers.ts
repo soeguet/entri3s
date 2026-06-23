@@ -92,6 +92,7 @@ export function createRpc(svc: Services) {
           wrap(() => svc.todo.moveTask(p.id, p.fromList, p.toList, p.toSection ?? null)),
         reorderTodoTask: (p) =>
           wrap(() => svc.todo.reorderTask(p.listId, p.id, p.targetId, p.before)),
+        reindentTodoTask: (p) => wrap(() => svc.todo.reindentTask(p.listId, p.id, p.direction)),
         getTodoSavedFilters: () => wrap(() => svc.todo.getSavedFilters()),
         setTodoSavedFilters: (p) => wrap(() => svc.todo.setSavedFilters(p.json)),
       },

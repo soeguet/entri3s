@@ -68,5 +68,6 @@ export const updateTodoTask = vi.fn(voidResp);
 export const deleteTodoTask = vi.fn(voidResp);
 export const moveTodoTask = vi.fn(voidResp);
 export const reorderTodoTask = vi.fn(voidResp);
+export const reindentTodoTask = vi.fn(voidResp);
 export const getTodoSavedFilters = vi.fn(() => okResp(""));
 export const setTodoSavedFilters = vi.fn(voidResp);

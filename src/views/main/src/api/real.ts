@@ -129,6 +129,8 @@ export const moveTodoTask = (
 ) => r.moveTodoTask({ id, fromList, toList, toSection });
 export const reorderTodoTask = (listId: string, id: string, targetId: string, before: boolean) =>
   r.reorderTodoTask({ listId, id, targetId, before });
+export const reindentTodoTask = (listId: string, id: string, direction: "indent" | "outdent") =>
+  r.reindentTodoTask({ listId, id, direction });
 
 // Saved Filters: opaker JSON-String (Struktur liegt im Frontend, siehe savedFilters.ts).
 export const getTodoSavedFilters = () => r.getTodoSavedFilters({});

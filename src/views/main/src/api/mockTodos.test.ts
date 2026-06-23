@@ -6,6 +6,7 @@ import {
   deleteTodoTask,
   createTodoList,
   reorderTodoTask,
+  reindentTodoTask,
 } from "./mock";
 
 // Mock-Parität für das Todo-Modul. Wichtig u.a. für die Konflikt-UX: der Mock
@@ -62,6 +63,49 @@ describe("mock todos", () => {
     await reorderTodoTask("ReorderB", b1.id, b3.id, false);
     const after = (await getTodoLists()).data!.find((l) => l.id === "ReorderB")!;
     expect(after.tasks.map((t) => t.title)).toEqual(["B-2", "B-3", "B-1"]);
+  });
+
+  it("reindentTodoTask rückt einen Task unter den vorangehenden ein (depth +1)", async () => {
+    await createTodoList("IndentA");
+    await addTodoTask({ listId: "IndentA", title: "I-parent" });
+    await addTodoTask({ listId: "IndentA", title: "I-child" });
+    const before = (await getTodoLists()).data!.find((l) => l.id === "IndentA")!;
+    const child = before.tasks.find((t) => t.title === "I-child")!;
+    expect(child.depth).toBe(0);
+    const res = await reindentTodoTask("IndentA", child.id, "indent");
+    expect(res.error).toBeNull();
+    const after = (await getTodoLists()).data!.find((l) => l.id === "IndentA")!;
+    expect(after.tasks.find((t) => t.title === "I-child")!.depth).toBe(1);
+  });
+
+  it("reindentTodoTask hebt einen Subtask heraus (depth -1) — Round-Trip", async () => {
+    await createTodoList("OutdentA");
+    await addTodoTask({ listId: "OutdentA", title: "O-parent" });
+    await addTodoTask({ listId: "OutdentA", title: "O-child" });
+    const list = (await getTodoLists()).data!.find((l) => l.id === "OutdentA")!;
+    const child = list.tasks.find((t) => t.title === "O-child")!;
+    await reindentTodoTask("OutdentA", child.id, "indent");
+    await reindentTodoTask("OutdentA", child.id, "outdent");
+    const after = (await getTodoLists()).data!.find((l) => l.id === "OutdentA")!;
+    expect(after.tasks.find((t) => t.title === "O-child")!.depth).toBe(0);
+  });
+
+  it("reindentTodoTask outdent eines Tiefe-0-Tasks liefert TODO_REINDENT", async () => {
+    await createTodoList("OutdentB");
+    await addTodoTask({ listId: "OutdentB", title: "top" });
+    const list = (await getTodoLists()).data!.find((l) => l.id === "OutdentB")!;
+    const top = list.tasks.find((t) => t.title === "top")!;
+    const res = await reindentTodoTask("OutdentB", top.id, "outdent");
+    expect(res.error?.code).toBe("TODO_REINDENT");
+  });
+
+  it("reindentTodoTask indent des ersten Tasks liefert TODO_REINDENT", async () => {
+    await createTodoList("IndentB");
+    await addTodoTask({ listId: "IndentB", title: "first" });
+    const list = (await getTodoLists()).data!.find((l) => l.id === "IndentB")!;
+    const first = list.tasks.find((t) => t.title === "first")!;
+    const res = await reindentTodoTask("IndentB", first.id, "indent");
+    expect(res.error?.code).toBe("TODO_REINDENT");
   });
 
   it("deleteTodoTask entfernt den Task", async () => {

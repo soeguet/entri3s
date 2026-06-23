@@ -446,6 +446,36 @@ export const reorderTodoTask = (listId: string, id: string, targetId: string, be
   return ok(undefined as void);
 };
 
+// Ein-/Ausrücken eines Tasks um eine Ebene. Anders als das echte Backend (das
+// auf Markdown-Zeilen arbeitet) operiert der Mock auf der flachen tasks-Liste
+// mit depth-Feld: der Anker und sein contiguous Subtree (folgende Tasks mit
+// größerer depth) wandern gemeinsam. Fail-closed wie das Backend: Tiefe-0-
+// Outdent, fehlender/flacherer Vorgänger -> TODO_REINDENT.
+export const reindentTodoTask = (listId: string, id: string, direction: "indent" | "outdent") => {
+  const list = store.todos.find((l) => l.id === listId);
+  const idx = list?.tasks.findIndex((t) => t.id === id) ?? -1;
+  if (!list || idx === -1) return fail<void>("TODO_CONFLICT", "Aufgabe nicht gefunden");
+  const anchor = list.tasks[idx];
+  // Subtree = folgende Tasks mit strikt größerer depth (bis zur ersten Zeile
+  // mit depth <= anchor).
+  let end = idx + 1;
+  while (end < list.tasks.length && list.tasks[end].depth > anchor.depth) end++;
+  const block = list.tasks.slice(idx, end);
+
+  if (direction === "outdent") {
+    if (anchor.depth < 1)
+      return fail<void>("TODO_REINDENT", "Aufgabe kann nicht ausgerückt werden");
+    for (const t of block) t.depth -= 1;
+  } else {
+    const prev = list.tasks[idx - 1];
+    if (!prev || prev.depth < anchor.depth) {
+      return fail<void>("TODO_REINDENT", "Aufgabe kann nicht eingerückt werden");
+    }
+    for (const t of block) t.depth += 1;
+  }
+  return ok(undefined as void);
+};
+
 // Saved Filters: modul-lokaler String-Store (opaker JSON-String, initial leer).
 let todoSavedFilters = "";
 export const getTodoSavedFilters = () => ok(todoSavedFilters);

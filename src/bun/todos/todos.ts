@@ -8,6 +8,7 @@ import { computeNext, parseRule } from "./recurrence";
 import { applyTaskEdit, renderNewTask, renderTask, type TaskEdit } from "./serializer";
 import { mutateFile, writeContent } from "./mutate";
 import { blockRange, reorderLines } from "./reorder";
+import { reindentLines, type ReindentDirection } from "./reindent";
 import { fileForList, listMd, read } from "./vault";
 
 // Todo-Service. Liest todoFolder live aus den Settings; TODO_NO_FOLDER wenn der
@@ -188,6 +189,17 @@ export function createTodoService(repo: Repository) {
       if (!moved || !target) throw appError("TODO_CONFLICT", "Aufgabe nicht gefunden.", false);
       const next = reorderLines(r.content, moved.raw, target.raw, before);
       writeContent(file, next);
+    },
+
+    // Ein-/Ausrücken eines Tasks um eine Ebene (Subtask <-> Top-Task). Der
+    // gesamte Subtree wandert mit (siehe reindent.ts). id dient nur zum
+    // Auffinden; die Mutation läuft fingerprint-basiert und fail-closed.
+    async reindentTask(listId: string, id: string, direction: ReindentDirection): Promise<void> {
+      const dir = folder();
+      const file = fileForList(dir, listId);
+      const fingerprint = await fingerprintOf(dir, listId, id);
+      const r = await read(file);
+      writeContent(file, reindentLines(r.content, fingerprint, direction));
     },
 
     // Saved Filters: schema-agnostisch als opaker JSON-String in den Settings

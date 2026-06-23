@@ -8,6 +8,11 @@ export function todoErrorMessage(err: unknown): string {
   if (err instanceof RpcError && err.code === "TODO_CONFLICT") {
     return "Aufgabe wurde extern geändert, nicht gespeichert";
   }
+  // TODO_REINDENT ist ein Sicherheitsnetz: das Frontend gated die Indent/Outdent-
+  // Buttons bereits, dieser Fehler tritt nur bei Race/Fremdänderung auf.
+  if (err instanceof RpcError && err.code === "TODO_REINDENT") {
+    return "Aufgabe kann nicht ein- oder ausgerückt werden";
+  }
   return errorMessage(err);
 }
 

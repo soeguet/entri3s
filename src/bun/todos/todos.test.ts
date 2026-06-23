@@ -201,3 +201,21 @@ test("moveTask writes destination first then removes source", async () => {
   expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] stay\n");
   expect(readFileSync(join(dir, "Done.md"), "utf8")).toContain("move me");
 });
+
+test("reindentTask indents a task (and its subtree) one level deeper", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n- [ ] child\n  note\n");
+  const list = await svc.getList("Inbox");
+  const child = list.tasks.find((x) => x.title === "child")!;
+  await svc.reindentTask("Inbox", child.id, "indent");
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe(
+    "- [ ] parent\n  - [ ] child\n    note\n",
+  );
+});
+
+test("reindentTask outdents a task (and its subtree) one level up", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] child\n    note\n");
+  const list = await svc.getList("Inbox");
+  const child = list.tasks.find((x) => x.title === "child")!;
+  await svc.reindentTask("Inbox", child.id, "outdent");
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] parent\n- [ ] child\n  note\n");
+});
