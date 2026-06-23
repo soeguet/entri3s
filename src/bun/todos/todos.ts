@@ -3,7 +3,7 @@ import { dirname } from "node:path";
 import type { TodoList, TodoTaskCreate, TodoTaskPatch } from "../../shared/types";
 import type { Repository } from "../repository";
 import { appError } from "../lib/app-error";
-import { parseList } from "./parser";
+import { indentWidth, parseList } from "./parser";
 import { computeNext, parseRule } from "./recurrence";
 import { applyTaskEdit, renderNewTask, renderTask, type TaskEdit } from "./serializer";
 import { mutateFile, writeContent } from "./mutate";
@@ -121,7 +121,8 @@ export function createTodoService(repo: Repository) {
       const file = fileForList(dir, patch.listId);
       const fingerprint = await fingerprintOf(dir, patch.listId, patch.id);
       await mutateFile(patch.listId, file, fingerprint, (parsed, idx) => {
-        return applyUpdate(parsed.lines, idx, patch);
+        const hit = parsed.raw.find((r) => r.lineIndex === idx)!;
+        return applyUpdate(parsed.lines, idx, hit.descRange, patch);
       });
     },
 
@@ -203,7 +204,12 @@ export function createTodoService(repo: Repository) {
 // Erzeugt die neuen Zeilen für ein Update an Zeilen-Index idx. Behandelt das
 // Abhaken eines wiederkehrenden Tasks: alte Instanz wird erledigt (✅ heute),
 // eine neue offene Instanz mit nächster Fälligkeit wird direkt darunter angelegt.
-function applyUpdate(srcLines: string[], idx: number, patch: TodoTaskPatch): string[] {
+function applyUpdate(
+  srcLines: string[],
+  idx: number,
+  descRange: { start: number; end: number },
+  patch: TodoTaskPatch,
+): string[] {
   const lines = [...srcLines];
   const original = lines[idx];
   const edit: TaskEdit = {
@@ -225,7 +231,18 @@ function applyUpdate(srcLines: string[], idx: number, patch: TodoTaskPatch): str
     edit.doneDate = null;
   }
 
+  // Reihenfolge: erst die Task-Zeile editieren (Zeilenanzahl stabil, idx + descRange
+  // bleiben gültig), dann die mehrzeilige Beschreibung ersetzen. Die Beschreibung
+  // liegt NICHT auf der Task-Zeile, daher separat von applyTaskEdit. Erst danach
+  // ggf. die Recurrence-Instanz VOR der Task-Zeile einfügen (verschiebt nur idx,
+  // nicht mehr die Beschreibung).
   lines[idx] = applyTaskEdit(original, edit);
+
+  if (patch.description !== undefined) {
+    const taskIndent = indentWidth(original);
+    const descLines = renderDescriptionLines(taskIndent, patch.description);
+    lines.splice(descRange.start, descRange.end - descRange.start, ...descLines);
+  }
 
   // Recurrence: nur beim Abhaken und nur bei in-app editierbaren Regeln.
   if (turningDone) {
@@ -246,6 +263,19 @@ function applyUpdate(srcLines: string[], idx: number, patch: TodoTaskPatch): str
   return lines;
 }
 
+// Rendert die Beschreibungs-Zeilen für die Datei: jede nicht-leere Zeile mit
+// (taskIndent + 2 Spaces) eingerückt (Umkehrung der Parser-Dedentierung). null
+// oder "" -> leeres Array (Beschreibung entfernen). Leere Zeilen würden die
+// Beschreibung beim Re-Parse abbrechen und werden daher verworfen.
+function renderDescriptionLines(taskIndent: number, description: string | null): string[] {
+  if (description === null || description === "") return [];
+  const pad = " ".repeat(taskIndent + 2);
+  return description
+    .split("\n")
+    .filter((line) => line.trim() !== "")
+    .map((line) => pad + line);
+}
+
 // Minimaler Single-Line-Parse über den vollen Parser (eine Zeile).
 function parseSingle(line: string) {
   return parseList("_", "_", line).list.tasks[0];
@@ -261,7 +291,7 @@ function insertSubtask(content: string, input: TodoTaskCreate): string {
   if (!parent) throw appError("TODO_CONFLICT", "Übergeordnete Aufgabe nicht gefunden.", false);
   const indent = "  ".repeat(parent.task.depth + 1);
   const line = indent + renderNewTask(input);
-  const block = blockRange(parsed.raw, parent);
+  const block = blockRange(parsed.lines, parsed.raw, parent);
   const lines = [...parsed.lines];
   lines.splice(block.end, 0, line);
   // Wie der Nicht-Subtask-Pfad: die Datei endet immer mit genau einem \n.

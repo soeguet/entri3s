@@ -21,6 +21,7 @@ function task(id: string, listId: string, overrides: Partial<TodoTask> = {}): To
     recurrenceEditableInApp: true,
     tags: [],
     depth: 0,
+    description: null,
     ...overrides,
   };
 }

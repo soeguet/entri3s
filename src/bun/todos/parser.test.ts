@@ -69,3 +69,76 @@ test("known recurrence is editable, unknown is read-only", () => {
   const weird = parsed.list.tasks.find((t) => t.recurrence === "every 3 fortnights")!;
   expect(weird.recurrenceEditableInApp).toBe(false);
 });
+
+// ── Description (mehrzeilige Notiz) ──────────────────────────────────────────
+
+test("description: single line, dedented, with correct range", () => {
+  const md = "- [ ] task\n  one line note\n- [ ] other\n";
+  const parsed = parseList("L", "L", md);
+  const t = parsed.list.tasks.find((x) => x.title === "task")!;
+  expect(t.description).toBe("one line note");
+  const r = parsed.raw.find((x) => x.task.id === t.id)!;
+  expect(r.descRange).toEqual({ start: 1, end: 2 });
+});
+
+test("description: multiple lines are joined with \\n and dedented", () => {
+  const md = "- [ ] task\n  first\n  second\n  third\n";
+  const parsed = parseList("L", "L", md);
+  const t = parsed.list.tasks.find((x) => x.title === "task")!;
+  expect(t.description).toBe("first\nsecond\nthird");
+  const r = parsed.raw.find((x) => x.task.id === t.id)!;
+  expect(r.descRange).toEqual({ start: 1, end: 4 });
+});
+
+test("description: null when no following indented lines; range is insert point", () => {
+  const md = "- [ ] task\n- [ ] other\n";
+  const parsed = parseList("L", "L", md);
+  const t = parsed.list.tasks.find((x) => x.title === "task")!;
+  expect(t.description).toBeNull();
+  const r = parsed.raw.find((x) => x.task.id === t.id)!;
+  expect(r.descRange).toEqual({ start: 1, end: 1 });
+});
+
+test("description: a subtask directly below the task yields empty description", () => {
+  const md = "- [ ] task\n  - [ ] sub\n";
+  const parsed = parseList("L", "L", md);
+  const t = parsed.list.tasks.find((x) => x.title === "task")!;
+  expect(t.description).toBeNull();
+  const r = parsed.raw.find((x) => x.task.id === t.id)!;
+  expect(r.descRange).toEqual({ start: 1, end: 1 });
+});
+
+test("description: a blank line ends the description block", () => {
+  const md = "- [ ] task\n  note line\n\n  not part of it\n";
+  const parsed = parseList("L", "L", md);
+  const t = parsed.list.tasks.find((x) => x.title === "task")!;
+  expect(t.description).toBe("note line");
+  const r = parsed.raw.find((x) => x.task.id === t.id)!;
+  expect(r.descRange).toEqual({ start: 1, end: 2 });
+});
+
+test("description: a less/equally indented line ends the block", () => {
+  const md = "- [ ] task\n  indented note\nflush text\n";
+  const parsed = parseList("L", "L", md);
+  const t = parsed.list.tasks.find((x) => x.title === "task")!;
+  expect(t.description).toBe("indented note");
+});
+
+test("round-trip: frontmatter + task + description + subtask + subtask-description", () => {
+  const md =
+    "---\ntags: [x]\n---\n\n## Sec\n" +
+    "- [ ] parent 📅 2026-06-30\n" +
+    "  parent note line 1\n" +
+    "  parent note line 2\n" +
+    "  - [ ] child\n" +
+    "    child note\n";
+  const parsed = parseList("L", "L", md);
+  // Beschreibungen korrekt erkannt.
+  const parent = parsed.list.tasks.find((x) => x.title === "parent")!;
+  const child = parsed.list.tasks.find((x) => x.title === "child")!;
+  expect(parent.description).toBe("parent note line 1\nparent note line 2");
+  expect(child.description).toBe("child note");
+  // Unveränderte Serialisierung ist byte-genau.
+  const rebuilt = parsed.lines.join("\n") + (parsed.trailingNewline ? "\n" : "");
+  expect(rebuilt).toBe(md);
+});

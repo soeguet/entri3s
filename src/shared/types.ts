@@ -254,6 +254,11 @@ export interface TodoTask {
   recurrenceEditableInApp: boolean;
   tags: string[];
   depth: number; // Einrückungstiefe (0 = top-level, >0 = Subtask)
+  // Mehrzeilige Notiz/Beschreibung: die unmittelbar unter der Task-Zeile
+  // folgenden, stärker eingerückten Nicht-Task-Zeilen (Obsidian-Layout-Annahme).
+  // Dedented (ohne die Task-Indent+2-Spaces-Einrückung), Zeilen mit "\n" verbunden;
+  // null = keine Beschreibung. Geschrieben wird nur bei expliziter Änderung.
+  description: string | null;
 }
 
 export interface TodoList {
@@ -287,6 +292,9 @@ export interface TodoTaskPatch {
   start?: string | null;
   tags?: string[];
   section?: string | null;
+  // Mehrzeilige Beschreibung. undefined = unverändert lassen; null oder "" =
+  // Beschreibung entfernen; sonst neuer Beschreibungstext (dedented, mit "\n").
+  description?: string | null;
 }
 
 // ── RPC Plumbing ─────────────────────────────────────────────────────────────

@@ -131,6 +131,52 @@ test("completing a recurring task creates next open instance", async () => {
   expect(lines[1]).toContain("✅");
 });
 
+test("updateTask sets a new multi-line description below the task", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] task\n- [ ] other\n");
+  const list = await svc.getList("Inbox");
+  const t = list.tasks.find((x) => x.title === "task")!;
+  await svc.updateTask({ id: t.id, listId: "Inbox", description: "line a\nline b" });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe(
+    "- [ ] task\n  line a\n  line b\n- [ ] other\n",
+  );
+});
+
+test("updateTask changes an existing description, leaving other tasks byte-exact", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] task\n  old note\n- [ ] other #tag\n");
+  const list = await svc.getList("Inbox");
+  const t = list.tasks.find((x) => x.title === "task")!;
+  await svc.updateTask({ id: t.id, listId: "Inbox", description: "new note\nsecond" });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe(
+    "- [ ] task\n  new note\n  second\n- [ ] other #tag\n",
+  );
+});
+
+test("updateTask removes a description when set to null", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] task\n  note one\n  note two\n- [ ] other\n");
+  const list = await svc.getList("Inbox");
+  const t = list.tasks.find((x) => x.title === "task")!;
+  await svc.updateTask({ id: t.id, listId: "Inbox", description: null });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] task\n- [ ] other\n");
+});
+
+test("updateTask leaves description untouched when patch.description is absent", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] task #old\n  keep this note\n");
+  const list = await svc.getList("Inbox");
+  const t = list.tasks.find((x) => x.title === "task")!;
+  await svc.updateTask({ id: t.id, listId: "Inbox", tags: ["new"] });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] task #new\n  keep this note\n");
+});
+
+test("updateTask indents description under a subtask (deeper task)", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] child\n");
+  const list = await svc.getList("Inbox");
+  const child = list.tasks.find((x) => x.title === "child")!;
+  await svc.updateTask({ id: child.id, listId: "Inbox", description: "child note" });
+  expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe(
+    "- [ ] parent\n  - [ ] child\n    child note\n",
+  );
+});
+
 test("deleteTask removes the line", async () => {
   writeFileSync(join(dir, "Inbox.md"), "- [ ] a\n- [ ] b\n");
   const list = await svc.getList("Inbox");

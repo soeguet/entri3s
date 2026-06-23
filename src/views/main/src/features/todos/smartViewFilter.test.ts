@@ -20,6 +20,7 @@ function task(overrides: Partial<TodoTask> & Pick<TodoTask, "id">): TodoTask {
     recurrenceEditableInApp: true,
     tags: [],
     depth: 0,
+    description: null,
     ...overrides,
   };
 }

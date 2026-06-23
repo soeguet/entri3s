@@ -17,6 +17,7 @@ function task(overrides: Partial<TodoTask> & Pick<TodoTask, "id" | "listId" | "t
     recurrenceEditableInApp: true,
     tags: [],
     depth: 0,
+    description: null,
     ...overrides,
   };
 }

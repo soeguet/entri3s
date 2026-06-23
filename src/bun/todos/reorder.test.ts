@@ -43,6 +43,33 @@ test("block stops at a non-task line (blank line breaks the block)", () => {
   expect(out).toBe("\n  - [ ] orphan\n- [ ] t\n- [ ] p\n");
 });
 
+test("moves a task with description AND subtasks as one complete block", () => {
+  const content =
+    "- [ ] a\n" +
+    "- [ ] parent\n" +
+    "  parent note\n" +
+    "  - [ ] s1\n" +
+    "    s1 note\n" +
+    "- [ ] c\n";
+  // parent vor a -> der ganze Subtree (Beschreibung + Subtask + dessen Beschreibung) wandert.
+  const out = reorderLines(content, "- [ ] parent", "- [ ] a", true);
+  expect(out).toBe(
+    "- [ ] parent\n" +
+      "  parent note\n" +
+      "  - [ ] s1\n" +
+      "    s1 note\n" +
+      "- [ ] a\n" +
+      "- [ ] c\n",
+  );
+});
+
+test("after-insert lands behind a target's description block", () => {
+  const content = "- [ ] a\n- [ ] parent\n  parent note\n- [ ] c\n";
+  // a NACH parent -> hinter die Beschreibungs-Zeile, nicht zwischen parent und Notiz.
+  const out = reorderLines(content, "- [ ] a", "- [ ] parent", false);
+  expect(out).toBe("- [ ] parent\n  parent note\n- [ ] a\n- [ ] c\n");
+});
+
 test("no-op when moved equals target", () => {
   const content = "- [ ] a\n- [ ] b\n";
   expect(reorderLines(content, "- [ ] a", "- [ ] a", true)).toBe(content);

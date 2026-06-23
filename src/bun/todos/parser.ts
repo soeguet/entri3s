@@ -17,6 +17,10 @@ export interface RawTask {
   task: TodoTask;
   raw: string; // exakte Originalzeile (ohne Zeilenumbruch)
   lineIndex: number; // 0-basierter Index in den gesplitteten Zeilen
+  // Zeilen-Range [start, end) der zur Task gehörenden Beschreibungs-Zeilen.
+  // Ohne Beschreibung: start === end === lineIndex + 1 (Einfügepunkt direkt
+  // unter der Task-Zeile). Wird für surgical Description-Mutation gebraucht.
+  descRange: { start: number; end: number };
 }
 
 export interface ParsedList {
@@ -24,6 +28,14 @@ export interface ParsedList {
   raw: RawTask[]; // parallele Roh-Info pro Task (gleiche Reihenfolge wie list.tasks)
   lines: string[]; // Originalzeilen (für surgical Mutation)
   trailingNewline: boolean; // endete der Inhalt auf \n?
+}
+
+// Normalisierte Einrückungs-Breite einer Zeile: führender Whitespace, Tabs als
+// 4 Spaces gezählt (gleiche Normalisierung wie buildTask.depth). Gemeinsame
+// Basis für depth, Description-Erkennung und blockRange-Subtree-Semantik.
+export function indentWidth(line: string): number {
+  const lead = line.match(/^[ \t]*/)?.[0] ?? "";
+  return lead.replace(/\t/g, "    ").length;
 }
 
 function priorityOf(body: string): TodoPriority {
@@ -82,7 +94,49 @@ function buildTask(
     recurrenceEditableInApp: rec.editable,
     tags: tagsOf(body),
     depth: Math.floor(indent.replace(/\t/g, "    ").length / 2),
+    // description wird im parseList-Loop nachgetragen (braucht die Folgezeilen).
+    description: null,
   };
+}
+
+// Beschreibungs-Konvention: die unmittelbar auf die Task-Zeile folgenden Zeilen,
+// die ALLE gelten: (1) stärker eingerückt als die Task-Zeile, (2) keine Task-
+// Zeile, (3) kein Section-Header, (4) nicht leer. Der Block endet bei der ersten
+// Verletzung (Subtask, gleich/weniger eingerückt, Section, Leerzeile, EOF).
+// Damit steht die Beschreibung IMMER direkt unter der Task-Zeile und vor etwaigen
+// Subtasks (natürliche Obsidian-Layout-Annahme).
+function descriptionEnd(lines: string[], taskLineIndex: number, taskIndent: number): number {
+  let end = taskLineIndex + 1;
+  while (end < lines.length) {
+    const line = lines[end];
+    if (line.trim() === "") break;
+    if (TASK_RE.test(line)) break;
+    if (SECTION_RE.test(line)) break;
+    if (indentWidth(line) <= taskIndent) break;
+    end++;
+  }
+  return end;
+}
+
+// Dedented Beschreibungstext: pro Zeile die (taskIndent + 2)-Spaces-Einrückung
+// entfernen (bzw. so viel führenden Whitespace wie vorhanden), Zeilen mit "\n"
+// verbinden. Tabs werden für die Längenberechnung als 4 Spaces gezählt.
+function dedentDescription(lines: string[], taskIndent: number): string {
+  const strip = taskIndent + 2;
+  return lines
+    .map((line) => {
+      let removed = 0;
+      let i = 0;
+      while (i < line.length && removed < strip) {
+        const ch = line[i];
+        if (ch === " ") removed += 1;
+        else if (ch === "\t") removed += 4;
+        else break;
+        i++;
+      }
+      return line.slice(i);
+    })
+    .join("\n");
 }
 
 function stripMeta(body: string): string {
@@ -120,8 +174,14 @@ export function parseList(listId: string, name: string, content: string): Parsed
     const m = line.match(TASK_RE);
     if (!m) continue;
     const task = buildTask(listId, section, m, seq++);
+    const taskIndent = indentWidth(line);
+    const descStart = i + 1;
+    const descEnd = descriptionEnd(lines, i, taskIndent);
+    if (descEnd > descStart) {
+      task.description = dedentDescription(lines.slice(descStart, descEnd), taskIndent);
+    }
     tasks.push(task);
-    raw.push({ task, raw: line, lineIndex: i });
+    raw.push({ task, raw: line, lineIndex: i, descRange: { start: descStart, end: descEnd } });
   }
 
   return { list: { id: listId, name, tasks, sections }, raw, lines, trailingNewline };

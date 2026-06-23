@@ -381,6 +381,7 @@ export const addTodoTask = (input: TodoTaskCreate) => {
     recurrenceEditableInApp: true,
     tags: input.tags ?? [],
     depth: 0,
+    description: null,
   });
   if (input.section && !list.sections.includes(input.section)) list.sections.push(input.section);
   return ok(undefined as void);
