@@ -19,6 +19,7 @@ interface TodoListProps {
   onRename: (task: TodoTask, title: string) => void;
   onReschedule: (task: TodoTask, due: string | null) => void;
   onMove: (task: TodoTask, toList: string) => void;
+  onOpenDetail: (task: TodoTask) => void;
   onReorder: (activeId: string, targetId: string, before: boolean) => void;
   // Mehrfachauswahl: durchgereicht bis TodoRow.
   selectMode: boolean;
@@ -66,6 +67,7 @@ export function TodoList(props: TodoListProps) {
           onRename={props.onRename}
           onReschedule={props.onReschedule}
           onMove={props.onMove}
+          onOpenDetail={props.onOpenDetail}
           onReorder={props.onReorder}
           selectMode={props.selectMode}
           selectedIds={props.selectedIds}

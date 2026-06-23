@@ -24,6 +24,8 @@ import type { SavedFilter } from "./savedFilters";
 import { TodoToolbar } from "./TodoToolbar";
 import { isNoFolderError } from "./todoError";
 import { TodoSearchDialog } from "./TodoSearchDialog";
+import { TaskDetailDialog } from "./TaskDetailDialog";
+import { subtasksOf } from "./subtaskTree";
 
 function EmptyState() {
   return (
@@ -54,6 +56,7 @@ export function TodosPage() {
   const [selectedList, setSelectedList] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
   // key-Remount zum Leeren der Eingaben NACH erfolgreichem Add/CreateList.
   const [quickAddKey, setQuickAddKey] = useState(0);
   const quickAddRef = useRef<HTMLInputElement>(null);
@@ -62,6 +65,13 @@ export function TodosPage() {
   const listNames = (lists.data ?? []).map((l) => l.id);
   const allTasks = (lists.data ?? []).flatMap((l) => l.tasks);
   const counts = smartViewCounts(allTasks, today);
+
+  // Detail-Panel: Task per id + dessen Subtree aus der geordneten Liste seiner Liste.
+  const detailTask = allTasks.find((t) => t.id === detailTaskId) ?? null;
+  const detailList = detailTask
+    ? (lists.data ?? []).find((l) => l.id === detailTask.listId)
+    : undefined;
+  const detailSubtasks = detailTask && detailList ? subtasksOf(detailList.tasks, detailTask) : [];
 
   const selection = useTodoSelection({ allTasks, view, selectedList, bulk: mut.bulk });
   const fs = useTodoFilterSort();
@@ -124,6 +134,18 @@ export function TodosPage() {
   useEffect(() => {
     if (mut.add.isSuccess || mut.createList.isSuccess) setQuickAddKey((k) => k + 1);
   }, [mut.add.isSuccess, mut.createList.isSuccess]);
+
+  // Detail-Dialog NUR bei einem aus dem Dialog ausgelösten Speichern schließen.
+  // savedFromDetail.current trennt das von inline-Edits (Toggle/Rename), die
+  // dieselbe update-Mutation nutzen, aber den Dialog nicht schließen sollen. Bei
+  // Konflikt (isError) bleibt der Dialog offen, damit der Fehler sichtbar ist.
+  const savedFromDetail = useRef(false);
+  useEffect(() => {
+    if (mut.update.isSuccess && savedFromDetail.current) {
+      savedFromDetail.current = false;
+      setDetailTaskId(null);
+    }
+  }, [mut.update.isSuccess]);
 
   function selectedTask(): TodoTask | undefined {
     return visible.find((t) => t.id === selectedId);
@@ -253,6 +275,7 @@ export function TodosPage() {
                 onRename={onRename}
                 onReschedule={onReschedule}
                 onMove={onMove}
+                onOpenDetail={(task) => setDetailTaskId(task.id)}
                 onReorder={onReorder}
                 selectMode={selection.selectMode}
                 selectedIds={selection.selectedIds}
@@ -262,6 +285,24 @@ export function TodosPage() {
           </div>
         </div>
       )}
+
+      <TaskDetailDialog
+        open={detailTaskId !== null}
+        task={detailTask}
+        subtasks={detailSubtasks}
+        onClose={() => setDetailTaskId(null)}
+        onUpdate={(patch) => {
+          savedFromDetail.current = true;
+          mut.update.mutate(patch);
+        }}
+        onAddSubtask={(title) => {
+          if (detailTask) {
+            mut.add.mutate({ listId: detailTask.listId, parentId: detailTask.id, title });
+          }
+        }}
+        onToggleSubtask={onToggle}
+        error={mut.update.isError ? mut.update.error : null}
+      />
 
       <TodoSearchDialog
         open={searchOpen}

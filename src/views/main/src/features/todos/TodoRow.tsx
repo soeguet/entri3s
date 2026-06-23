@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, FolderInput, GripVertical, Repeat } from "lucide-react";
+import { Calendar, FolderInput, GripVertical, PanelRight, Repeat } from "lucide-react";
 import type { TodoTask } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
@@ -24,6 +24,8 @@ interface TodoRowProps {
   onRename: (title: string) => void;
   onReschedule: (due: string | null) => void;
   onMove: (toList: string) => void;
+  // Öffnet das Detail-Panel für diese Zeile.
+  onOpenDetail: () => void;
   // Fehler der zuletzt versuchten Mutation auf GENAU diese Zeile (Konflikt).
   error: unknown;
   // Mehrfachauswahl-Modus: zeigt GANZ LINKS eine zusätzliche Auswahl-Checkbox
@@ -209,6 +211,18 @@ export function TodoRow(props: TodoRowProps) {
           <FolderInput className="h-3 w-3" />
         </button>
       ) : null}
+
+      <button
+        type="button"
+        aria-label="Details öffnen"
+        onClick={(e) => {
+          e.stopPropagation();
+          props.onOpenDetail();
+        }}
+        className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+      >
+        <PanelRight className="h-3 w-3" />
+      </button>
 
       <TodoMoveMenu
         open={moveOpen}

@@ -43,6 +43,7 @@ test("Checkbox-Klick ruft onToggle", async () => {
       onRename={noop}
       onReschedule={noop}
       onMove={noop}
+      onOpenDetail={noop}
     />,
   );
   await user.click(screen.getByLabelText("Test-Task abhaken"));
@@ -61,6 +62,7 @@ test("read-only-Recurrence: Checkbox deaktiviert + Obsidian-Badge", () => {
       onRename={noop}
       onReschedule={noop}
       onMove={noop}
+      onOpenDetail={noop}
     />,
   );
   expect(screen.getByLabelText("Test-Task abhaken")).toBeDisabled();
@@ -79,6 +81,7 @@ test("Konflikt-Fehler zeigt die Spec-Botschaft", () => {
       onRename={noop}
       onReschedule={noop}
       onMove={noop}
+      onOpenDetail={noop}
     />,
   );
   expect(screen.getByText("Aufgabe wurde extern geändert, nicht gespeichert")).toBeInTheDocument();
@@ -98,6 +101,7 @@ test("Inline-Edit ist BLUR-ONLY und ruft onRename mit neuem Titel", async () => 
       onRename={onRename}
       onReschedule={noop}
       onMove={noop}
+      onOpenDetail={noop}
     />,
   );
   await user.dblClick(screen.getByText("Test-Task"));
@@ -122,6 +126,7 @@ test("Move-Button fehlt, wenn es keine andere Liste gibt", () => {
       onRename={noop}
       onReschedule={noop}
       onMove={noop}
+      onOpenDetail={noop}
     />,
   );
   expect(screen.queryByLabelText("In andere Liste verschieben")).not.toBeInTheDocument();
@@ -141,6 +146,7 @@ test("Move-Button: öffnen zeigt nur die anderen Listen, Klick ruft onMove mit Z
       onRename={noop}
       onReschedule={noop}
       onMove={onMove}
+      onOpenDetail={noop}
     />,
   );
   await user.click(screen.getByLabelText("In andere Liste verschieben"));
