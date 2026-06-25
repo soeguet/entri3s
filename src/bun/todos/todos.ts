@@ -8,6 +8,7 @@ import { computeNext, parseRule } from "./recurrence";
 import { applyTaskEdit, renderNewTask, renderTask, type TaskEdit } from "./serializer";
 import { mutateFile, writeContent } from "./mutate";
 import { blockRange, reorderLines } from "./reorder";
+import { completeOpenDescendants } from "./cascade";
 import { fileForList, listMd, read } from "./vault";
 
 // Todo-Service. Liest todoFolder live aus den Settings; TODO_NO_FOLDER wenn der
@@ -122,7 +123,16 @@ export function createTodoService(repo: Repository) {
       const fingerprint = await fingerprintOf(dir, patch.listId, patch.id);
       await mutateFile(patch.listId, file, fingerprint, (parsed, idx) => {
         const hit = parsed.raw.find((r) => r.lineIndex === idx)!;
-        return applyUpdate(parsed.lines, idx, hit.descRange, patch);
+        // Kaskadierendes Abhaken: erst offene Nachfahren in-place miterledigen, DANN
+        // applyUpdate(parent). patch enthält nur {done:true} → kein Description-Splice,
+        // Zeilenanzahl stabil, Kinder-Indizes bleiben gültig. Un-Check (done === false)
+        // kaskadiert bewusst NICHT: ein erneut geöffneter Parent soll bereits
+        // abgeschlossene Kinder nicht zurücksetzen.
+        let lines = parsed.lines;
+        if (patch.done === true) {
+          lines = completeOpenDescendants(parsed.lines, parsed, idx, todayBerlinYmd());
+        }
+        return applyUpdate(lines, idx, hit.descRange, patch);
       });
     },
 

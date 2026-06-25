@@ -44,6 +44,7 @@ test("Checkbox-Klick ruft onToggle", async () => {
       onReschedule={noop}
       onMove={noop}
       onOpenDetail={noop}
+      onDelete={noop}
     />,
   );
   await user.click(screen.getByLabelText("Test-Task abhaken"));
@@ -63,6 +64,7 @@ test("read-only-Recurrence: Checkbox deaktiviert + Obsidian-Badge", () => {
       onReschedule={noop}
       onMove={noop}
       onOpenDetail={noop}
+      onDelete={noop}
     />,
   );
   expect(screen.getByLabelText("Test-Task abhaken")).toBeDisabled();
@@ -82,6 +84,7 @@ test("Konflikt-Fehler zeigt die Spec-Botschaft", () => {
       onReschedule={noop}
       onMove={noop}
       onOpenDetail={noop}
+      onDelete={noop}
     />,
   );
   expect(screen.getByText("Aufgabe wurde extern geändert, nicht gespeichert")).toBeInTheDocument();
@@ -102,6 +105,7 @@ test("Inline-Edit ist BLUR-ONLY und ruft onRename mit neuem Titel", async () => 
       onReschedule={noop}
       onMove={noop}
       onOpenDetail={noop}
+      onDelete={noop}
     />,
   );
   await user.dblClick(screen.getByText("Test-Task"));
@@ -127,6 +131,7 @@ test("Move-Button fehlt, wenn es keine andere Liste gibt", () => {
       onReschedule={noop}
       onMove={noop}
       onOpenDetail={noop}
+      onDelete={noop}
     />,
   );
   expect(screen.queryByLabelText("In andere Liste verschieben")).not.toBeInTheDocument();
@@ -147,6 +152,7 @@ test("Move-Button: öffnen zeigt nur die anderen Listen, Klick ruft onMove mit Z
       onReschedule={noop}
       onMove={onMove}
       onOpenDetail={noop}
+      onDelete={noop}
     />,
   );
   await user.click(screen.getByLabelText("In andere Liste verschieben"));
@@ -155,4 +161,75 @@ test("Move-Button: öffnen zeigt nur die anderen Listen, Klick ruft onMove mit Z
   expect(screen.queryByRole("button", { name: "L" })).not.toBeInTheDocument();
   await user.click(screen.getByRole("button", { name: "Privat" }));
   expect(onMove).toHaveBeenCalledWith("Privat");
+});
+
+test("Trash-Button öffnet den Bestätigungs-Dialog", async () => {
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onDelete={noop}
+    />,
+  );
+  expect(screen.queryByText("Aufgabe löschen?")).not.toBeInTheDocument();
+  await user.click(screen.getByLabelText("Aufgabe löschen"));
+  expect(screen.getByText("Aufgabe löschen?")).toBeInTheDocument();
+});
+
+test("Dialog 'Löschen' ruft onDelete", async () => {
+  const onDelete = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onDelete={onDelete}
+    />,
+  );
+  await user.click(screen.getByLabelText("Aufgabe löschen"));
+  await user.click(screen.getByRole("button", { name: "Löschen" }));
+  expect(onDelete).toHaveBeenCalledTimes(1);
+  // Dialog ist danach geschlossen.
+  expect(screen.queryByText("Aufgabe löschen?")).not.toBeInTheDocument();
+});
+
+test("Dialog 'Abbrechen' ruft onDelete NICHT", async () => {
+  const onDelete = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onDelete={onDelete}
+    />,
+  );
+  await user.click(screen.getByLabelText("Aufgabe löschen"));
+  await user.click(screen.getByRole("button", { name: "Abbrechen" }));
+  expect(onDelete).not.toHaveBeenCalled();
+  expect(screen.queryByText("Aufgabe löschen?")).not.toBeInTheDocument();
 });

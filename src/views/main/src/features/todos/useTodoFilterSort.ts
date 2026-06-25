@@ -5,7 +5,7 @@ import { EMPTY_FILTER, isFilterActive, type TodoFilter, type TodoSort } from "./
 // Reine State-Verwaltung für Filter + Sortierung der Todo-Listenansicht.
 // Toggle-Helfer schalten einen Tag/eine Priorität in der jeweiligen Facette
 // an/aus (ODER innerhalb der Facette).
-export function useTodoFilterSort(): {
+export function useTodoFilterSort(initial?: { filter: TodoFilter; sort: TodoSort }): {
   filter: TodoFilter;
   sort: TodoSort;
   setSort: (sort: TodoSort) => void;
@@ -16,8 +16,10 @@ export function useTodoFilterSort(): {
   reset: () => void;
   active: boolean;
 } {
-  const [filter, setFilter] = useState<TodoFilter>(EMPTY_FILTER);
-  const [sort, setSort] = useState<TodoSort>("manual");
+  // initial (z.B. aus localStorage) nur als Lazy-Init für den Erststand; danach
+  // ist der Hook alleinige Quelle der Wahrheit (kein Re-Sync bei prop-Änderung).
+  const [filter, setFilter] = useState<TodoFilter>(initial?.filter ?? EMPTY_FILTER);
+  const [sort, setSort] = useState<TodoSort>(initial?.sort ?? "manual");
 
   function toggleTag(tag: string) {
     setFilter((prev) => ({

@@ -5,6 +5,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as api from "../../api";
 import { keys } from "../../lib/queryKeys";
+import { todayBerlinYmd, shiftDay } from "../../lib/dates";
 import { todoFixtures } from "../../fixtures/todos";
 import { TodosPage } from "./TodosPage";
 
@@ -41,6 +42,20 @@ function freshClient(): QueryClient {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // UI-Prefs persistieren in localStorage. jsdom 29 stellt localStorage unter
+  // paralleler Last nicht zuverlässig als Global bereit (Worker-Reuse) → frisches
+  // In-Memory-localStorage je Test (ersetzt zugleich das vorige clear()).
+  const store = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => void store.set(k, String(v)),
+    removeItem: (k: string) => void store.delete(k),
+    clear: () => store.clear(),
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() {
+      return store.size;
+    },
+  } as Storage;
   vi.mocked(api.getSettings).mockResolvedValue({ data: SETTINGS, error: null });
   vi.mocked(api.getTodoLists).mockResolvedValue({ data: todoFixtures, error: null });
   vi.mocked(api.updateTodoTask).mockResolvedValue({ data: undefined, error: null });
@@ -165,6 +180,46 @@ test("Saved Filter: 'backend'-Tag-Filter speichern, neu laden, anwenden filtert 
   // Anwenden filtert wieder: nur der backend-Task bleibt sichtbar.
   await vi.waitFor(() => expect(screen.queryByText("Release vorbereiten")).not.toBeInTheDocument());
   expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();
+});
+
+test("Quick-Add in 'Heute' ohne @datum setzt due=heute (sofort sichtbar)", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // Default-View ist "Heute", keine Liste gewählt → Auto-due greift.
+  const input = await screen.findByLabelText("Neue Aufgabe", undefined, { timeout: 3000 });
+  await user.type(input, "Neuer Task ohne Datum");
+  await user.click(screen.getByRole("button", { name: "Hinzufügen" }));
+
+  await vi.waitFor(() =>
+    expect(api.addTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        listId: "Arbeit",
+        title: "Neuer Task ohne Datum",
+        due: todayBerlinYmd(),
+      }),
+    ),
+  );
+});
+
+test("Quick-Add in 'Heute' mit @morgen überschreibt das geparste Datum NICHT", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  const input = await screen.findByLabelText("Neue Aufgabe", undefined, { timeout: 3000 });
+  await user.type(input, "Angebot @morgen");
+  await user.click(screen.getByRole("button", { name: "Hinzufügen" }));
+
+  const tomorrow = shiftDay(todayBerlinYmd(), 1);
+  await vi.waitFor(() =>
+    expect(api.addTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ listId: "Arbeit", title: "Angebot", due: tomorrow }),
+    ),
+  );
+  // Kein Override auf heute.
+  expect(api.addTodoTask).not.toHaveBeenCalledWith(
+    expect.objectContaining({ due: todayBerlinYmd(), title: "Angebot" }),
+  );
 });
 
 test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit done:true", async () => {

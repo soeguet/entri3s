@@ -12,7 +12,9 @@ export interface TodoFilter {
   status: "all" | "open" | "done";
 }
 
-export const EMPTY_FILTER: TodoFilter = { tags: [], priorities: [], status: "all" };
+// Bewusste Abweichung: Default ist "Offen", nicht "Alle" — beim Landen/Reset
+// sollen erledigte Tasks ausgeblendet sein. Reset() kehrt hierher zurück.
+export const EMPTY_FILTER: TodoFilter = { tags: [], priorities: [], status: "open" };
 
 // Feste Rangordnung highest>…>lowest für die "priority"-Sortierung. Kleinerer
 // Rang = wichtiger = weiter oben.
@@ -25,9 +27,10 @@ const PRIORITY_RANK: Record<TodoPriority, number> = {
   lowest: 5,
 };
 
-// true, sobald irgendeine Facette die Sicht einschränkt (für "Zurücksetzen"-UX).
+// true, sobald eine Facette vom Nutzer-Default (Offen) abweicht (für die
+// "Zurücksetzen"-UX). status:"open" ist der Default und gilt daher NICHT als aktiv.
 export function isFilterActive(f: TodoFilter): boolean {
-  return f.tags.length > 0 || f.priorities.length > 0 || f.status !== "all";
+  return f.tags.length > 0 || f.priorities.length > 0 || f.status !== "open";
 }
 
 // Facetten-Filter: innerhalb einer Facette ODER, über Facetten UND.

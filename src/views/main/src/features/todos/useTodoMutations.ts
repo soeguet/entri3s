@@ -49,7 +49,12 @@ export function useTodoMutations() {
 
   const add = useMutation({
     mutationFn: async (input: TodoTaskCreate) => unwrap(await addTodoTask(input)),
-    onSuccess: invalidate,
+    // Erfolgs-Toast mit Ziel-Liste, damit klar ist, wohin der Task ging (gerade
+    // in Smart-Views, wo die Zielliste nicht die sichtbare Auswahl ist).
+    onSuccess: (_data, input) => {
+      invalidate();
+      toast.success(`Aufgabe in „${input.listId}" hinzugefügt`);
+    },
     meta: { silentError: true },
   });
 
