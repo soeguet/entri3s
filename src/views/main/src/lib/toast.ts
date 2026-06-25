@@ -4,10 +4,16 @@
 
 export type ToastVariant = "success" | "error" | "info";
 
+export interface ToastAction {
+  label: string;
+  onAction: () => void;
+}
+
 export interface Toast {
   id: number;
   variant: ToastVariant;
   message: string;
+  action?: ToastAction;
 }
 
 const AUTO_DISMISS_MS = 4000;
@@ -31,9 +37,9 @@ export function getSnapshot(): Toast[] {
   return toasts;
 }
 
-function push(variant: ToastVariant, message: string): number {
+function push(variant: ToastVariant, message: string, action?: ToastAction): number {
   const id = nextId++;
-  toasts = [...toasts, { id, variant, message }];
+  toasts = [...toasts, { id, variant, message, action }];
   timers.set(
     id,
     setTimeout(() => dismissToast(id), AUTO_DISMISS_MS),
@@ -55,9 +61,9 @@ export function dismissToast(id: number) {
 }
 
 export const toast = {
-  success: (message: string) => push("success", message),
-  error: (message: string) => push("error", message),
-  info: (message: string) => push("info", message),
+  success: (message: string, action?: ToastAction) => push("success", message, action),
+  error: (message: string, action?: ToastAction) => push("error", message, action),
+  info: (message: string, action?: ToastAction) => push("info", message, action),
 };
 
 /** Nur für Tests: setzt den Store hart zurück. */

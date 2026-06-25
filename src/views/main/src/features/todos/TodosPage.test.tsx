@@ -7,6 +7,8 @@ import * as api from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { todayBerlinYmd, shiftDay } from "../../lib/dates";
 import { todoFixtures } from "../../fixtures/todos";
+import { resetToasts } from "../../lib/toast";
+import { Toaster } from "../../components/ui/toaster";
 import { TodosPage } from "./TodosPage";
 
 vi.mock("../../api");
@@ -30,6 +32,7 @@ function renderPage(client: QueryClient) {
   return render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>,
   );
 }
@@ -42,6 +45,7 @@ function freshClient(): QueryClient {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetToasts();
   // UI-Prefs persistieren in localStorage. jsdom 29 stellt localStorage unter
   // paralleler Last nicht zuverlässig als Global bereit (Worker-Reuse) → frisches
   // In-Memory-localStorage je Test (ersetzt zugleich das vorige clear()).
@@ -244,4 +248,98 @@ test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit
   for (const call of vi.mocked(api.updateTodoTask).mock.calls) {
     expect(call[0]).toEqual(expect.objectContaining({ done: true }));
   }
+});
+
+test("Tastatur: 'o' öffnet den Detail-Dialog für die selektierte Zeile", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "Alle"-View, damit der Task unabhängig vom heutigen Datum sichtbar ist.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+
+  // Zeile selektieren: Klick auf den Titel bubbelt zum onClick der Zeile
+  // (role="listitem" → onSelect) — öffnet selbst KEINEN Dialog.
+  await user.click(await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 }));
+
+  // Vor 'o': kein Dialog offen.
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  await user.keyboard("o");
+
+  // Detail-Dialog ist offen und zeigt den selektierten Task (Titel-Feld).
+  const dialog = await screen.findByRole("dialog", undefined, { timeout: 3000 });
+  expect(dialog).toBeInTheDocument();
+  expect(screen.getByLabelText("Titel")).toHaveValue("OAuth-Redirect testen");
+});
+
+test("Tastatur: 'o' ohne selektierte Zeile öffnet keinen Dialog", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  // Warten bis die Liste da ist, aber KEINE Zeile selektieren.
+  await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 });
+
+  await user.keyboard("o");
+
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("Abhaken eines Tasks OHNE offene Subtasks zeigt Undo-Toast, Klick auf Rückgängig setzt done:false", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "Release vorbereiten" (Arbeit#2) hat keine Subtasks → Undo-Toast greift.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("Release vorbereiten abhaken", undefined, { timeout: 3000 }),
+  );
+
+  const undo = await screen.findByRole("button", { name: "Rückgängig" }, { timeout: 3000 });
+  await user.click(undo);
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Arbeit#2", listId: "Arbeit", done: false }),
+    ),
+  );
+});
+
+test("Abhaken eines Tasks MIT offenen Subtasks zeigt KEINEN Undo-Toast (Variante A)", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "OAuth-Redirect testen" (Arbeit#0) hat einen offenen Subtask (Arbeit#1, depth 1).
+  // Unsere Kaskade hakt diesen mit ab → ein simples Parent-Undo wäre irreführend.
+  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, { timeout: 3000 }),
+  );
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Arbeit#0", done: true }),
+    ),
+  );
+  expect(screen.queryByRole("button", { name: "Rückgängig" })).not.toBeInTheDocument();
+});
+
+test("Abhaken eines wiederkehrenden Tasks zeigt KEINEN Undo-Toast", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // In die Privat-Liste wechseln, dort steht der wiederkehrende Task.
+  await user.click(await screen.findByRole("button", { name: /Privat/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("Wöchentlich Müll rausbringen abhaken", undefined, {
+      timeout: 3000,
+    }),
+  );
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Privat#0", done: true }),
+    ),
+  );
+  expect(screen.queryByRole("button", { name: "Rückgängig" })).not.toBeInTheDocument();
 });

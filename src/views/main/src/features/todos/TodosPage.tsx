@@ -27,7 +27,8 @@ import { TodoToolbar } from "./TodoToolbar";
 import { isNoFolderError } from "./todoError";
 import { TodoSearchDialog } from "./TodoSearchDialog";
 import { TaskDetailDialog } from "./TaskDetailDialog";
-import { subtasksOf } from "./subtaskTree";
+import { resolveDetail } from "./subtaskTree";
+import { undoToggleOptions } from "./todoUndo";
 
 function EmptyState() {
   return (
@@ -72,12 +73,8 @@ export function TodosPage() {
   const allTasks = (lists.data ?? []).flatMap((l) => l.tasks);
   const counts = smartViewCounts(allTasks, today);
 
-  // Detail-Panel: Task per id + dessen Subtree aus der geordneten Liste seiner Liste.
-  const detailTask = allTasks.find((t) => t.id === detailTaskId) ?? null;
-  const detailList = detailTask
-    ? (lists.data ?? []).find((l) => l.id === detailTask.listId)
-    : undefined;
-  const detailSubtasks = detailTask && detailList ? subtasksOf(detailList.tasks, detailTask) : [];
+  // Detail-Panel: Task per id + dessen Subtree (Lookup in subtaskTree.ts gekapselt).
+  const detail = resolveDetail(lists.data ?? [], detailTaskId);
 
   const selection = useTodoSelection({ allTasks, view, selectedList, bulk: mut.bulk });
   // Initialer filter/sort-Stand aus localStorage (einmalig, Lazy-Init im Hook).
@@ -135,7 +132,10 @@ export function TodosPage() {
     mut.add.mutate(autoToday ? { ...input, due: today } : input);
   }
   function onToggle(task: TodoTask) {
-    mut.update.mutate({ id: task.id, listId: task.listId, done: !task.done });
+    // Undo-Toast-Logik (Recurrence + Variante A) in todoUndo.ts gekapselt.
+    const onUndo = () => mut.update.mutate({ id: task.id, listId: task.listId, done: false });
+    const opts = undoToggleOptions(task, !task.done, lists.data ?? [], onUndo);
+    mut.update.mutate({ id: task.id, listId: task.listId, done: !task.done }, opts);
   }
   function onRename(task: TodoTask, title: string) {
     mut.update.mutate({ id: task.id, listId: task.listId, title });
@@ -191,6 +191,7 @@ export function TodosPage() {
     selectedTask,
     onToggle,
     onReschedule,
+    openDetail: (task) => setDetailTaskId(task.id),
     openSearch: () => setSearchOpen(true),
     setView,
     setSelectedList,
@@ -316,19 +317,20 @@ export function TodosPage() {
 
       <TaskDetailDialog
         open={detailTaskId !== null}
-        task={detailTask}
-        subtasks={detailSubtasks}
+        task={detail.task}
+        subtasks={detail.subtasks}
         onClose={() => setDetailTaskId(null)}
         onUpdate={(patch) => {
           savedFromDetail.current = true;
           mut.update.mutate(patch);
         }}
         onAddSubtask={(title) => {
-          if (detailTask) {
-            mut.add.mutate({ listId: detailTask.listId, parentId: detailTask.id, title });
+          if (detail.task) {
+            mut.add.mutate({ listId: detail.task.listId, parentId: detail.task.id, title });
           }
         }}
         onToggleSubtask={onToggle}
+        onOpenSubtask={(st) => setDetailTaskId(st.id)}
         error={mut.update.isError ? mut.update.error : null}
       />
 

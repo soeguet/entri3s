@@ -233,3 +233,92 @@ test("Dialog 'Abbrechen' ruft onDelete NICHT", async () => {
   expect(onDelete).not.toHaveBeenCalled();
   expect(screen.queryByText("Aufgabe löschen?")).not.toBeInTheDocument();
 });
+
+test("Notiz-Vorschau erscheint bei gesetzter description und Klick öffnet das Detail", async () => {
+  const onOpenDetail = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task({ description: "Eine kurze Notiz" })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={onOpenDetail}
+      onDelete={noop}
+    />,
+  );
+  expect(screen.getByText("Eine kurze Notiz")).toBeInTheDocument();
+  await user.click(screen.getByLabelText("Notiz öffnen"));
+  expect(onOpenDetail).toHaveBeenCalledTimes(1);
+});
+
+test("mehrzeilige description wird mehrzeilig dargestellt (whitespace-pre-line + line-clamp-3)", () => {
+  render(
+    <TodoRow
+      task={task({ description: "Zeile eins\nZeile zwei" })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onDelete={noop}
+    />,
+  );
+  // Beide Zeilen stehen im selben Vorschau-Element; "\n" bleibt erhalten und
+  // wird per CSS (whitespace-pre-line) als echter Umbruch dargestellt.
+  const preview = screen.getByText(
+    (_, el) => el?.tagName === "SPAN" && el.textContent === "Zeile eins\nZeile zwei",
+  );
+  expect(preview).toHaveClass("whitespace-pre-line");
+  expect(preview).toHaveClass("line-clamp-3");
+});
+
+test("ohne description keine Notiz-Vorschau", () => {
+  render(
+    <TodoRow
+      task={task({ description: null })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onDelete={noop}
+    />,
+  );
+  expect(screen.queryByLabelText("Notiz öffnen")).not.toBeInTheDocument();
+});
+
+test("Details-öffnen-Button ruft onOpenDetail", async () => {
+  const onOpenDetail = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task()}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={onOpenDetail}
+      onDelete={noop}
+    />,
+  );
+  await user.click(screen.getByLabelText("Details öffnen"));
+  expect(onOpenDetail).toHaveBeenCalledTimes(1);
+});

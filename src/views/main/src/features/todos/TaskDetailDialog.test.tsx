@@ -40,6 +40,7 @@ test("Titel ändern + Speichern ruft onUpdate mit atomarem Patch", async () => {
       onUpdate={onUpdate}
       onAddSubtask={noop}
       onToggleSubtask={noop}
+      onOpenSubtask={noop}
       error={null}
     />,
   );
@@ -74,6 +75,7 @@ test("Tags-Feld wird als Leerzeichen-getrennte Liste ohne # gespeichert", async 
       onUpdate={onUpdate}
       onAddSubtask={noop}
       onToggleSubtask={noop}
+      onOpenSubtask={noop}
       error={null}
     />,
   );
@@ -96,6 +98,7 @@ test("Subtask hinzufügen ruft onAddSubtask mit dem Titel", async () => {
       onUpdate={noop}
       onAddSubtask={onAddSubtask}
       onToggleSubtask={noop}
+      onOpenSubtask={noop}
       error={null}
     />,
   );
@@ -119,10 +122,79 @@ test("Subtask-Checkbox ruft onToggleSubtask", async () => {
       onUpdate={noop}
       onAddSubtask={noop}
       onToggleSubtask={onToggleSubtask}
+      onOpenSubtask={noop}
       error={null}
     />,
   );
 
   await user.click(screen.getByLabelText("Sub abhaken"));
   expect(onToggleSubtask).toHaveBeenCalledWith(sub);
+});
+
+test("Klick auf den Subtask-Titel öffnet das Subtask-Detail (onOpenSubtask)", async () => {
+  const onOpenSubtask = vi.fn();
+  const onToggleSubtask = vi.fn();
+  const sub = task({ id: "L#1", title: "Sub", depth: 1 });
+  const user = userEvent.setup();
+  render(
+    <TaskDetailDialog
+      open
+      task={task()}
+      subtasks={[sub]}
+      onClose={noop}
+      onUpdate={noop}
+      onAddSubtask={noop}
+      onToggleSubtask={onToggleSubtask}
+      onOpenSubtask={onOpenSubtask}
+      error={null}
+    />,
+  );
+
+  await user.click(screen.getByRole("button", { name: "Sub" }));
+  expect(onOpenSubtask).toHaveBeenCalledWith(sub);
+  // Titel-Klick darf NICHT die Checkbox togglen.
+  expect(onToggleSubtask).not.toHaveBeenCalled();
+});
+
+test("Subtask mit description zeigt eine Notiz-Vorschau", () => {
+  const sub = task({ id: "L#1", title: "Sub", depth: 1, description: "Sub-Notiz" });
+  render(
+    <TaskDetailDialog
+      open
+      task={task()}
+      subtasks={[sub]}
+      onClose={noop}
+      onUpdate={noop}
+      onAddSubtask={noop}
+      onToggleSubtask={noop}
+      onOpenSubtask={noop}
+      error={null}
+    />,
+  );
+
+  expect(screen.getByText("Sub-Notiz")).toBeInTheDocument();
+});
+
+test("Checkbox toggelt unabhängig vom Titel-Klick (onToggleSubtask, nicht onOpenSubtask)", async () => {
+  const onOpenSubtask = vi.fn();
+  const onToggleSubtask = vi.fn();
+  const sub = task({ id: "L#1", title: "Sub", depth: 1 });
+  const user = userEvent.setup();
+  render(
+    <TaskDetailDialog
+      open
+      task={task()}
+      subtasks={[sub]}
+      onClose={noop}
+      onUpdate={noop}
+      onAddSubtask={noop}
+      onToggleSubtask={onToggleSubtask}
+      onOpenSubtask={onOpenSubtask}
+      error={null}
+    />,
+  );
+
+  await user.click(screen.getByLabelText("Sub abhaken"));
+  expect(onToggleSubtask).toHaveBeenCalledWith(sub);
+  expect(onOpenSubtask).not.toHaveBeenCalled();
 });
