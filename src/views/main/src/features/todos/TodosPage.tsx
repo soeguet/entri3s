@@ -126,9 +126,9 @@ export function TodosPage() {
   // Aufbereitung für den Kombi-Modus: je Liste gefiltert/sortiert, leere ausgelassen.
   const combinedGroups = combined ? combinedLists(lists.data ?? [], fs.filter, fs.sort) : [];
 
-  // Quick-Add-Ziel: gewählte Liste, sonst die erste Liste (Smart-View-/Kombi-Modus).
+  // Quick-Add-Ziel: gewählte Liste, sonst erste Liste. sections für TodoList-
+  // Gruppierung; der Quick-Add leitet seine Sektionen selbst ab (#6 &Liste).
   const targetListId = selectedList ?? (lists.data ?? [])[0]?.id ?? null;
-  // Sektionen MÜSSEN der targetListId-Liste folgen (im Kombi-Modus keine activeList).
   const sections = (lists.data ?? []).find((l) => l.id === targetListId)?.sections ?? [];
 
   // Eingaben leeren, sobald Add/CreateList durchläuft (Remount via key).
@@ -218,8 +218,8 @@ export function TodosPage() {
             <TodoQuickAdd
               key={quickAddKey}
               ref={quickAddRef}
+              lists={lists.data ?? []}
               listId={targetListId}
-              sections={sections}
               today={today}
               onAdd={actions.onAdd}
               error={mut.add.isError ? mut.add.error : null}

@@ -102,6 +102,13 @@ export function createTodoService(repo: Repository) {
     async addTask(input: TodoTaskCreate): Promise<void> {
       const dir = folder();
       const file = fileForList(dir, input.listId);
+      // Ziel-Liste kann zwischen Auflösung (z.B. Quick-Add &Liste) und Schreiben
+      // gelöscht worden sein. Sprechend abfangen, sonst würde read() eine rohe
+      // ENOENT werfen -> generisches INTERNAL statt "Liste nicht gefunden".
+      // TODO_CONFLICT = etablierter "nicht gefunden"-Code dieses Service.
+      if (!existsSync(file)) {
+        throw appError("TODO_CONFLICT", "Liste nicht gefunden.", false);
+      }
       const r = await read(file);
       // Subtask: hinter den Parent-Block, eingerückt eine Ebene tiefer. section
       // wird dabei ignoriert (der Subtask erbt die Position des Parents).

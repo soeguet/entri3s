@@ -101,6 +101,15 @@ test("addTask with unknown parentId -> TODO_CONFLICT", async () => {
   expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] parent\n");
 });
 
+test("addTask into a non-existent list -> TODO_CONFLICT (not a raw INTERNAL throw)", async () => {
+  // Liste existiert nicht (Datei fehlt). read() würde sonst ENOENT werfen ->
+  // generisches INTERNAL. Erwartet: sprechender TODO_CONFLICT.
+  expect(existsSync(join(dir, "Ghost.md"))).toBe(false);
+  await expect(
+    svc.addTask({ listId: "Ghost", title: "orphan", due: "2026-06-30" }),
+  ).rejects.toMatchObject({ code: "TODO_CONFLICT" });
+});
+
 test("updateTask with tags writes them into the file", async () => {
   writeFileSync(join(dir, "Inbox.md"), "- [ ] task #old\n");
   const list = await svc.getList("Inbox");

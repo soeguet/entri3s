@@ -1,5 +1,6 @@
 import type { TodoList, TodoTask, TodoTaskCreate } from "../../../../../shared/types";
 import { isFilterActive, type TodoFilter, type TodoSort } from "./taskFilterSort";
+import { shouldAutoDue } from "./quickAddList";
 import { undoToggleOptions } from "./todoUndo";
 import type { useTodoMutations } from "./useTodoMutations";
 import type { useSavedFilters } from "./useSavedFilters";
@@ -27,9 +28,12 @@ interface TodoActionsDeps {
 export function useTodoActions(deps: TodoActionsDeps) {
   // In der Heute-Ansicht ohne Datum default auf heute, damit der neue Task sofort
   // sichtbar ist (sonst landet er ohne due außerhalb der "Heute"-Smart-View).
-  // Explizites @datum (input.due gesetzt) hat Vorrang.
-  function onAdd(input: TodoTaskCreate) {
-    const autoToday = deps.view === "today" && deps.selectedList === null && input.due == null;
+  // Explizites @datum (input.due gesetzt) ODER eine explizite Ziel-Liste via
+  // &Liste (hadExplicitList) unterdrücken das Auto-due. shouldAutoDue kapselt
+  // die Entscheidung als EINE testbare Stelle (#6/#2).
+  function onAdd(input: TodoTaskCreate, hadExplicitList: boolean) {
+    const autoToday =
+      input.due == null && shouldAutoDue(deps.view, deps.selectedList, hadExplicitList);
     deps.mut.add.mutate(autoToday ? { ...input, due: deps.today } : input);
   }
   function onToggle(task: TodoTask) {
