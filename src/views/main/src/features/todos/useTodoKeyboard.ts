@@ -16,6 +16,7 @@ export function useTodoKeyboard(params: {
   onToggle: (task: TodoTask) => void;
   onReschedule: (task: TodoTask, due: string | null) => void;
   openDetail: (task: TodoTask) => void;
+  onIndent: (task: TodoTask, direction: "indent" | "outdent") => void;
   openSearch: () => void;
   setView: (view: SmartView) => void;
   setSelectedList: (id: string | null) => void;
@@ -49,6 +50,14 @@ export function useTodoKeyboard(params: {
     if (t) params.openDetail(t);
   });
   useHotkey("f", params.openSearch);
+  useHotkey("tab", () => {
+    const t = params.selectedTask();
+    if (t) params.onIndent(t, "indent");
+  });
+  useHotkey("shift+tab", () => {
+    const t = params.selectedTask();
+    if (t) params.onIndent(t, "outdent");
+  });
 
   useCommands([
     {

@@ -62,6 +62,9 @@ export function useTodoActions(deps: TodoActionsDeps) {
   // mehr der Datei-Reihenfolge, ein Reorder wäre dann mehrdeutig.
   const reorderable =
     deps.selectedList !== null && deps.sort === "manual" && !isFilterActive(deps.filter);
+  function onIndent(task: TodoTask, direction: "indent" | "outdent") {
+    deps.mut.indent.mutate({ id: task.id, listId: task.listId, direction });
+  }
   function onReorder(activeId: string, targetId: string, before: boolean) {
     if (deps.selectedList) {
       deps.mut.reorder.mutate({ listId: deps.selectedList, id: activeId, targetId, before });
@@ -97,6 +100,7 @@ export function useTodoActions(deps: TodoActionsDeps) {
     onDelete,
     reorderable,
     onReorder,
+    onIndent,
     onSaveCurrent,
     onApplyFilter,
   };

@@ -39,6 +39,7 @@ test("Checkbox-Klick ruft onToggle", async () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={onToggle}
       onRename={noop}
       onReschedule={noop}
@@ -59,6 +60,7 @@ test("read-only-Recurrence: Checkbox deaktiviert + Obsidian-Badge", () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -79,6 +81,7 @@ test("Konflikt-Fehler zeigt die Spec-Botschaft", () => {
       listNames={["L"]}
       error={new RpcError({ code: "TODO_CONFLICT", message: "egal", retry: false })}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -90,8 +93,8 @@ test("Konflikt-Fehler zeigt die Spec-Botschaft", () => {
   expect(screen.getByText("Aufgabe wurde extern geändert, nicht gespeichert")).toBeInTheDocument();
 });
 
-test("Inline-Edit ist BLUR-ONLY und ruft onRename mit neuem Titel", async () => {
-  const onRename = vi.fn();
+test("Titel-Klick öffnet das Detail (Todoist-Stil, kein Inline-Edit mehr)", async () => {
+  const onOpenDetail = vi.fn();
   const user = userEvent.setup();
   render(
     <TodoRow
@@ -100,22 +103,17 @@ test("Inline-Edit ist BLUR-ONLY und ruft onRename mit neuem Titel", async () => 
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
-      onRename={onRename}
+      onRename={noop}
       onReschedule={noop}
       onMove={noop}
-      onOpenDetail={noop}
+      onOpenDetail={onOpenDetail}
       onDelete={noop}
     />,
   );
-  await user.dblClick(screen.getByText("Test-Task"));
-  const edit = screen.getByLabelText("Titel bearbeiten");
-  await user.clear(edit);
-  await user.type(edit, "Neuer Titel");
-  // Während des Tippens NICHT gespeichert.
-  expect(onRename).not.toHaveBeenCalled();
-  await user.tab(); // Blur
-  expect(onRename).toHaveBeenCalledWith("Neuer Titel");
+  await user.click(screen.getByText("Test-Task"));
+  expect(onOpenDetail).toHaveBeenCalledTimes(1);
 });
 
 test("Move-Button fehlt, wenn es keine andere Liste gibt", () => {
@@ -126,6 +124,7 @@ test("Move-Button fehlt, wenn es keine andere Liste gibt", () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -147,6 +146,7 @@ test("Move-Button: öffnen zeigt nur die anderen Listen, Klick ruft onMove mit Z
       listNames={["L", "Privat", "Backlog"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -172,6 +172,7 @@ test("Trash-Button öffnet den Bestätigungs-Dialog", async () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -195,6 +196,7 @@ test("Dialog 'Löschen' ruft onDelete", async () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -220,6 +222,7 @@ test("Dialog 'Abbrechen' ruft onDelete NICHT", async () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -244,6 +247,7 @@ test("Notiz-Vorschau erscheint bei gesetzter description und Klick öffnet das D
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -265,6 +269,7 @@ test("mehrzeilige description wird mehrzeilig dargestellt (whitespace-pre-line +
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -290,6 +295,7 @@ test("ohne description keine Notiz-Vorschau", () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -301,7 +307,7 @@ test("ohne description keine Notiz-Vorschau", () => {
   expect(screen.queryByLabelText("Notiz öffnen")).not.toBeInTheDocument();
 });
 
-test("Details-öffnen-Button ruft onOpenDetail", async () => {
+test("Unteraufgabe-Button (+) ruft onOpenDetail", async () => {
   const onOpenDetail = vi.fn();
   const user = userEvent.setup();
   render(
@@ -311,6 +317,7 @@ test("Details-öffnen-Button ruft onOpenDetail", async () => {
       listNames={["L"]}
       error={null}
       onSelect={noop}
+      onIndent={noop}
       onToggle={noop}
       onRename={noop}
       onReschedule={noop}
@@ -319,6 +326,53 @@ test("Details-öffnen-Button ruft onOpenDetail", async () => {
       onDelete={noop}
     />,
   );
-  await user.click(screen.getByLabelText("Details öffnen"));
+  await user.click(screen.getByLabelText("Unteraufgabe hinzufügen"));
   expect(onOpenDetail).toHaveBeenCalledTimes(1);
+});
+
+test("Ein-/Ausrücken: Buttons nur bei indentable, Klick ruft onIndent", async () => {
+  const onIndent = vi.fn();
+  const user = userEvent.setup();
+  render(
+    <TodoRow
+      task={task({ depth: 1 })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      indentable
+      onSelect={noop}
+      onIndent={onIndent}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onDelete={noop}
+    />,
+  );
+  await user.click(screen.getByLabelText("Ausrücken"));
+  expect(onIndent).toHaveBeenCalledWith("outdent");
+  await user.click(screen.getByLabelText("Einrücken"));
+  expect(onIndent).toHaveBeenCalledWith("indent");
+});
+
+test("ohne indentable keine Ein-/Ausrück-Buttons", () => {
+  render(
+    <TodoRow
+      task={task({ depth: 1 })}
+      selected={false}
+      listNames={["L"]}
+      error={null}
+      onSelect={noop}
+      onIndent={noop}
+      onToggle={noop}
+      onRename={noop}
+      onReschedule={noop}
+      onMove={noop}
+      onOpenDetail={noop}
+      onDelete={noop}
+    />,
+  );
+  expect(screen.queryByLabelText("Einrücken")).not.toBeInTheDocument();
+  expect(screen.queryByLabelText("Ausrücken")).not.toBeInTheDocument();
 });

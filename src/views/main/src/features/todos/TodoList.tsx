@@ -21,6 +21,7 @@ interface TodoListProps {
   onMove: (task: TodoTask, toList: string) => void;
   onOpenDetail: (task: TodoTask) => void;
   onDelete: (task: TodoTask) => void;
+  onIndent: (task: TodoTask, direction: "indent" | "outdent") => void;
   onReorder: (activeId: string, targetId: string, before: boolean) => void;
   // Mehrfachauswahl: durchgereicht bis TodoRow.
   selectMode: boolean;
@@ -70,6 +71,7 @@ export function TodoList(props: TodoListProps) {
           onMove={props.onMove}
           onOpenDetail={props.onOpenDetail}
           onDelete={props.onDelete}
+          onIndent={props.onIndent}
           onReorder={props.onReorder}
           selectMode={props.selectMode}
           selectedIds={props.selectedIds}

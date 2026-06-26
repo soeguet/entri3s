@@ -42,10 +42,6 @@ function isModalOpen(): boolean {
   return document.querySelector('[aria-modal="true"]') !== null;
 }
 
-function hasModifier(combo: ParsedCombo): boolean {
-  return combo.mod || combo.shift;
-}
-
 function matchesEvent(combo: ParsedCombo, e: KeyboardEvent): boolean {
   if (e.key.toLowerCase() !== combo.key) return false;
   if (combo.mod && !(e.ctrlKey || e.metaKey)) return false;
@@ -59,8 +55,10 @@ function handleKeydown(e: KeyboardEvent): void {
     if (!binding.enabled) continue;
     if (!matchesEvent(binding.combo, e)) continue;
 
-    // Guard 1: Einzeltasten (kein Modifier) nicht aus Eingabefeldern feuern.
-    if (!hasModifier(binding.combo) && isInputFocused(e.target)) continue;
+    // Guard 1: Nur ctrl/meta-Kombos feuern aus Eingabefeldern. Shift allein
+    // zählt nicht als Bypass (Shift+Tab muss im Input normale Tab-Navigation
+    // bleiben, Shift+Buchstabe ist Tippen).
+    if (!binding.combo.mod && isInputFocused(e.target)) continue;
 
     // Guard 2: page-Scope-Bindings nicht bei offenem Modal.
     if (binding.scope === "page" && isModalOpen()) continue;

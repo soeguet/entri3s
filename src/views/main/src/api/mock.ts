@@ -447,6 +447,12 @@ export const reorderTodoTask = (listId: string, id: string, targetId: string, be
   return ok(undefined as void);
 };
 
+export const indentTodoTask = (_id: string, listId: string, _direction: "indent" | "outdent") => {
+  const list = store.todos.find((l) => l.id === listId);
+  if (!list) return fail<void>("TODO_CONFLICT", "Liste nicht gefunden");
+  return ok(undefined as void);
+};
+
 // Saved Filters: modul-lokaler String-Store (opaker JSON-String, initial leer).
 let todoSavedFilters = "";
 export const getTodoSavedFilters = () => ok(todoSavedFilters);

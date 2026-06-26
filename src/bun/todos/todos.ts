@@ -8,6 +8,7 @@ import { computeNext, parseRule } from "./recurrence";
 import { applyTaskEdit, renderNewTask, renderTask, type TaskEdit } from "./serializer";
 import { mutateFile, writeContent } from "./mutate";
 import { blockRange, reorderLines } from "./reorder";
+import { indentLines } from "./indent";
 import { completeOpenDescendants } from "./cascade";
 import { fileForList, listMd, read } from "./vault";
 import { todayBerlinYmd } from "./berlinTime";
@@ -198,6 +199,17 @@ export function createTodoService(repo: Repository) {
       const target = parsed.raw.find((x) => x.task.id === targetId);
       if (!moved || !target) throw appError("TODO_CONFLICT", "Aufgabe nicht gefunden.", false);
       const next = reorderLines(r.content, moved.raw, target.raw, before);
+      writeContent(file, next);
+    },
+
+    async indentTask(listId: string, id: string, direction: "indent" | "outdent"): Promise<void> {
+      const dir = folder();
+      const file = fileForList(dir, listId);
+      const r = await read(file);
+      const parsed = parseList(listId, listId, r.content);
+      const task = parsed.raw.find((x) => x.task.id === id);
+      if (!task) throw appError("TODO_CONFLICT", "Aufgabe nicht gefunden.", false);
+      const next = indentLines(r.content, task.raw, direction);
       writeContent(file, next);
     },
 
