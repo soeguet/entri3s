@@ -18,6 +18,7 @@ const SETTINGS = {
   syncIntervalSec: 300,
   todoFolder: "/Vault/todos",
   todoRemindersEnabled: true,
+  reminderTime: "09:00",
 };
 
 function renderPage(client: QueryClient) {

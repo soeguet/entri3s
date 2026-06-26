@@ -55,6 +55,7 @@ export const getSettings = vi.fn(() =>
     syncIntervalSec: 300,
     todoFolder: "",
     todoRemindersEnabled: true,
+    reminderTime: "09:00",
   }),
 );
 export const getGitlabImage = vi.fn(() => okResp("data:image/png;base64,AAA"));

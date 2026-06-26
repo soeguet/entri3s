@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createTestDb } from "../repository/test-helper";
 import { createRepository, type Repository } from "../repository";
-import { createTodoService, type TodoService } from "./todos";
+import { createTodoService, nowBerlinHHmm, type TodoService } from "./todos";
 
 let dir: string;
 let repo: Repository;
@@ -288,6 +288,10 @@ test("cascade: an already-completed child keeps its single ✅ doneDate", async 
   // Bereits erledigtes Kind unverändert: kein doppeltes ✅, altes Datum bleibt.
   expect(lines[1]).toBe("  - [x] child ✅ 2026-06-20");
   expect((lines[1].match(/✅/g) ?? []).length).toBe(1);
+});
+
+test("nowBerlinHHmm returns a zero-padded HH:mm string", () => {
+  expect(nowBerlinHHmm()).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/);
 });
 
 test("moveTask writes destination first then removes source", async () => {

@@ -48,6 +48,7 @@ const store = {
     // statt des Empty States. Den Empty State testet das Vitest-Modul-Mock.
     todoFolder: "/Vault/todos",
     todoRemindersEnabled: true,
+    reminderTime: "09:00",
   } as Settings,
   currentUser: { id: 1, username: "mockuser", name: "Mock User" } as CurrentUser,
   nextId: 1000,

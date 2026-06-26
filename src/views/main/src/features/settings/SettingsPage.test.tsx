@@ -12,6 +12,7 @@ const SETTINGS = {
   syncIntervalSec: 300,
   todoFolder: "/Vault/todos",
   todoRemindersEnabled: true,
+  reminderTime: "09:00",
 };
 
 function renderPage(client: QueryClient) {
@@ -51,4 +52,34 @@ test("Todos-Speichern ruft saveSettings mit todoFolder und zeigt Gespeichert", a
     ),
   );
   expect(await within(todosCard).findByText("Gespeichert")).toBeInTheDocument();
+});
+
+test("Erinnerungszeit-Input ist an reminderTime gebunden und wird mitgespeichert", async () => {
+  const user = userEvent.setup();
+  // Abweichender Wert (nicht der Default 09:00), damit die Bindung an reminderTime
+  // nachweisbar ist und nicht versehentlich der Initialwert geprüft wird.
+  vi.mocked(api.getSettings).mockResolvedValue({
+    data: { ...SETTINGS, reminderTime: "07:15" },
+    error: null,
+  });
+  renderPage(freshClient());
+
+  // Erst auf geladene Settings warten (Effekt befüllt die Felder); das Zeit-Input
+  // hat keinen displayValue zum Anwarten, daher über das Ordner-Feld synchronisieren.
+  await screen.findByDisplayValue("/Vault/todos");
+  const input = screen.getByLabelText("Erinnerungszeit (täglich)") as HTMLInputElement;
+  expect(input.type).toBe("time");
+  expect(input.value).toBe("07:15");
+
+  // Speichern reicht reminderTime unverändert an saveSettings durch (in der Form
+  // verdrahtet). Das Tippen in native type="time"-Inputs ist in jsdom unzuverlässig;
+  // die Bindung ist bereits über den geladenen Wert oben belegt.
+  const todosCard = input.closest("div.rounded-lg") as HTMLElement;
+  await user.click(within(todosCard).getByRole("button", { name: "Speichern" }));
+
+  await vi.waitFor(() =>
+    expect(api.saveSettings).toHaveBeenCalledWith(
+      expect.objectContaining({ reminderTime: "07:15" }),
+    ),
+  );
 });

@@ -4,12 +4,13 @@ import { startTodoReminders, type TodoRemindersDeps } from "./reminders";
 
 const TODAY = "2026-06-23";
 
-function settings(enabled: boolean): Settings {
+function settings(enabled: boolean, reminderTime = "00:00"): Settings {
   return {
     gitlabUrl: "",
     syncIntervalSec: 300,
     todoFolder: "/vault",
     todoRemindersEnabled: enabled,
+    reminderTime,
   };
 }
 
@@ -46,6 +47,7 @@ function dueTodayList(): TodoList[] {
 interface Spy {
   notified: Array<{ title: string; body: string }>;
   lastDate: string;
+  getListsCalls: number;
   deps: TodoRemindersDeps;
 }
 
@@ -53,15 +55,20 @@ function makeSpy(over: Partial<TodoRemindersDeps>): Spy {
   const spy: Spy = {
     notified: [],
     lastDate: "",
+    getListsCalls: 0,
     deps: {
       getAll: () => settings(true),
-      getLists: () => Promise.resolve(dueTodayList()),
+      getLists: () => {
+        spy.getListsCalls++;
+        return Promise.resolve(dueTodayList());
+      },
       getLastDate: () => spy.lastDate,
       setLastDate: (d) => {
         spy.lastDate = d;
       },
       notify: (title, body) => spy.notified.push({ title, body }),
       today: () => TODAY,
+      nowTime: () => "12:00",
       ...over,
     },
   };
@@ -103,4 +110,48 @@ test("swallows getLists errors (e.g. TODO_NO_FOLDER)", async () => {
   await runOnce(spy.deps);
   expect(spy.notified).toHaveLength(0);
   expect(spy.lastDate).toBe("");
+});
+
+test("time gate: before reminderTime does not notify nor scan the vault", async () => {
+  const spy = makeSpy({
+    getAll: () => settings(true, "09:00"),
+    nowTime: () => "08:59",
+  });
+  await runOnce(spy.deps);
+  expect(spy.notified).toHaveLength(0);
+  // Gate greift VOR getLists() -> kein Vault-Scan.
+  expect(spy.getListsCalls).toBe(0);
+  // Früher Return rückt lastDate nicht vor -> Catch-up ab reminderTime möglich.
+  expect(spy.lastDate).toBe("");
+});
+
+test("time gate: at or after reminderTime notifies on due tasks", async () => {
+  const spy = makeSpy({
+    getAll: () => settings(true, "09:00"),
+    nowTime: () => "09:30",
+  });
+  await runOnce(spy.deps);
+  expect(spy.notified.length).toBeGreaterThanOrEqual(1);
+  expect(spy.lastDate).toBe(TODAY);
+});
+
+test("time gate: exactly at reminderTime fires (boundary)", async () => {
+  const spy = makeSpy({
+    getAll: () => settings(true, "09:00"),
+    nowTime: () => "09:00",
+  });
+  await runOnce(spy.deps);
+  expect(spy.notified.length).toBeGreaterThanOrEqual(1);
+  expect(spy.lastDate).toBe(TODAY);
+});
+
+test("time gate: idempotent via lastDate after firing past reminderTime", async () => {
+  const spy = makeSpy({
+    getAll: () => settings(true, "09:00"),
+    nowTime: () => "09:30",
+  });
+  spy.lastDate = TODAY;
+  await runOnce(spy.deps);
+  expect(spy.notified).toHaveLength(0);
+  expect(spy.lastDate).toBe(TODAY);
 });

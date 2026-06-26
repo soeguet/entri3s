@@ -26,6 +26,7 @@ export function SettingsPage() {
   const [backupPath, setBackupPath] = useState("");
   const [todoFolder, setTodoFolder] = useState("");
   const [todoRemindersEnabled, setTodoRemindersEnabled] = useState(true);
+  const [reminderTime, setReminderTime] = useState("09:00");
 
   useEffect(() => {
     if (settings.data) {
@@ -33,6 +34,7 @@ export function SettingsPage() {
       setIntervalMin(String(Math.round(settings.data.syncIntervalSec / 60)));
       setTodoFolder(settings.data.todoFolder ?? "");
       setTodoRemindersEnabled(settings.data.todoRemindersEnabled ?? true);
+      setReminderTime(settings.data.reminderTime ?? "09:00");
     }
   }, [settings.data]);
 
@@ -44,6 +46,7 @@ export function SettingsPage() {
           syncIntervalSec: Math.max(1, Number(intervalMin) || 5) * 60,
           todoFolder: todoFolder.trim(),
           todoRemindersEnabled,
+          reminderTime,
         }),
       ),
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.settings() }),
@@ -157,6 +160,20 @@ export function SettingsPage() {
             onChange={(e) => setTodoRemindersEnabled(e.target.checked)}
           />
           <Label htmlFor="s-todo-reminders">OS-Benachrichtigungen für fällige Aufgaben</Label>
+        </div>
+        <div>
+          <Label htmlFor="s-reminder-time">Erinnerungszeit (täglich)</Label>
+          <Input
+            id="s-reminder-time"
+            type="time"
+            value={reminderTime}
+            onChange={(e) => setReminderTime(e.target.value)}
+            // Nur relevant, wenn Reminder an sind: deaktivieren, sonst irreführend.
+            disabled={!todoRemindersEnabled}
+          />
+          <p className="mt-1 text-sm text-muted-foreground">
+            Frühester Zeitpunkt (Europe/Berlin), ab dem die tägliche Benachrichtigung feuern darf.
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <Button disabled={save.isPending} onClick={() => save.mutate()}>

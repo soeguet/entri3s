@@ -10,22 +10,16 @@ import { mutateFile, writeContent } from "./mutate";
 import { blockRange, reorderLines } from "./reorder";
 import { completeOpenDescendants } from "./cascade";
 import { fileForList, listMd, read } from "./vault";
+import { todayBerlinYmd } from "./berlinTime";
+
+// Berlin-Zeit-Helfer liegen in berlinTime.ts; hier re-exportiert, damit der
+// bisherige Import-Pfad ("./todos") für bestehende Importeure gültig bleibt.
+export { nowBerlinHHmm, todayBerlinYmd } from "./berlinTime";
 
 // Todo-Service. Liest todoFolder live aus den Settings; TODO_NO_FOLDER wenn der
 // Ordner leer/fehlt/nicht schreibbar ist. Alle Mutationen laufen über mutate.ts
 // (detect-before-write, fail-closed). Datums-/Recurrence-Logik liegt rein in
 // recurrence.ts.
-
-export function todayBerlinYmd(): string {
-  // Recurrence "when done" verankert am heutigen Datum. Europe/Berlin, da der
-  // Nutzer in dieser Zone arbeitet (Spec: TZ nur außerhalb von SQLite).
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 export function createTodoService(repo: Repository) {
   function folder(): string {
