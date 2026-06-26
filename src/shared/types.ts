@@ -228,6 +228,9 @@ export interface Settings {
   todoFolder: string;
   // OS-Benachrichtigung (einmal pro Tag) über heute fällige/überfällige Todos.
   todoRemindersEnabled: boolean;
+  // Tägliche Uhrzeit (HH:mm, Europe/Berlin), ab der die Reminder-Benachrichtigung
+  // frühestens feuern darf. Default "09:00". Nullgepaddet für String-Vergleich.
+  reminderTime: string;
 }
 
 // ── Todos (Markdown-Vault als Source of Truth, Phase 1, kein SQLite) ──────────

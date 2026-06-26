@@ -11,7 +11,7 @@ import { startScheduler } from "./scheduler/scheduler";
 import { getToken } from "./keychain/keychain";
 import { startTodoWatcher } from "./todos/watcher";
 import { startTodoReminders } from "./todos/reminders";
-import { todayBerlinYmd } from "./todos/todos";
+import { todayBerlinYmd, nowBerlinHHmm } from "./todos/todos";
 import { resolveDataDir } from "./lib/paths";
 import { resolveViewUrl } from "./lib/window-url";
 import { parseWindowFrame } from "./lib/window-frame";
@@ -56,6 +56,7 @@ const todoReminders = startTodoReminders({
   setLastDate: (d) => repo.settings.set("todoLastReminderDate", d),
   notify: (title, body) => Utils.showNotification({ title, body }),
   today: () => todayBerlinYmd(),
+  nowTime: () => nowBerlinHHmm(),
 });
 
 const trayCtl = createTrayController({

@@ -15,6 +15,7 @@ export function useTodoKeyboard(params: {
   selectedTask: () => TodoTask | undefined;
   onToggle: (task: TodoTask) => void;
   onReschedule: (task: TodoTask, due: string | null) => void;
+  openDetail: (task: TodoTask) => void;
   openSearch: () => void;
   setView: (view: SmartView) => void;
   setSelectedList: (id: string | null) => void;
@@ -42,6 +43,11 @@ export function useTodoKeyboard(params: {
     const t = params.selectedTask();
     if (t) params.onReschedule(t, reschedulePresetDate("tomorrow", params.today));
   });
+  // page-scope (Default): feuert nicht bei offenem Detail-Dialog → kein Re-Open.
+  useHotkey("o", () => {
+    const t = params.selectedTask();
+    if (t) params.openDetail(t);
+  });
   useHotkey("f", params.openSearch);
 
   useCommands([
@@ -52,6 +58,15 @@ export function useTodoKeyboard(params: {
       run: () => params.quickAddRef.current?.focus(),
     },
     { id: "todos:search", label: "Aufgabe suchen", section: "Todos", run: params.openSearch },
+    {
+      id: "todos:detail",
+      label: "Task-Details öffnen",
+      section: "Todos",
+      run: () => {
+        const t = params.selectedTask();
+        if (t) params.openDetail(t);
+      },
+    },
     { id: "todos:today", label: "Smart-View: Heute", section: "Todos", run: () => toView("today") },
     {
       id: "todos:overdue",

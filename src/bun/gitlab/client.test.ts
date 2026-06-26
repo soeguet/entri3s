@@ -8,6 +8,7 @@ const settings: Settings = {
   syncIntervalSec: 300,
   todoFolder: "",
   todoRemindersEnabled: true,
+  reminderTime: "09:00",
 };
 const originalFetch = globalThis.fetch;
 
@@ -64,6 +65,7 @@ test("rejects an unconfigured gitlabUrl with NO_GITLAB_URL before any fetch", as
     syncIntervalSec: 300,
     todoFolder: "",
     todoRemindersEnabled: true,
+    reminderTime: "09:00",
   }));
   let threw: AppErrorError | null = null;
   try {

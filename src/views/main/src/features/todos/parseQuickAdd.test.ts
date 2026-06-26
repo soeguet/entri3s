@@ -106,4 +106,41 @@ test("full example combines title, due, tags, priority", () => {
   expect(result.due).toBe("2026-06-23");
   expect(result.tags).toEqual(["arbeit"]);
   expect(result.priority).toBe("highest");
+  expect(result.listQuery).toBeNull();
+});
+
+test("&Liste extrahiert listQuery und bereinigt den Titel", () => {
+  const result = parseQuickAdd("Angebot &Arbeit schreiben", today);
+  expect(result.listQuery).toBe("Arbeit");
+  expect(result.title).toBe("Angebot schreiben");
+  expect(result.title).not.toContain("&");
+});
+
+test("&-Token nur an Wortgrenze: a&b, ?x=1&y=2 und E-Mail matchen NICHT", () => {
+  for (const raw of ["foo a&b bar", "Link ?x=1&y=2 offen", "mail a@b.de senden"]) {
+    expect(parseQuickAdd(raw, today).listQuery).toBeNull();
+  }
+});
+
+test("mehrere &-Token: das letzte gewinnt (nur dieses wird entfernt)", () => {
+  const result = parseQuickAdd("Task &Eins und &Zwei machen", today);
+  expect(result.listQuery).toBe("Zwei");
+  // Es gibt genau EIN Listen-Token (analog zur einen due/priority): das letzte
+  // gewinnt und wird entfernt; ein früheres &Eins bleibt bewusst im Titel stehen.
+  expect(result.title).toBe("Task &Eins und machen");
+});
+
+test("&-Range bleibt konsistent mit #tag/@datum (alle entfernt)", () => {
+  const result = parseQuickAdd("Plan @morgen #arbeit &Privat p1 fertig", today);
+  expect(result.due).toBe("2026-06-23");
+  expect(result.tags).toEqual(["arbeit"]);
+  expect(result.priority).toBe("highest");
+  expect(result.listQuery).toBe("Privat");
+  expect(result.title).toBe("Plan fertig");
+});
+
+test("Schutzregel: nur &Liste → Rohtext bleibt Titel, kein listQuery", () => {
+  const result = parseQuickAdd("&Arbeit", today);
+  expect(result.title).toBe("&Arbeit");
+  expect(result.listQuery).toBeNull();
 });

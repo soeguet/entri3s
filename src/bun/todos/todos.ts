@@ -8,23 +8,18 @@ import { computeNext, parseRule } from "./recurrence";
 import { applyTaskEdit, renderNewTask, renderTask, type TaskEdit } from "./serializer";
 import { mutateFile, writeContent } from "./mutate";
 import { blockRange, reorderLines } from "./reorder";
+import { completeOpenDescendants } from "./cascade";
 import { fileForList, listMd, read } from "./vault";
+import { todayBerlinYmd } from "./berlinTime";
+
+// Berlin-Zeit-Helfer liegen in berlinTime.ts; hier re-exportiert, damit der
+// bisherige Import-Pfad ("./todos") für bestehende Importeure gültig bleibt.
+export { nowBerlinHHmm, todayBerlinYmd } from "./berlinTime";
 
 // Todo-Service. Liest todoFolder live aus den Settings; TODO_NO_FOLDER wenn der
 // Ordner leer/fehlt/nicht schreibbar ist. Alle Mutationen laufen über mutate.ts
 // (detect-before-write, fail-closed). Datums-/Recurrence-Logik liegt rein in
 // recurrence.ts.
-
-export function todayBerlinYmd(): string {
-  // Recurrence "when done" verankert am heutigen Datum. Europe/Berlin, da der
-  // Nutzer in dieser Zone arbeitet (Spec: TZ nur außerhalb von SQLite).
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/Berlin",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date());
-}
 
 export function createTodoService(repo: Repository) {
   function folder(): string {
@@ -101,6 +96,13 @@ export function createTodoService(repo: Repository) {
     async addTask(input: TodoTaskCreate): Promise<void> {
       const dir = folder();
       const file = fileForList(dir, input.listId);
+      // Ziel-Liste kann zwischen Auflösung (z.B. Quick-Add &Liste) und Schreiben
+      // gelöscht worden sein. Sprechend abfangen, sonst würde read() eine rohe
+      // ENOENT werfen -> generisches INTERNAL statt "Liste nicht gefunden".
+      // TODO_CONFLICT = etablierter "nicht gefunden"-Code dieses Service.
+      if (!existsSync(file)) {
+        throw appError("TODO_CONFLICT", "Liste nicht gefunden.", false);
+      }
       const r = await read(file);
       // Subtask: hinter den Parent-Block, eingerückt eine Ebene tiefer. section
       // wird dabei ignoriert (der Subtask erbt die Position des Parents).
@@ -122,7 +124,16 @@ export function createTodoService(repo: Repository) {
       const fingerprint = await fingerprintOf(dir, patch.listId, patch.id);
       await mutateFile(patch.listId, file, fingerprint, (parsed, idx) => {
         const hit = parsed.raw.find((r) => r.lineIndex === idx)!;
-        return applyUpdate(parsed.lines, idx, hit.descRange, patch);
+        // Kaskadierendes Abhaken: erst offene Nachfahren in-place miterledigen, DANN
+        // applyUpdate(parent). patch enthält nur {done:true} → kein Description-Splice,
+        // Zeilenanzahl stabil, Kinder-Indizes bleiben gültig. Un-Check (done === false)
+        // kaskadiert bewusst NICHT: ein erneut geöffneter Parent soll bereits
+        // abgeschlossene Kinder nicht zurücksetzen.
+        let lines = parsed.lines;
+        if (patch.done === true) {
+          lines = completeOpenDescendants(parsed.lines, parsed, idx, todayBerlinYmd());
+        }
+        return applyUpdate(lines, idx, hit.descRange, patch);
       });
     },
 

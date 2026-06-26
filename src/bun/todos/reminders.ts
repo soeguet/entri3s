@@ -14,6 +14,8 @@ export interface TodoRemindersDeps {
   setLastDate: (d: string) => void;
   notify: (title: string, body: string) => void;
   today: () => string;
+  // Aktuelle Berlin-Uhrzeit als nullgepaddetes "HH:mm" für das Zeit-Gate.
+  nowTime: () => string;
 }
 
 export interface TodoRemindersHandle {
@@ -26,6 +28,12 @@ export function startTodoReminders(
 ): TodoRemindersHandle {
   async function tick(): Promise<void> {
     if (!deps.getAll().todoRemindersEnabled) return;
+
+    // Zeit-Gate VOR getLists(): vor der konfigurierten Reminder-Uhrzeit gar nicht
+    // erst den Vault scannen. Früher Return rückt lastDate NICHT vor, damit der
+    // erste Tick ab reminderTime (auch nach App-Start, Catch-up) noch feuert.
+    // Beide Strings sind nullgepaddetes "HH:mm" → String-Vergleich = chronologisch.
+    if (deps.nowTime() < deps.getAll().reminderTime) return;
 
     let lists: TodoList[];
     try {

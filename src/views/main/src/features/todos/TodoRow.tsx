@@ -1,10 +1,20 @@
 import { useRef, useState } from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Calendar, FolderInput, GripVertical, PanelRight, Repeat } from "lucide-react";
+import {
+  Calendar,
+  FolderInput,
+  GripVertical,
+  PanelRight,
+  Repeat,
+  StickyNote,
+  Trash2,
+} from "lucide-react";
 import type { TodoTask } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Badge } from "../../components/ui/badge";
+import { Button } from "../../components/ui/button";
+import { Dialog } from "../../components/ui/dialog";
 import { TodoDatePicker } from "./TodoDatePicker";
 import { TodoMoveMenu } from "./TodoMoveMenu";
 import { todoErrorMessage } from "./todoError";
@@ -26,6 +36,8 @@ interface TodoRowProps {
   onMove: (toList: string) => void;
   // Öffnet das Detail-Panel für diese Zeile.
   onOpenDetail: () => void;
+  // Löscht diese Zeile (nach Bestätigung im Dialog).
+  onDelete: () => void;
   // Fehler der zuletzt versuchten Mutation auf GENAU diese Zeile (Konflikt).
   error: unknown;
   // Mehrfachauswahl-Modus: zeigt GANZ LINKS eine zusätzliche Auswahl-Checkbox
@@ -51,6 +63,7 @@ export function TodoRow(props: TodoRowProps) {
   const [draft, setDraft] = useState(props.task.title);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const dateBtnRef = useRef<HTMLButtonElement>(null);
   const moveBtnRef = useRef<HTMLButtonElement>(null);
 
@@ -69,6 +82,7 @@ export function TodoRow(props: TodoRowProps) {
   // recurrenceEditableInApp === false → nicht abhakbar, Badge "in Obsidian abhaken".
   const readOnlyRecurrence = props.task.recurrence !== null && !props.task.recurrenceEditableInApp;
   const mark = PRIORITY_MARK[props.task.priority];
+  const hasDescription = props.task.description !== null && props.task.description.trim() !== "";
 
   function startEdit() {
     setDraft(props.task.title);
@@ -146,18 +160,54 @@ export function TodoRow(props: TodoRowProps) {
           className="flex-1 rounded border border-input bg-card px-2 py-0.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         />
       ) : (
-        <button
-          type="button"
-          onDoubleClick={startEdit}
-          className={cn(
-            "flex-1 truncate text-left",
-            props.task.done && "text-muted-foreground line-through",
-          )}
-        >
-          {mark ? <span className="mr-1">{mark}</span> : null}
-          {props.task.title}
-        </button>
+        // Titel + Notiz-Vorschau vertikal gruppiert, damit die Beschreibung
+        // schon in der Zeile sichtbar ist (vorher nur im Detail-Modal).
+        <div className="flex min-w-0 flex-1 flex-col">
+          <button
+            type="button"
+            onDoubleClick={startEdit}
+            className={cn(
+              "truncate text-left",
+              props.task.done && "text-muted-foreground line-through",
+            )}
+          >
+            {mark ? <span className="mr-1">{mark}</span> : null}
+            {props.task.title}
+          </button>
+          {hasDescription ? (
+            <button
+              type="button"
+              aria-label="Notiz öffnen"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onOpenDetail();
+              }}
+              className="flex min-w-0 items-start gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
+            >
+              <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+              {/* line-clamp-3 + whitespace-pre-line: echte "\n" als Umbrüche, bis
+                  zu 3 Zeilen mit automatischem "…" bei Überlauf. */}
+              <span className="line-clamp-3 min-w-0 whitespace-pre-line">
+                {props.task.description}
+              </span>
+            </button>
+          ) : null}
+        </div>
       )}
+
+      {/* Details-Button: direkt hinter dem Titel, größer und leichter erreichbar
+          als die alte Position ganz rechts. Der Trash-Button bleibt rechts. */}
+      <button
+        type="button"
+        aria-label="Details öffnen"
+        onClick={(e) => {
+          e.stopPropagation();
+          props.onOpenDetail();
+        }}
+        className="flex shrink-0 items-center rounded p-1 text-muted-foreground hover:bg-muted"
+      >
+        <PanelRight className="h-4 w-4" />
+      </button>
 
       {props.task.tags.map((tag) => (
         <Badge key={tag} variant="secondary" className="shrink-0">
@@ -214,15 +264,35 @@ export function TodoRow(props: TodoRowProps) {
 
       <button
         type="button"
-        aria-label="Details öffnen"
+        aria-label="Aufgabe löschen"
         onClick={(e) => {
           e.stopPropagation();
-          props.onOpenDetail();
+          setDeleteConfirm(true);
         }}
-        className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+        className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-danger-accent"
       >
-        <PanelRight className="h-3 w-3" />
+        <Trash2 className="h-3 w-3" />
       </button>
+
+      <Dialog open={deleteConfirm} onClose={() => setDeleteConfirm(false)} title="Aufgabe löschen?">
+        <p className="text-sm text-muted-foreground">
+          „{props.task.title}" wird endgültig aus der Liste entfernt.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button variant="outline" onClick={() => setDeleteConfirm(false)}>
+            Abbrechen
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              setDeleteConfirm(false);
+              props.onDelete();
+            }}
+          >
+            Löschen
+          </Button>
+        </div>
+      </Dialog>
 
       <TodoMoveMenu
         open={moveOpen}

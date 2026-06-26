@@ -4,6 +4,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { TodoTask } from "../../../../../shared/types";
 import * as api from "../../api";
+import { getSnapshot, resetToasts } from "../../lib/toast";
 import { useTodoMutations } from "./useTodoMutations";
 
 vi.mock("../../api");
@@ -43,7 +44,22 @@ function freshClient(): QueryClient {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetToasts();
   vi.mocked(api.updateTodoTask).mockResolvedValue({ data: undefined, error: null });
+});
+
+test("add: Erfolgs-Toast nennt die Ziel-Liste", async () => {
+  vi.mocked(api.addTodoTask).mockResolvedValue({ data: undefined, error: null });
+  const client = freshClient();
+  const { result } = renderHook(() => useTodoMutations(), { wrapper: wrapper(client) });
+
+  result.current.add.mutate({ listId: "Arbeit", title: "Neu" });
+
+  await waitFor(() => expect(result.current.add.isSuccess).toBe(true));
+  const snap = getSnapshot();
+  expect(snap).toHaveLength(1);
+  expect(snap[0].variant).toBe("success");
+  expect(snap[0].message).toContain("Arbeit");
 });
 
 test("bulk complete ruft updateTodoTask für jeden Task mit done:true und invalidiert", async () => {

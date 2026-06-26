@@ -12,20 +12,24 @@ import { ErrorNote } from "../../components/ErrorNote";
 import { Button } from "../../components/ui/button";
 import { TodoSidebar } from "./TodoSidebar";
 import { TodoList } from "./TodoList";
+import { TodoCombinedView } from "./TodoCombinedView";
 import { TodoBulkBar } from "./TodoBulkBar";
 import { TodoQuickAdd } from "./TodoQuickAdd";
 import { useTodoMutations } from "./useTodoMutations";
 import { useTodoSelection } from "./useTodoSelection";
-import { smartViewFilter, smartViewCounts, type SmartView } from "./smartViewFilter";
-import { allTagsOf, applyFilterSort, isFilterActive } from "./taskFilterSort";
+import { useTodoActions } from "./useTodoActions";
+import { smartViewFilter, smartViewCounts } from "./smartViewFilter";
+import { allTagsOf, applyFilterSort } from "./taskFilterSort";
+import { combinedLists } from "./combinedLists";
 import { useTodoFilterSort } from "./useTodoFilterSort";
+import { useTodoUiPrefs } from "./useTodoUiPrefs";
+import { loadTodoPrefs, saveTodoPrefs } from "./todoPrefs";
 import { useSavedFilters } from "./useSavedFilters";
-import type { SavedFilter } from "./savedFilters";
 import { TodoToolbar } from "./TodoToolbar";
 import { isNoFolderError } from "./todoError";
 import { TodoSearchDialog } from "./TodoSearchDialog";
 import { TaskDetailDialog } from "./TaskDetailDialog";
-import { subtasksOf } from "./subtaskTree";
+import { resolveDetail } from "./subtaskTree";
 
 function EmptyState() {
   return (
@@ -52,8 +56,14 @@ export function TodosPage() {
   });
   const mut = useTodoMutations();
 
-  const [view, setView] = useState<SmartView>("today");
-  const [selectedList, setSelectedList] = useState<string | null>(null);
+  // view + selectedList lazy aus localStorage; filter/sort separat (useTodoFilterSort).
+  const ui = useTodoUiPrefs();
+  const view = ui.view;
+  const setView = ui.setView;
+  const selectedList = ui.selectedList;
+  const setSelectedList = ui.setSelectedList;
+  const combined = ui.combined;
+  const setCombined = ui.setCombined;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
@@ -66,69 +76,60 @@ export function TodosPage() {
   const allTasks = (lists.data ?? []).flatMap((l) => l.tasks);
   const counts = smartViewCounts(allTasks, today);
 
-  // Detail-Panel: Task per id + dessen Subtree aus der geordneten Liste seiner Liste.
-  const detailTask = allTasks.find((t) => t.id === detailTaskId) ?? null;
-  const detailList = detailTask
-    ? (lists.data ?? []).find((l) => l.id === detailTask.listId)
-    : undefined;
-  const detailSubtasks = detailTask && detailList ? subtasksOf(detailList.tasks, detailTask) : [];
+  // Detail-Panel: Task per id + dessen Subtree (Lookup in subtaskTree.ts gekapselt).
+  const detail = resolveDetail(lists.data ?? [], detailTaskId);
 
   const selection = useTodoSelection({ allTasks, view, selectedList, bulk: mut.bulk });
-  const fs = useTodoFilterSort();
+  // Initialer filter/sort-Stand aus localStorage (einmalig, Lazy-Init im Hook).
+  const fs = useTodoFilterSort(loadTodoPrefs() ?? undefined);
   const saved = useSavedFilters();
 
-  // Aktuellen Zustand (View/Liste + Filter + Sort) als benannten Filter sichern.
-  function onSaveCurrent(name: string) {
-    saved.addFilter({
-      id: crypto.randomUUID(),
-      name,
-      view: selectedList ? null : view,
-      listId: selectedList,
-      filter: fs.filter,
-      sort: fs.sort,
-    });
-  }
-  // Gespeicherten Filter komplett anwenden: View/Liste setzen, dann Filter+Sort.
-  function onApplyFilter(sf: SavedFilter) {
-    setSelectedList(sf.listId);
-    if (!sf.listId) setView(sf.view ?? "today");
-    fs.setAll(sf.filter, sf.sort);
-  }
+  // Persistierte, aber inzwischen gelöschte Liste → sauber auf view zurückfallen,
+  // damit kein leerer Listen-Zustand "hängt". Erst nach erfolgreichem Laden prüfen.
+  useEffect(() => {
+    if (!lists.data || selectedList === null) return;
+    if (!lists.data.some((l) => l.id === selectedList)) setSelectedList(null);
+  }, [lists.data, selectedList, setSelectedList]);
 
-  // Sichtbare Tasks: entweder eine konkrete Liste oder eine Smart-View über alle.
+  // EIN Effect persistiert den kompletten UI-Zustand (View/Liste/Combined/Filter/Sort).
+  // selectMode/searchOpen/detail werden bewusst NICHT persistiert.
+  useEffect(() => {
+    saveTodoPrefs({ view, selectedList, combined, filter: fs.filter, sort: fs.sort });
+  }, [view, selectedList, combined, fs.filter, fs.sort]);
+
+  // Task-/Listen-Handler ausgelagert (useTodoActions), damit TodosPage mit der
+  // combined-Verzweigung unter dem LOC-Limit bleibt.
+  const actions = useTodoActions({
+    mut,
+    saved,
+    lists: lists.data ?? [],
+    view,
+    selectedList,
+    today,
+    filter: fs.filter,
+    sort: fs.sort,
+    setSelectedList,
+    setView,
+    setCombined,
+    setFilterSort: fs.setAll,
+  });
+
+  // Sichtbare Tasks: konkrete Liste oder Smart-View über alle. Im Kombi-Modus ist
+  // selectedList=null und die Datums-view irrelevant fürs Rendering.
   const activeList = selectedList ? (lists.data ?? []).find((l) => l.id === selectedList) : null;
   const baseTasks = activeList ? activeList.tasks : allTasks;
   const viewTasks = activeList ? baseTasks : smartViewFilter(baseTasks, view, today);
   // Nutzergewählter Facetten-Filter + Sortierung NACH der Smart-View/Listen-Auswahl.
   const visible = applyFilterSort(viewTasks, fs.filter, fs.sort);
   const availableTags = allTagsOf(baseTasks);
-  const sections = activeList ? activeList.sections : [];
 
-  // Quick-Add-Ziel: gewählte Liste, sonst die erste Liste (Smart-View-Modus).
+  // Aufbereitung für den Kombi-Modus: je Liste gefiltert/sortiert, leere ausgelassen.
+  const combinedGroups = combined ? combinedLists(lists.data ?? [], fs.filter, fs.sort) : [];
+
+  // Quick-Add-Ziel: gewählte Liste, sonst erste Liste. sections für TodoList-
+  // Gruppierung; der Quick-Add leitet seine Sektionen selbst ab (#6 &Liste).
   const targetListId = selectedList ?? (lists.data ?? [])[0]?.id ?? null;
-
-  function onToggle(task: TodoTask) {
-    mut.update.mutate({ id: task.id, listId: task.listId, done: !task.done });
-  }
-  function onRename(task: TodoTask, title: string) {
-    mut.update.mutate({ id: task.id, listId: task.listId, title });
-  }
-  function onReschedule(task: TodoTask, due: string | null) {
-    mut.update.mutate({ id: task.id, listId: task.listId, due });
-  }
-  // toSection wird weggelassen → Backend hängt den Task ans Ende der Ziel-Liste.
-  function onMove(task: TodoTask, toList: string) {
-    mut.move.mutate({ id: task.id, fromList: task.listId, toList });
-  }
-  // DnD-Umsortieren nur in der konkreten Listenansicht (selectedList gesetzt),
-  // nicht in Smart-Views — dort gibt es keine stabile, listengebundene Reihenfolge.
-  // Zusätzlich nur in der unveränderten ("pristine") manuellen Ansicht: sobald
-  // gefiltert oder umsortiert wird, entspricht die sichtbare Reihenfolge nicht
-  // mehr der Datei-Reihenfolge, ein Reorder wäre dann mehrdeutig.
-  const reorderable = selectedList !== null && fs.sort === "manual" && !isFilterActive(fs.filter);
-  function onReorder(activeId: string, targetId: string, before: boolean) {
-    if (selectedList) mut.reorder.mutate({ listId: selectedList, id: activeId, targetId, before });
-  }
+  const sections = (lists.data ?? []).find((l) => l.id === targetListId)?.sections ?? [];
 
   // Eingaben leeren, sobald Add/CreateList durchläuft (Remount via key).
   useEffect(() => {
@@ -162,8 +163,9 @@ export function TodosPage() {
     today,
     moveSelection,
     selectedTask,
-    onToggle,
-    onReschedule,
+    onToggle: actions.onToggle,
+    onReschedule: actions.onReschedule,
+    openDetail: (task) => setDetailTaskId(task.id),
     openSearch: () => setSearchOpen(true),
     setView,
     setSelectedList,
@@ -190,27 +192,36 @@ export function TodosPage() {
             counts={counts}
             view={view}
             selectedList={selectedList}
+            combined={combined}
             onView={(v) => {
+              setCombined(false);
               setSelectedList(null);
               setView(v);
             }}
-            onList={setSelectedList}
+            onList={(id) => {
+              setCombined(false);
+              setSelectedList(id);
+            }}
+            onCombined={() => {
+              setSelectedList(null); // combined=true ⇒ selectedList erzwingen=null
+              setCombined(true);
+            }}
             onCreateList={(name) => mut.createList.mutate(name)}
             createError={mut.createList.isError ? mut.createList.error : null}
             savedFilters={saved.filters}
-            onApplyFilter={onApplyFilter}
+            onApplyFilter={actions.onApplyFilter}
             onDeleteFilter={saved.removeFilter}
-            onSaveCurrent={onSaveCurrent}
+            onSaveCurrent={actions.onSaveCurrent}
           />
 
           <div className="min-w-0 flex-1">
             <TodoQuickAdd
               key={quickAddKey}
               ref={quickAddRef}
+              lists={lists.data ?? []}
               listId={targetListId}
-              sections={sections}
               today={today}
-              onAdd={(input) => mut.add.mutate(input)}
+              onAdd={actions.onAdd}
               error={mut.add.isError ? mut.add.error : null}
             />
 
@@ -261,22 +272,41 @@ export function TodosPage() {
 
             {lists.isLoading ? (
               <p className="py-10 text-center text-sm text-muted-foreground">Lädt…</p>
+            ) : combined ? (
+              <TodoCombinedView
+                groups={combinedGroups}
+                selectedId={selectedId}
+                listNames={listNames}
+                errorTaskId={errorTaskId}
+                error={mut.update.error}
+                onSelect={setSelectedId}
+                onToggle={actions.onToggle}
+                onRename={actions.onRename}
+                onReschedule={actions.onReschedule}
+                onMove={actions.onMove}
+                onOpenDetail={(task) => setDetailTaskId(task.id)}
+                onDelete={actions.onDelete}
+                selectMode={selection.selectMode}
+                selectedIds={selection.selectedIds}
+                onSelectBulk={selection.onSelectBulk}
+              />
             ) : (
               <TodoList
                 tasks={visible}
                 sections={sections}
                 selectedId={selectedId}
                 listNames={listNames}
-                reorderable={reorderable}
+                reorderable={actions.reorderable}
                 errorTaskId={errorTaskId}
                 error={mut.update.error}
                 onSelect={setSelectedId}
-                onToggle={onToggle}
-                onRename={onRename}
-                onReschedule={onReschedule}
-                onMove={onMove}
+                onToggle={actions.onToggle}
+                onRename={actions.onRename}
+                onReschedule={actions.onReschedule}
+                onMove={actions.onMove}
                 onOpenDetail={(task) => setDetailTaskId(task.id)}
-                onReorder={onReorder}
+                onDelete={actions.onDelete}
+                onReorder={actions.onReorder}
                 selectMode={selection.selectMode}
                 selectedIds={selection.selectedIds}
                 onSelectBulk={selection.onSelectBulk}
@@ -288,19 +318,20 @@ export function TodosPage() {
 
       <TaskDetailDialog
         open={detailTaskId !== null}
-        task={detailTask}
-        subtasks={detailSubtasks}
+        task={detail.task}
+        subtasks={detail.subtasks}
         onClose={() => setDetailTaskId(null)}
         onUpdate={(patch) => {
           savedFromDetail.current = true;
           mut.update.mutate(patch);
         }}
         onAddSubtask={(title) => {
-          if (detailTask) {
-            mut.add.mutate({ listId: detailTask.listId, parentId: detailTask.id, title });
+          if (detail.task) {
+            mut.add.mutate({ listId: detail.task.listId, parentId: detail.task.id, title });
           }
         }}
-        onToggleSubtask={onToggle}
+        onToggleSubtask={actions.onToggle}
+        onOpenSubtask={(st) => setDetailTaskId(st.id)}
         error={mut.update.isError ? mut.update.error : null}
       />
 

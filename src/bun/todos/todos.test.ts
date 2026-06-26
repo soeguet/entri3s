@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createTestDb } from "../repository/test-helper";
 import { createRepository, type Repository } from "../repository";
-import { createTodoService, type TodoService } from "./todos";
+import { createTodoService, nowBerlinHHmm, type TodoService } from "./todos";
 
 let dir: string;
 let repo: Repository;
@@ -101,6 +101,15 @@ test("addTask with unknown parentId -> TODO_CONFLICT", async () => {
   expect(readFileSync(join(dir, "Inbox.md"), "utf8")).toBe("- [ ] parent\n");
 });
 
+test("addTask into a non-existent list -> TODO_CONFLICT (not a raw INTERNAL throw)", async () => {
+  // Liste existiert nicht (Datei fehlt). read() würde sonst ENOENT werfen ->
+  // generisches INTERNAL. Erwartet: sprechender TODO_CONFLICT.
+  expect(existsSync(join(dir, "Ghost.md"))).toBe(false);
+  await expect(
+    svc.addTask({ listId: "Ghost", title: "orphan", due: "2026-06-30" }),
+  ).rejects.toMatchObject({ code: "TODO_CONFLICT" });
+});
+
 test("updateTask with tags writes them into the file", async () => {
   writeFileSync(join(dir, "Inbox.md"), "- [ ] task #old\n");
   const list = await svc.getList("Inbox");
@@ -190,6 +199,99 @@ test("saved filters: empty initially, round-trips the same string", () => {
   const json = '[{"id":"a","name":"Wichtig"}]';
   svc.setSavedFilters(json);
   expect(svc.getSavedFilters()).toBe(json);
+});
+
+const YMD = /\d{4}-\d{2}-\d{2}/;
+
+test("cascade: completing parent also completes a single child", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] child\n");
+  const list = await svc.getList("Inbox");
+  const parent = list.tasks.find((t) => t.title === "parent")!;
+  await svc.updateTask({ id: parent.id, listId: "Inbox", done: true });
+  const lines = readFileSync(join(dir, "Inbox.md"), "utf8").trimEnd().split("\n");
+  expect(lines[0]).toMatch(/^- \[x\] parent ✅ \d{4}-\d{2}-\d{2}$/);
+  expect(lines[1]).toMatch(/^ {2}- \[x\] child ✅ \d{4}-\d{2}-\d{2}$/);
+});
+
+test("cascade: completing parent completes all nested descendants (2 levels)", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] child\n    - [ ] grandchild\n");
+  const list = await svc.getList("Inbox");
+  const parent = list.tasks.find((t) => t.title === "parent")!;
+  await svc.updateTask({ id: parent.id, listId: "Inbox", done: true });
+  const out = readFileSync(join(dir, "Inbox.md"), "utf8");
+  const lines = out.trimEnd().split("\n");
+  expect(lines[0]).toMatch(/^- \[x\] parent/);
+  expect(lines[1]).toMatch(/^ {2}- \[x\] child/);
+  expect(lines[2]).toMatch(/^ {4}- \[x\] grandchild/);
+  for (const l of lines) expect(l).toMatch(YMD);
+});
+
+test("cascade: child with multi-line description gets checked, description preserved", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] child\n    note one\n    note two\n");
+  const list = await svc.getList("Inbox");
+  const parent = list.tasks.find((t) => t.title === "parent")!;
+  await svc.updateTask({ id: parent.id, listId: "Inbox", done: true });
+  const lines = readFileSync(join(dir, "Inbox.md"), "utf8").trimEnd().split("\n");
+  expect(lines[0]).toMatch(/^- \[x\] parent/);
+  expect(lines[1]).toMatch(/^ {2}- \[x\] child ✅ \d{4}-\d{2}-\d{2}$/);
+  // Description-Zeilen bleiben unverändert erhalten.
+  expect(lines[2]).toBe("    note one");
+  expect(lines[3]).toBe("    note two");
+});
+
+test("cascade: read-only recurring child stays open and unchanged", async () => {
+  // "🔁" ohne parsebare Regel -> recurrenceEditableInApp=false, aber recurrence !== null.
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] child 🔁 some weird rule\n");
+  const before = await svc.getList("Inbox");
+  const child = before.tasks.find((t) => t.title === "child")!;
+  expect(child.recurrence).not.toBeNull();
+  expect(child.recurrenceEditableInApp).toBe(false);
+  const parent = before.tasks.find((t) => t.title === "parent")!;
+  await svc.updateTask({ id: parent.id, listId: "Inbox", done: true });
+  const lines = readFileSync(join(dir, "Inbox.md"), "utf8").trimEnd().split("\n");
+  expect(lines[0]).toMatch(/^- \[x\] parent/);
+  // Recurring Kind bleibt offen und byte-exakt.
+  expect(lines[1]).toBe("  - [ ] child 🔁 some weird rule");
+});
+
+test("cascade: in-app recurring child stays open and unchanged (phase-1 decision)", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [ ] child 🔁 every day 📅 2026-06-22\n");
+  const before = await svc.getList("Inbox");
+  const child = before.tasks.find((t) => t.title === "child")!;
+  expect(child.recurrenceEditableInApp).toBe(true);
+  const parent = before.tasks.find((t) => t.title === "parent")!;
+  await svc.updateTask({ id: parent.id, listId: "Inbox", done: true });
+  const lines = readFileSync(join(dir, "Inbox.md"), "utf8").trimEnd().split("\n");
+  expect(lines[0]).toMatch(/^- \[x\] parent/);
+  // In-app recurring Kind unverändert: keine Folgeinstanz, kein Abhaken.
+  expect(lines[1]).toBe("  - [ ] child 🔁 every day 📅 2026-06-22");
+});
+
+test("cascade: un-checking the parent leaves children untouched", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [x] parent ✅ 2026-06-20\n  - [ ] child\n");
+  const list = await svc.getList("Inbox");
+  const parent = list.tasks.find((t) => t.title === "parent")!;
+  await svc.updateTask({ id: parent.id, listId: "Inbox", done: false });
+  const lines = readFileSync(join(dir, "Inbox.md"), "utf8").trimEnd().split("\n");
+  expect(lines[0]).toBe("- [ ] parent");
+  // Kind unverändert offen — Un-Check kaskadiert NICHT.
+  expect(lines[1]).toBe("  - [ ] child");
+});
+
+test("cascade: an already-completed child keeps its single ✅ doneDate", async () => {
+  writeFileSync(join(dir, "Inbox.md"), "- [ ] parent\n  - [x] child ✅ 2026-06-20\n");
+  const list = await svc.getList("Inbox");
+  const parent = list.tasks.find((t) => t.title === "parent")!;
+  await svc.updateTask({ id: parent.id, listId: "Inbox", done: true });
+  const lines = readFileSync(join(dir, "Inbox.md"), "utf8").trimEnd().split("\n");
+  expect(lines[0]).toMatch(/^- \[x\] parent/);
+  // Bereits erledigtes Kind unverändert: kein doppeltes ✅, altes Datum bleibt.
+  expect(lines[1]).toBe("  - [x] child ✅ 2026-06-20");
+  expect((lines[1].match(/✅/g) ?? []).length).toBe(1);
+});
+
+test("nowBerlinHHmm returns a zero-padded HH:mm string", () => {
+  expect(nowBerlinHHmm()).toMatch(/^([01]\d|2[0-3]):[0-5]\d$/);
 });
 
 test("moveTask writes destination first then removes source", async () => {

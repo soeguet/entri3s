@@ -10,6 +10,13 @@ function parseBool(value: string | null, fallback: boolean): boolean {
   return value === "1" || value === "true";
 }
 
+// Gültiges nullgepaddetes "HH:mm" (00:00–23:59) → Wert, sonst null. Ein kaputter
+// Settings-Wert darf den Reminder nicht stören (Aufrufer fällt auf "09:00" zurück).
+function normalizeHHmm(value: string | null): string | null {
+  if (value !== null && /^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return value;
+  return null;
+}
+
 export function createSettingsRepository(db: Database) {
   function get(key: string): string | null {
     const row = db
@@ -47,6 +54,7 @@ export function createSettingsRepository(db: Database) {
         // Default an: Reminder sollen out-of-the-box wirken (nur "0"/"false"
         // schaltet sie ab). So sieht der Nutzer fällige Todos ohne Setup.
         todoRemindersEnabled: parseBool(get("todoRemindersEnabled"), true),
+        reminderTime: normalizeHHmm(get("reminderTime")) ?? "09:00",
       };
     },
 
@@ -54,6 +62,7 @@ export function createSettingsRepository(db: Database) {
       set("gitlabUrl", settings.gitlabUrl);
       set("todoFolder", settings.todoFolder);
       set("todoRemindersEnabled", settings.todoRemindersEnabled ? "1" : "0");
+      set("reminderTime", normalizeHHmm(settings.reminderTime) ?? "09:00");
       db.run("UPDATE schedules SET interval_sec = ? WHERE name = ?", [
         settings.syncIntervalSec,
         SYNC_SCHEDULE,

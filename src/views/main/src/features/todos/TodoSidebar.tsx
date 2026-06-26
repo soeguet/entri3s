@@ -1,5 +1,14 @@
 import { useState } from "react";
-import { CalendarClock, CalendarDays, Filter, Inbox, ListChecks, Plus, X } from "lucide-react";
+import {
+  CalendarClock,
+  CalendarDays,
+  Filter,
+  Inbox,
+  Layers,
+  ListChecks,
+  Plus,
+  X,
+} from "lucide-react";
 import type { TodoList } from "../../../../../shared/types";
 import { cn } from "../../lib/utils";
 import { Input } from "../../components/ui/input";
@@ -14,8 +23,12 @@ interface TodoSidebarProps {
   view: SmartView;
   // null = alle Listen (Smart-View-Modus); sonst eine konkrete Liste.
   selectedList: string | null;
+  // Kombinierter Modus aktiv (alle Listen untereinander). Hat Vorrang vor view/
+  // selectedList für die Aktiv-Hervorhebung.
+  combined: boolean;
   onView: (view: SmartView) => void;
   onList: (listId: string) => void;
+  onCombined: () => void;
   onCreateList: (name: string) => void;
   // Fehler der letzten createList-Mutation (z.B. INVALID_NAME), inline gezeigt.
   createError: unknown;
@@ -61,7 +74,7 @@ export function TodoSidebar(props: TodoSidebarProps) {
             onClick={() => props.onView(item.view)}
             className={cn(
               "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm",
-              props.selectedList === null && props.view === item.view
+              !props.combined && props.selectedList === null && props.view === item.view
                 ? "bg-primary text-primary-foreground"
                 : "text-muted-foreground hover:bg-muted",
             )}
@@ -73,6 +86,19 @@ export function TodoSidebar(props: TodoSidebarProps) {
             <span className="text-xs">{props.counts[item.view]}</span>
           </button>
         ))}
+        <button
+          type="button"
+          onClick={props.onCombined}
+          className={cn(
+            "flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm",
+            props.combined
+              ? "bg-primary text-primary-foreground"
+              : "text-muted-foreground hover:bg-muted",
+          )}
+        >
+          <Layers className="h-4 w-4" />
+          Alle Listen (kombiniert)
+        </button>
       </nav>
 
       <div>
@@ -87,7 +113,7 @@ export function TodoSidebar(props: TodoSidebarProps) {
               onClick={() => props.onList(list.id)}
               className={cn(
                 "flex w-full items-center justify-between gap-2 rounded-md px-3 py-2 text-sm",
-                props.selectedList === list.id
+                !props.combined && props.selectedList === list.id
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted",
               )}

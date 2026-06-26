@@ -6,6 +6,10 @@ export interface ParsedQuickAdd {
   due: string | null;
   tags: string[];
   priority: TodoPriority;
+  // Rohtext nach einem `&`-Token an Wortgrenze (ohne `&`); null wenn keiner.
+  // Reine Filter-Query fürs Listen-Dropdown — KEIN Listen-Lookup hier (der
+  // Parser kennt den Listen-Bestand nicht). Auflösung passiert in quickAddList.ts.
+  listQuery: string | null;
 }
 
 interface Range {
@@ -63,6 +67,23 @@ function findPriority(raw: string): { priority: TodoPriority; range: Range } | n
     }
   }
   return best;
+}
+
+/**
+ * Letztes `&`-Token an Wortgrenze (BOUNDARY_BEFORE wie bei #tag, damit "a&b",
+ * "?x=1&y=2" oder E-Mails nicht matchen). Token = `&` + Folgezeichen bis
+ * Whitespace. Mehrere `&` → das LETZTE gewinnt (bewusst: der zuletzt getippte
+ * Listen-Wunsch ist der gemeinte); nur DIESES eine Token wird aus dem Titel
+ * entfernt (wie es genau EIN due/priority gibt). Range geht in dieselbe
+ * removeRanges-Liste, damit der Titel sauber bereinigt wird.
+ */
+function findListToken(raw: string): { query: string; range: Range } | null {
+  const re = new RegExp(BOUNDARY_BEFORE + "&(\\S+)", "gu");
+  let last: { query: string; range: Range } | null = null;
+  for (let m = re.exec(raw); m !== null; m = re.exec(raw)) {
+    last = { query: m[1], range: { start: m.index, end: m.index + m[0].length } };
+  }
+  return last;
 }
 
 /** Alle #tags als ganze Wörter; liefert dedup-Liste + alle zu entfernenden Bereiche. */
@@ -173,17 +194,20 @@ export function parseQuickAdd(raw: string, today: string): ParsedQuickAdd {
   const priority = findPriority(raw);
   const { tags, ranges: tagRanges } = findTags(raw);
   const date = findDate(raw, today);
+  const listToken = findListToken(raw);
 
   const ranges: Range[] = [...tagRanges];
   if (priority) ranges.push(priority.range);
   if (date) ranges.push(date.range);
+  if (listToken) ranges.push(listToken.range);
 
   const title = normalizeWhitespace(removeRanges(raw, ranges));
 
-  // Schutzregel: Bleibt nach dem Parsen kein Titel übrig (z. B. nur "p1"),
-  // wird der Rohtext als Titel verwendet und keine Tokens angewendet.
+  // Schutzregel: Bleibt nach dem Parsen kein Titel übrig (z. B. nur "p1" oder
+  // nur "&Liste"), wird der Rohtext als Titel verwendet und keine Tokens
+  // angewendet (auch kein listQuery → kein leerer Task / Rohtext-Fallback).
   if (title.length === 0) {
-    return { title: raw.trim(), due: null, tags: [], priority: "normal" };
+    return { title: raw.trim(), due: null, tags: [], priority: "normal", listQuery: null };
   }
 
   return {
@@ -191,5 +215,6 @@ export function parseQuickAdd(raw: string, today: string): ParsedQuickAdd {
     due: date?.due ?? null,
     tags,
     priority: priority?.priority ?? "normal",
+    listQuery: listToken?.query ?? null,
   };
 }

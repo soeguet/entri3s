@@ -1,11 +1,14 @@
 import { test, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as api from "../../api";
 import { keys } from "../../lib/queryKeys";
+import { todayBerlinYmd, shiftDay } from "../../lib/dates";
 import { todoFixtures } from "../../fixtures/todos";
+import { resetToasts } from "../../lib/toast";
+import { Toaster } from "../../components/ui/toaster";
 import { TodosPage } from "./TodosPage";
 
 vi.mock("../../api");
@@ -15,6 +18,7 @@ const SETTINGS = {
   syncIntervalSec: 300,
   todoFolder: "/Vault/todos",
   todoRemindersEnabled: true,
+  reminderTime: "09:00",
 };
 
 function renderPage(client: QueryClient) {
@@ -29,6 +33,7 @@ function renderPage(client: QueryClient) {
   return render(
     <QueryClientProvider client={client}>
       <RouterProvider router={router} />
+      <Toaster />
     </QueryClientProvider>,
   );
 }
@@ -41,6 +46,21 @@ function freshClient(): QueryClient {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  resetToasts();
+  // UI-Prefs persistieren in localStorage. jsdom 29 stellt localStorage unter
+  // paralleler Last nicht zuverlässig als Global bereit (Worker-Reuse) → frisches
+  // In-Memory-localStorage je Test (ersetzt zugleich das vorige clear()).
+  const store = new Map<string, string>();
+  globalThis.localStorage = {
+    getItem: (k: string) => (store.has(k) ? store.get(k)! : null),
+    setItem: (k: string, v: string) => void store.set(k, String(v)),
+    removeItem: (k: string) => void store.delete(k),
+    clear: () => store.clear(),
+    key: (i: number) => [...store.keys()][i] ?? null,
+    get length() {
+      return store.size;
+    },
+  } as Storage;
   vi.mocked(api.getSettings).mockResolvedValue({ data: SETTINGS, error: null });
   vi.mocked(api.getTodoLists).mockResolvedValue({ data: todoFixtures, error: null });
   vi.mocked(api.updateTodoTask).mockResolvedValue({ data: undefined, error: null });
@@ -75,7 +95,7 @@ test("Toggle ruft updateTodoTask und invalidiert die todos-Query (instant)", asy
   // "Alle"-View ansteuern, damit der Task unabhängig vom heutigen Kalendertag
   // sichtbar ist (Default "Heute" hinge sonst am realen Datum) — und großzügiger
   // Timeout gegen Render-Flake unter Last.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, {
     timeout: 3000,
   });
@@ -97,7 +117,7 @@ test("Konflikt-UX: TODO_CONFLICT zeigt Spec-Meldung an der betroffenen Zeile", a
   const user = userEvent.setup();
   renderPage(freshClient());
 
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, {
     timeout: 3000,
   });
@@ -117,7 +137,7 @@ test("Toolbar: Filtern nach Tag 'backend' zeigt nur passende Tasks", async () =>
   renderPage(freshClient());
 
   // "Alle"-View, damit alle Tasks unabhängig vom heutigen Datum sichtbar sind.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   expect(
     await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 }),
   ).toBeInTheDocument();
@@ -138,7 +158,7 @@ test("Saved Filter: 'backend'-Tag-Filter speichern, neu laden, anwenden filtert 
   renderPage(client);
 
   // "Alle"-View + backend-Tag aktivieren, damit ein nicht-trivialer Filter aktiv ist.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   await user.click(await screen.findByRole("button", { name: /^Tags/ }, { timeout: 3000 }));
   await user.click(await screen.findByLabelText("backend", undefined, { timeout: 3000 }));
 
@@ -167,12 +187,52 @@ test("Saved Filter: 'backend'-Tag-Filter speichern, neu laden, anwenden filtert 
   expect(screen.getByText("OAuth-Redirect testen")).toBeInTheDocument();
 });
 
+test("Quick-Add in 'Heute' ohne @datum setzt due=heute (sofort sichtbar)", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // Default-View ist "Heute", keine Liste gewählt → Auto-due greift.
+  const input = await screen.findByLabelText("Neue Aufgabe", undefined, { timeout: 3000 });
+  await user.type(input, "Neuer Task ohne Datum");
+  await user.click(screen.getByRole("button", { name: "Hinzufügen" }));
+
+  await vi.waitFor(() =>
+    expect(api.addTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({
+        listId: "Arbeit",
+        title: "Neuer Task ohne Datum",
+        due: todayBerlinYmd(),
+      }),
+    ),
+  );
+});
+
+test("Quick-Add in 'Heute' mit @morgen überschreibt das geparste Datum NICHT", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  const input = await screen.findByLabelText("Neue Aufgabe", undefined, { timeout: 3000 });
+  await user.type(input, "Angebot @morgen");
+  await user.click(screen.getByRole("button", { name: "Hinzufügen" }));
+
+  const tomorrow = shiftDay(todayBerlinYmd(), 1);
+  await vi.waitFor(() =>
+    expect(api.addTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ listId: "Arbeit", title: "Angebot", due: tomorrow }),
+    ),
+  );
+  // Kein Override auf heute.
+  expect(api.addTodoTask).not.toHaveBeenCalledWith(
+    expect.objectContaining({ due: todayBerlinYmd(), title: "Angebot" }),
+  );
+});
+
 test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit done:true", async () => {
   const user = userEvent.setup();
   renderPage(freshClient());
 
   // "Alle"-View, damit die Tasks unabhängig vom heutigen Datum sichtbar sind.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
 
   // Auswahl-Modus aktivieren.
   await user.click(await screen.findByRole("button", { name: "Auswählen" }, { timeout: 3000 }));
@@ -189,4 +249,127 @@ test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit
   for (const call of vi.mocked(api.updateTodoTask).mock.calls) {
     expect(call[0]).toEqual(expect.objectContaining({ done: true }));
   }
+});
+
+test("Tastatur: 'o' öffnet den Detail-Dialog für die selektierte Zeile", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "Alle"-View, damit der Task unabhängig vom heutigen Datum sichtbar ist.
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
+
+  // Zeile selektieren: Klick auf den Titel bubbelt zum onClick der Zeile
+  // (role="listitem" → onSelect) — öffnet selbst KEINEN Dialog.
+  await user.click(await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 }));
+
+  // Vor 'o': kein Dialog offen.
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+  await user.keyboard("o");
+
+  // Detail-Dialog ist offen und zeigt den selektierten Task (Titel-Feld).
+  const dialog = await screen.findByRole("dialog", undefined, { timeout: 3000 });
+  expect(dialog).toBeInTheDocument();
+  expect(screen.getByLabelText("Titel")).toHaveValue("OAuth-Redirect testen");
+});
+
+test("Tastatur: 'o' ohne selektierte Zeile öffnet keinen Dialog", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
+  // Warten bis die Liste da ist, aber KEINE Zeile selektieren.
+  await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 });
+
+  await user.keyboard("o");
+
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("Abhaken eines Tasks OHNE offene Subtasks zeigt Undo-Toast, Klick auf Rückgängig setzt done:false", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "Release vorbereiten" (Arbeit#2) hat keine Subtasks → Undo-Toast greift.
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("Release vorbereiten abhaken", undefined, { timeout: 3000 }),
+  );
+
+  const undo = await screen.findByRole("button", { name: "Rückgängig" }, { timeout: 3000 });
+  await user.click(undo);
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Arbeit#2", listId: "Arbeit", done: false }),
+    ),
+  );
+});
+
+test("Abhaken eines Tasks MIT offenen Subtasks zeigt KEINEN Undo-Toast (Variante A)", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // "OAuth-Redirect testen" (Arbeit#0) hat einen offenen Subtask (Arbeit#1, depth 1).
+  // Unsere Kaskade hakt diesen mit ab → ein simples Parent-Undo wäre irreführend.
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, { timeout: 3000 }),
+  );
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Arbeit#0", done: true }),
+    ),
+  );
+  expect(screen.queryByRole("button", { name: "Rückgängig" })).not.toBeInTheDocument();
+});
+
+test("Kombi-Modus rendert mehrere Listen untereinander mit eigenen Headern", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(
+    await screen.findByRole("button", { name: /Alle Listen \(kombiniert\)/ }, { timeout: 3000 }),
+  );
+
+  // Beide Listen erscheinen als eigene Region mit ihren Tasks.
+  const arbeit = await screen.findByRole("region", { name: "Arbeit" }, { timeout: 3000 });
+  const privat = await screen.findByRole("region", { name: "Privat" }, { timeout: 3000 });
+  expect(within(arbeit).getByText("OAuth-Redirect testen")).toBeInTheDocument();
+  expect(within(privat).getByText("Wöchentlich Müll rausbringen")).toBeInTheDocument();
+});
+
+test("Kombi-Modus: Quick-Add-Sektionen folgen der Ziel-Liste (erste Liste)", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(
+    await screen.findByRole("button", { name: /Alle Listen \(kombiniert\)/ }, { timeout: 3000 }),
+  );
+
+  // targetListId = erste Liste "Arbeit" → deren Sektionen sind im Select wählbar.
+  const select = await screen.findByLabelText("Sektion", undefined, { timeout: 3000 });
+  expect(within(select).getByRole("option", { name: "Heute" })).toBeInTheDocument();
+  expect(within(select).getByRole("option", { name: "Diese Woche" })).toBeInTheDocument();
+});
+
+test("Abhaken eines wiederkehrenden Tasks zeigt KEINEN Undo-Toast", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  // In die Privat-Liste wechseln, dort steht der wiederkehrende Task.
+  await user.click(await screen.findByRole("button", { name: /Privat/ }, { timeout: 3000 }));
+  await user.click(
+    await screen.findByLabelText("Wöchentlich Müll rausbringen abhaken", undefined, {
+      timeout: 3000,
+    }),
+  );
+
+  await vi.waitFor(() =>
+    expect(api.updateTodoTask).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "Privat#0", done: true }),
+    ),
+  );
+  expect(screen.queryByRole("button", { name: "Rückgängig" })).not.toBeInTheDocument();
 });

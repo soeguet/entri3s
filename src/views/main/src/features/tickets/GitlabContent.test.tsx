@@ -14,6 +14,7 @@ beforeEach(() => {
       syncIntervalSec: 300,
       todoFolder: "",
       todoRemindersEnabled: true,
+      reminderTime: "09:00",
     },
     error: null,
   });

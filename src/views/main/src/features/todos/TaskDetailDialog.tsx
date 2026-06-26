@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { StickyNote } from "lucide-react";
 import type { TodoPriority, TodoTask, TodoTaskPatch } from "../../../../../shared/types";
 import { Dialog } from "../../components/ui/dialog";
 import { Input } from "../../components/ui/input";
@@ -16,6 +17,8 @@ interface TaskDetailDialogProps {
   onUpdate: (patch: TodoTaskPatch) => void;
   onAddSubtask: (title: string) => void;
   onToggleSubtask: (task: TodoTask) => void;
+  // Öffnet das Detail des Subtasks (Modal schaltet auf diesen Task um).
+  onOpenSubtask: (task: TodoTask) => void;
   error: unknown;
 }
 
@@ -141,19 +144,38 @@ export function TaskDetailDialog(props: TaskDetailDialogProps) {
         <div className="space-y-1">
           <Label>Subtasks</Label>
           <div role="list" className="space-y-1">
-            {props.subtasks.map((st) => (
-              <label key={st.id} className="flex items-center gap-2 text-sm" role="listitem">
-                <input
-                  type="checkbox"
-                  checked={st.done}
-                  aria-label={`${st.title} abhaken`}
-                  onChange={() => props.onToggleSubtask(st)}
-                />
-                <span className={st.done ? "text-muted-foreground line-through" : undefined}>
-                  {st.title}
-                </span>
-              </label>
-            ))}
+            {props.subtasks.map((st) => {
+              const note = st.description !== null && st.description.trim() !== "";
+              return (
+                // Checkbox (Abhaken) und Titel (Detail öffnen) sind getrennte
+                // Controls — daher kein <label>, sonst würde ein Titel-Klick die
+                // Checkbox togglen.
+                <div key={st.id} className="flex items-start gap-2 text-sm" role="listitem">
+                  <input
+                    type="checkbox"
+                    checked={st.done}
+                    aria-label={`${st.title} abhaken`}
+                    onChange={() => props.onToggleSubtask(st)}
+                    className="mt-1 shrink-0"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => props.onOpenSubtask(st)}
+                    className="flex min-w-0 flex-1 flex-col items-start text-left"
+                  >
+                    <span className={st.done ? "text-muted-foreground line-through" : undefined}>
+                      {st.title}
+                    </span>
+                    {note ? (
+                      <span className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+                        <StickyNote className="h-3 w-3 shrink-0" />
+                        <span className="truncate">{st.description}</span>
+                      </span>
+                    ) : null}
+                  </button>
+                </div>
+              );
+            })}
           </div>
           <div className="flex gap-2">
             <Input

@@ -1,4 +1,4 @@
-import { test, expect, beforeEach } from "vitest";
+import { test, expect, beforeEach, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { Toaster } from "./toaster";
@@ -22,4 +22,30 @@ test("Klick auf den Toast entfernt ihn", async () => {
   const item = await screen.findByText("Etwas ging schief");
   await user.click(item);
   expect(screen.queryByText("Etwas ging schief")).not.toBeInTheDocument();
+});
+
+test("Action-Button rendert und ruft onAction + entfernt den Toast", async () => {
+  const user = userEvent.setup();
+  const onAction = vi.fn();
+  render(<Toaster />);
+  toast.success("Erledigt: Foo", { label: "Rückgängig", onAction });
+
+  const button = await screen.findByRole("button", { name: "Rückgängig" });
+  await user.click(button);
+
+  expect(onAction).toHaveBeenCalledTimes(1);
+  expect(screen.queryByText("Erledigt: Foo")).not.toBeInTheDocument();
+});
+
+test("Body-Klick neben dem Button verwirft nur (kein onAction)", async () => {
+  const user = userEvent.setup();
+  const onAction = vi.fn();
+  render(<Toaster />);
+  toast.success("Erledigt: Foo", { label: "Rückgängig", onAction });
+
+  const message = await screen.findByText("Erledigt: Foo");
+  await user.click(message);
+
+  expect(onAction).not.toHaveBeenCalled();
+  expect(screen.queryByText("Erledigt: Foo")).not.toBeInTheDocument();
 });

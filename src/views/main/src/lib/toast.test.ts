@@ -35,3 +35,18 @@ test("Auto-Dismiss nach ~4s entfernt den Toast", () => {
   vi.advanceTimersByTime(4000);
   expect(getSnapshot()).toHaveLength(0);
 });
+
+test("eine Action wird im Toast gespeichert", () => {
+  const onAction = vi.fn();
+  toast.success("Erledigt: Foo", { label: "Rückgängig", onAction });
+  const snap = getSnapshot();
+  expect(snap).toHaveLength(1);
+  expect(snap[0].action?.label).toBe("Rückgängig");
+  snap[0].action?.onAction();
+  expect(onAction).toHaveBeenCalledTimes(1);
+});
+
+test("ohne Action bleibt das Feld undefined", () => {
+  toast.info("nur Text");
+  expect(getSnapshot()[0].action).toBeUndefined();
+});
