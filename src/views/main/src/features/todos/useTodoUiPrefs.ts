@@ -9,12 +9,15 @@ import type { SmartView } from "./smartViewFilter";
 export function useTodoUiPrefs(): {
   view: SmartView;
   selectedList: string | null;
+  combined: boolean;
   setView: (view: SmartView) => void;
   setSelectedList: (list: string | null) => void;
+  setCombined: (combined: boolean) => void;
 } {
   const initial = loadTodoPrefs();
   const [view, setView] = useState<SmartView>(initial?.view ?? "today");
   const [selectedList, setSelectedList] = useState<string | null>(initial?.selectedList ?? null);
+  const [combined, setCombined] = useState<boolean>(initial?.combined ?? false);
 
-  return { view, selectedList, setView, setSelectedList };
+  return { view, selectedList, combined, setView, setSelectedList, setCombined };
 }

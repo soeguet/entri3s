@@ -29,12 +29,21 @@ test("Lazy-Init aus localStorage: view + selectedList", () => {
   saveTodoPrefs({
     view: "overdue",
     selectedList: "Privat",
+    combined: true,
     filter: { tags: [], priorities: [], status: "open" },
     sort: "manual",
   });
   const { result } = renderHook(() => useTodoUiPrefs());
   expect(result.current.view).toBe("overdue");
   expect(result.current.selectedList).toBe("Privat");
+  expect(result.current.combined).toBe(true);
+});
+
+test("setCombined aktualisiert den State", () => {
+  const { result } = renderHook(() => useTodoUiPrefs());
+  expect(result.current.combined).toBe(false);
+  act(() => result.current.setCombined(true));
+  expect(result.current.combined).toBe(true);
 });
 
 test("setView / setSelectedList aktualisieren den State", () => {

@@ -10,6 +10,9 @@ import type { SmartView } from "./smartViewFilter";
 export interface PersistedTodoUi {
   view: SmartView; // aktive Smart-View, wenn keine konkrete Liste gewählt ist
   selectedList: string | null;
+  // Kombinierter Modus (alle Listen untereinander). EIGENER State, NICHT Teil von
+  // SmartView — smartViewFilter bleibt typrein und wird im Kombi-Modus nicht angewandt.
+  combined: boolean;
   filter: TodoFilter;
   sort: TodoSort;
 }
@@ -44,8 +47,9 @@ export function loadTodoPrefs(): PersistedTodoUi | null {
     if (!parsed || typeof parsed !== "object") return null;
     const view = SMART_VIEWS.includes(parsed.view) ? (parsed.view as SmartView) : "today";
     const selectedList = typeof parsed.selectedList === "string" ? parsed.selectedList : null;
+    const combined = parsed.combined === true; // default false bei fehlend/ungültig
     const sort = SORTS.includes(parsed.sort) ? (parsed.sort as TodoSort) : "manual";
-    return { view, selectedList, filter: validateFilter(parsed.filter), sort };
+    return { view, selectedList, combined, filter: validateFilter(parsed.filter), sort };
   } catch {
     return null;
   }

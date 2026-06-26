@@ -20,6 +20,7 @@ beforeEach(() => {
 const valid: PersistedTodoUi = {
   view: "upcoming",
   selectedList: "Arbeit",
+  combined: false,
   filter: { tags: ["x"], priorities: ["high"], status: "done" },
   sort: "priority",
 };
@@ -64,4 +65,21 @@ test("load: nicht-string selectedList → null", () => {
 test("load: fehlender/kaputter filter → Default-Filter", () => {
   localStorage.setItem("todos.ui.state", JSON.stringify({ ...valid, filter: null }));
   expect(loadTodoPrefs()?.filter).toEqual({ tags: [], priorities: [], status: "open" });
+});
+
+test("round-trip save -> load mit combined:true", () => {
+  saveTodoPrefs({ ...valid, combined: true });
+  expect(loadTodoPrefs()?.combined).toBe(true);
+});
+
+test("load: fehlendes combined → default false", () => {
+  const { combined, ...rest } = valid;
+  void combined;
+  localStorage.setItem("todos.ui.state", JSON.stringify(rest));
+  expect(loadTodoPrefs()?.combined).toBe(false);
+});
+
+test("load: nicht-boolean combined → false", () => {
+  localStorage.setItem("todos.ui.state", JSON.stringify({ ...valid, combined: "yes" }));
+  expect(loadTodoPrefs()?.combined).toBe(false);
 });

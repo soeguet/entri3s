@@ -1,7 +1,7 @@
 import { test, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as api from "../../api";
 import { keys } from "../../lib/queryKeys";
@@ -94,7 +94,7 @@ test("Toggle ruft updateTodoTask und invalidiert die todos-Query (instant)", asy
   // "Alle"-View ansteuern, damit der Task unabhängig vom heutigen Kalendertag
   // sichtbar ist (Default "Heute" hinge sonst am realen Datum) — und großzügiger
   // Timeout gegen Render-Flake unter Last.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, {
     timeout: 3000,
   });
@@ -116,7 +116,7 @@ test("Konflikt-UX: TODO_CONFLICT zeigt Spec-Meldung an der betroffenen Zeile", a
   const user = userEvent.setup();
   renderPage(freshClient());
 
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   const checkbox = await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, {
     timeout: 3000,
   });
@@ -136,7 +136,7 @@ test("Toolbar: Filtern nach Tag 'backend' zeigt nur passende Tasks", async () =>
   renderPage(freshClient());
 
   // "Alle"-View, damit alle Tasks unabhängig vom heutigen Datum sichtbar sind.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   expect(
     await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 }),
   ).toBeInTheDocument();
@@ -157,7 +157,7 @@ test("Saved Filter: 'backend'-Tag-Filter speichern, neu laden, anwenden filtert 
   renderPage(client);
 
   // "Alle"-View + backend-Tag aktivieren, damit ein nicht-trivialer Filter aktiv ist.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   await user.click(await screen.findByRole("button", { name: /^Tags/ }, { timeout: 3000 }));
   await user.click(await screen.findByLabelText("backend", undefined, { timeout: 3000 }));
 
@@ -231,7 +231,7 @@ test("Bulk: zwei Tasks auswählen und abhaken ruft updateTodoTask für beide mit
   renderPage(freshClient());
 
   // "Alle"-View, damit die Tasks unabhängig vom heutigen Datum sichtbar sind.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
 
   // Auswahl-Modus aktivieren.
   await user.click(await screen.findByRole("button", { name: "Auswählen" }, { timeout: 3000 }));
@@ -255,7 +255,7 @@ test("Tastatur: 'o' öffnet den Detail-Dialog für die selektierte Zeile", async
   renderPage(freshClient());
 
   // "Alle"-View, damit der Task unabhängig vom heutigen Datum sichtbar ist.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
 
   // Zeile selektieren: Klick auf den Titel bubbelt zum onClick der Zeile
   // (role="listitem" → onSelect) — öffnet selbst KEINEN Dialog.
@@ -276,7 +276,7 @@ test("Tastatur: 'o' ohne selektierte Zeile öffnet keinen Dialog", async () => {
   const user = userEvent.setup();
   renderPage(freshClient());
 
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   // Warten bis die Liste da ist, aber KEINE Zeile selektieren.
   await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 });
 
@@ -290,7 +290,7 @@ test("Abhaken eines Tasks OHNE offene Subtasks zeigt Undo-Toast, Klick auf Rück
   renderPage(freshClient());
 
   // "Release vorbereiten" (Arbeit#2) hat keine Subtasks → Undo-Toast greift.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   await user.click(
     await screen.findByLabelText("Release vorbereiten abhaken", undefined, { timeout: 3000 }),
   );
@@ -311,7 +311,7 @@ test("Abhaken eines Tasks MIT offenen Subtasks zeigt KEINEN Undo-Toast (Variante
 
   // "OAuth-Redirect testen" (Arbeit#0) hat einen offenen Subtask (Arbeit#1, depth 1).
   // Unsere Kaskade hakt diesen mit ab → ein simples Parent-Undo wäre irreführend.
-  await user.click(await screen.findByRole("button", { name: /Alle/ }, { timeout: 3000 }));
+  await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
   await user.click(
     await screen.findByLabelText("OAuth-Redirect testen abhaken", undefined, { timeout: 3000 }),
   );
@@ -322,6 +322,35 @@ test("Abhaken eines Tasks MIT offenen Subtasks zeigt KEINEN Undo-Toast (Variante
     ),
   );
   expect(screen.queryByRole("button", { name: "Rückgängig" })).not.toBeInTheDocument();
+});
+
+test("Kombi-Modus rendert mehrere Listen untereinander mit eigenen Headern", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(
+    await screen.findByRole("button", { name: /Alle Listen \(kombiniert\)/ }, { timeout: 3000 }),
+  );
+
+  // Beide Listen erscheinen als eigene Region mit ihren Tasks.
+  const arbeit = await screen.findByRole("region", { name: "Arbeit" }, { timeout: 3000 });
+  const privat = await screen.findByRole("region", { name: "Privat" }, { timeout: 3000 });
+  expect(within(arbeit).getByText("OAuth-Redirect testen")).toBeInTheDocument();
+  expect(within(privat).getByText("Wöchentlich Müll rausbringen")).toBeInTheDocument();
+});
+
+test("Kombi-Modus: Quick-Add-Sektionen folgen der Ziel-Liste (erste Liste)", async () => {
+  const user = userEvent.setup();
+  renderPage(freshClient());
+
+  await user.click(
+    await screen.findByRole("button", { name: /Alle Listen \(kombiniert\)/ }, { timeout: 3000 }),
+  );
+
+  // targetListId = erste Liste "Arbeit" → deren Sektionen sind im Select wählbar.
+  const select = await screen.findByLabelText("Sektion", undefined, { timeout: 3000 });
+  expect(within(select).getByRole("option", { name: "Heute" })).toBeInTheDocument();
+  expect(within(select).getByRole("option", { name: "Diese Woche" })).toBeInTheDocument();
 });
 
 test("Abhaken eines wiederkehrenden Tasks zeigt KEINEN Undo-Toast", async () => {
