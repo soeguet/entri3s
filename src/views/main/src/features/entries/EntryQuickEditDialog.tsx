@@ -29,6 +29,7 @@ interface EntryQuickEditDialogProps {
   entry: Entry | null;
   field: QuickEditField | null;
   anchor: HTMLElement | null;
+  anchorRect: DOMRect | null;
   onClose: () => void;
 }
 
@@ -130,7 +131,12 @@ export function EntryQuickEditDialog(props: EntryQuickEditDialogProps) {
   // notes/date/tags: leichtgewichtiges Popover am Anker; nur ticket: Modal.
   if (isPopoverField) {
     return (
-      <Popover open={isOpen} anchor={props.anchor} onClose={props.onClose}>
+      <Popover
+        open={isOpen}
+        anchor={props.anchor}
+        anchorRect={props.anchorRect}
+        onClose={props.onClose}
+      >
         {entry === null ? null : props.field === "notes" ? (
           <NoteQuickEdit
             initialNotes={entry.notes}

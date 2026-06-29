@@ -5,6 +5,7 @@ import { useFocusTrap } from "./useFocusTrap";
 interface PopoverProps {
   open: boolean;
   anchor: HTMLElement | null;
+  anchorRect?: DOMRect | null;
   onClose: () => void;
   children: ReactNode;
 }
@@ -26,18 +27,29 @@ export function Popover(props: PopoverProps) {
       setReady(false);
       return;
     }
+    const gap = 4;
     function update() {
-      const rect = props.anchor!.getBoundingClientRect();
-      const popW = 320; // w-80 = 20rem = 320px
-      const popH = 300; // geschaetzte Max-Hoehe fuer Flip
+      const rect =
+        props.anchorRect ??
+        (props.anchor && props.anchor.isConnected ? props.anchor.getBoundingClientRect() : null);
+      if (!rect) return;
+      // Echte Masse messen statt schaetzen. In jsdom ist offsetWidth/Height 0 →
+      // Fallback auf die bisherigen Schaetzwerte, damit Positionierung & Tests laufen.
+      const popW = trapRef.current?.offsetWidth || 320; // w-80 = 320px
+      const popH = trapRef.current?.offsetHeight || 300;
 
-      let top = rect.bottom + 4;
-      if (top + popH > window.innerHeight) {
-        top = rect.top - popH - 4;
-      }
+      // Bevorzugt unter dem Anker; nur hochklappen, wenn unten kein Platz ist.
+      let top = rect.bottom + gap;
+      if (top + popH > window.innerHeight) top = rect.top - popH - gap;
 
       let left = rect.left;
-      if (left + popW > window.innerWidth) left = window.innerWidth - popW - 8;
+      // Auf beiden Achsen in den Viewport clampen; untere Grenze nie unter 8,
+      // damit top/left bei zu grossem Popover nicht negativ werden.
+      const maxTop = Math.max(8, window.innerHeight - popH - 8);
+      const maxLeft = Math.max(8, window.innerWidth - popW - 8);
+      if (top > maxTop) top = maxTop;
+      if (top < 8) top = 8;
+      if (left > maxLeft) left = maxLeft;
       if (left < 8) left = 8;
 
       setPos({ top, left });
@@ -50,7 +62,7 @@ export function Popover(props: PopoverProps) {
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [props.open, props.anchor]);
+  }, [props.open, props.anchor, props.anchorRect, trapRef]);
 
   // Esc schliessen.
   useEffect(() => {

@@ -127,6 +127,24 @@ export const stopEntry = (id: number) => {
   return ok(undefined as void);
 };
 
+export const resumeEntry = (id: number) => {
+  const entry = store.entries.find((e) => e.id === id);
+  if (!entry) return fail<void>("NOT_FOUND", `Entry ${id} nicht gefunden`);
+  if (store.entries.some((e) => e.status === "running" && e.id !== id)) {
+    return fail<void>("ALREADY_RUNNING", "Es läuft bereits ein Timer.");
+  }
+  if (entry.status !== "draft" && entry.status !== "booking_failed") {
+    return fail<void>(
+      "INVALID_STATUS",
+      `Entry ${id} kann nicht fortgesetzt werden (Status ${entry.status}).`,
+    );
+  }
+  entry.status = "running";
+  entry.durationMinutes = 0;
+  entry.updatedAt = now();
+  return ok(undefined as void);
+};
+
 export const setEntryNotes = (id: number, notes: string | null) => {
   const entry = store.entries.find((e) => e.id === id);
   if (!entry) return fail<void>("NOT_FOUND", `Entry ${id} nicht gefunden`);

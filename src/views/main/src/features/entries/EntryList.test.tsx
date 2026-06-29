@@ -1,5 +1,5 @@
 import { test, expect, vi } from "vitest";
-import { screen, fireEvent } from "@testing-library/react";
+import { screen, fireEvent, within } from "@testing-library/react";
 import { renderWithClient } from "../../lib/test-utils";
 import { entryFixtures } from "../../fixtures/entries";
 import { ticketFixtures } from "../../fixtures/tickets";
@@ -20,6 +20,8 @@ test("rendert Entries mit Notiz und Status", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -38,6 +40,8 @@ test("zeigt die Tags-Spalte mit Tag-Namen", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -58,6 +62,8 @@ test("zeigt Buchen-Button nur für draft-Entry mit Ticket", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={onBook}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -76,6 +82,8 @@ test("zeigt Leermeldung ohne Entries", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -92,6 +100,8 @@ test("zeigt Wochentag im Datum", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -112,6 +122,8 @@ test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={onQuickEdit}
       onDuplicate={noop}
     />,
@@ -125,6 +137,133 @@ test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
   );
 });
 
+test("Aktionen-Modal zeigt Fortsetzen für draft, Duplizieren und Löschen", () => {
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onResume={noop}
+      timerRunning={false}
+      onQuickEdit={noop}
+      onDuplicate={noop}
+    />,
+  );
+  // Fortsetzen/Duplizieren/Löschen stehen NICHT mehr inline in der Zeile.
+  expect(screen.queryByRole("button", { name: "Duplizieren" })).not.toBeInTheDocument();
+  expect(screen.queryByRole("button", { name: "Löschen" })).not.toBeInTheDocument();
+
+  // Modal für den draft-Entry (Entry 1) öffnen.
+  const draftRow = screen.getByText("OAuth-Redirect gefixt").closest("tr") as HTMLElement;
+  fireEvent.click(within(draftRow).getByRole("button", { name: "Weitere Aktionen" }));
+
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).getByRole("button", { name: "Fortsetzen" })).toBeInTheDocument();
+  expect(within(dialog).getByRole("button", { name: "Duplizieren" })).toBeInTheDocument();
+  expect(within(dialog).getByRole("button", { name: "Löschen" })).toBeInTheDocument();
+});
+
+test("Aktionen-Modal zeigt KEIN Fortsetzen für booked-Entry", () => {
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onResume={noop}
+      timerRunning={false}
+      onQuickEdit={noop}
+      onDuplicate={noop}
+    />,
+  );
+  // Entry 2 ist booked → kein Fortsetzen im Modal.
+  const bookedRow = screen.getByText("Gebucht").closest("tr") as HTMLElement;
+  fireEvent.click(within(bookedRow).getByRole("button", { name: "Weitere Aktionen" }));
+
+  const dialog = screen.getByRole("dialog");
+  expect(within(dialog).queryByRole("button", { name: "Fortsetzen" })).not.toBeInTheDocument();
+  expect(within(dialog).getByRole("button", { name: "Duplizieren" })).toBeInTheDocument();
+});
+
+test("deaktiviert Fortsetzen im Modal wenn bereits ein Timer läuft", () => {
+  const onResume = vi.fn();
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onResume={onResume}
+      timerRunning={true}
+      onQuickEdit={noop}
+      onDuplicate={noop}
+    />,
+  );
+  const draftRow = screen.getByText("OAuth-Redirect gefixt").closest("tr") as HTMLElement;
+  fireEvent.click(within(draftRow).getByRole("button", { name: "Weitere Aktionen" }));
+
+  const resumeButton = screen.getByRole("button", { name: "Fortsetzen" });
+  expect(resumeButton).toBeDisabled();
+  fireEvent.click(resumeButton);
+  expect(onResume).not.toHaveBeenCalled();
+});
+
+test("Duplizieren im Modal ruft onDuplicate und schließt das Modal", () => {
+  const onDuplicate = vi.fn();
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onResume={noop}
+      timerRunning={false}
+      onQuickEdit={noop}
+      onDuplicate={onDuplicate}
+    />,
+  );
+  const draftRow = screen.getByText("OAuth-Redirect gefixt").closest("tr") as HTMLElement;
+  fireEvent.click(within(draftRow).getByRole("button", { name: "Weitere Aktionen" }));
+
+  fireEvent.click(screen.getByRole("button", { name: "Duplizieren" }));
+  expect(onDuplicate).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+  // Modal ist geschlossen.
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
+test("Löschen im Modal ruft onDelete und schließt das Modal", () => {
+  const onDelete = vi.fn();
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={onDelete}
+      onBook={noop}
+      onResume={noop}
+      timerRunning={false}
+      onQuickEdit={noop}
+      onDuplicate={noop}
+    />,
+  );
+  const draftRow = screen.getByText("OAuth-Redirect gefixt").closest("tr") as HTMLElement;
+  fireEvent.click(within(draftRow).getByRole("button", { name: "Weitere Aktionen" }));
+
+  fireEvent.click(screen.getByRole("button", { name: "Löschen" }));
+  expect(onDelete).toHaveBeenCalledWith(expect.objectContaining({ id: 1 }));
+  expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+});
+
 test("gebuchte Zeile hat bg-success-surface", () => {
   renderWithClient(
     <EntryList
@@ -134,6 +273,8 @@ test("gebuchte Zeile hat bg-success-surface", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,

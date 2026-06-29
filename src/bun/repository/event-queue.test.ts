@@ -80,6 +80,19 @@ test("discardDead ignores a non-dead event", () => {
   expect(repo.claimNext()).not.toBeNull(); // unangetastet
 });
 
+test("discardDeadByEntry removes only the dead booking events of that entry", () => {
+  repo.enqueue("booking", { entryId: 1 });
+  repo.enqueue("booking", { entryId: 2 });
+  for (let i = 0; i < 6; i++) repo.fail(repo.claimNext()!.id, "boom"); // beide → dead
+  expect(repo.listDead()).toHaveLength(2);
+
+  repo.discardDeadByEntry(1);
+
+  const dead = repo.listDead();
+  expect(dead).toHaveLength(1);
+  expect(JSON.parse(repo.getDeadById(dead[0].id)!.payload).entryId).toBe(2);
+});
+
 test("counts returns zeros on an empty queue", () => {
   expect(repo.counts()).toEqual({ pending: 0, processing: 0, dead: 0 });
 });

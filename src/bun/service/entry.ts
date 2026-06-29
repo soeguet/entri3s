@@ -56,6 +56,32 @@ export function createEntryService(repo: Repository) {
       repo.entries.update({ ...entry, durationMinutes, status: "draft" });
     },
 
+    // Setzt einen gestoppten/fehlgeschlagenen Entry wieder als laufenden Timer
+    // fort: End-Zeit fällt weg (durationMinutes = 0), Status wird 'running'.
+    // Fortsetzbar sind nur 'draft' und 'booking_failed' — 'booked' muss erst
+    // über Storno auf 'draft' zurück. Höchstens ein laufender Entry gleichzeitig.
+    resume(id: number): void {
+      const entry = repo.entries.getById(id);
+      if (!entry) throw appError("NOT_FOUND", `Entry ${id} nicht gefunden`, false);
+      if (repo.entries.getRunning()) {
+        throw appError("ALREADY_RUNNING", "Es läuft bereits ein Timer.", false);
+      }
+      if (entry.status !== "draft" && entry.status !== "booking_failed") {
+        throw appError(
+          "INVALID_STATUS",
+          `Entry ${id} kann nicht fortgesetzt werden (Status ${entry.status}).`,
+          false,
+        );
+      }
+      // Hängende Dead-Letter-Booking-Events dieses Entries entfernen, BEVOR er
+      // läuft: sonst würde ein späterer retryDeadEvent versuchen, einen jetzt
+      // LAUFENDEN Entry zu buchen.
+      if (entry.status === "booking_failed") {
+        repo.eventQueue.discardDeadByEntry(id);
+      }
+      repo.entries.update({ ...entry, status: "running", durationMinutes: 0 });
+    },
+
     // Schreibt nur die Notiz (für laufendes Autosave) — rührt Dauer, Datum und
     // Relationen bewusst nicht an.
     setNotes(id: number, notes: string | null): void {
