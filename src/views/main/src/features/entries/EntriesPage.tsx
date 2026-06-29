@@ -56,6 +56,7 @@ export function EntriesPage() {
     entry: Entry;
     field: QuickEditField;
     anchor: HTMLElement;
+    anchorRect: DOMRect;
   } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
 
@@ -279,7 +280,9 @@ export function EntriesPage() {
                 onBook={(entry) => book.mutate(entry.id)}
                 onResume={(entry) => resume.mutate(entry.id)}
                 timerRunning={timerRunning}
-                onQuickEdit={(entry, field, anchor) => setQuickEdit({ entry, field, anchor })}
+                onQuickEdit={(entry, field, anchor) =>
+                  setQuickEdit({ entry, field, anchor, anchorRect: anchor.getBoundingClientRect() })
+                }
                 onDuplicate={openDuplicate}
               />
             </>
@@ -301,6 +304,7 @@ export function EntriesPage() {
         entry={quickEdit?.entry ?? null}
         field={quickEdit?.field ?? null}
         anchor={quickEdit?.anchor ?? null}
+        anchorRect={quickEdit?.anchorRect ?? null}
         onClose={() => setQuickEdit(null)}
       />
 

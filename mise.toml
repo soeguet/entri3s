@@ -5,7 +5,6 @@ node = "latest"
 npm = "latest"
 oxfmt = "latest"
 oxlint = "latest"
-python = "3.13"
 
 [tasks.dev]
 description = "Frontend im Browser, kein Electrobun nötig (Mock-Modus)"

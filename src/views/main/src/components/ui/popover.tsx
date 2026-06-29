@@ -5,6 +5,7 @@ import { useFocusTrap } from "./useFocusTrap";
 interface PopoverProps {
   open: boolean;
   anchor: HTMLElement | null;
+  anchorRect?: DOMRect | null;
   onClose: () => void;
   children: ReactNode;
 }
@@ -28,16 +29,10 @@ export function Popover(props: PopoverProps) {
     }
     const gap = 4;
     function update() {
-      const anchor = props.anchor!;
-      // Stale-Anchor-Guard: Nach einem React-Query-Refetch kann die Tabellen-Row
-      // (und damit der Anker) aus dem DOM verschwinden. Dann liefert
-      // getBoundingClientRect nur Nullen — statt das Popover nach 0,0 zu schieben,
-      // schliessen wir es kontrolliert.
-      if (!anchor.isConnected) {
-        props.onClose();
-        return;
-      }
-      const rect = anchor.getBoundingClientRect();
+      const rect =
+        props.anchorRect ??
+        (props.anchor && props.anchor.isConnected ? props.anchor.getBoundingClientRect() : null);
+      if (!rect) return;
       // Echte Masse messen statt schaetzen. In jsdom ist offsetWidth/Height 0 →
       // Fallback auf die bisherigen Schaetzwerte, damit Positionierung & Tests laufen.
       const popW = trapRef.current?.offsetWidth || 320; // w-80 = 320px
@@ -67,7 +62,7 @@ export function Popover(props: PopoverProps) {
       window.removeEventListener("scroll", update, true);
       window.removeEventListener("resize", update);
     };
-  }, [props.open, props.anchor, props.onClose, trapRef]);
+  }, [props.open, props.anchor, props.anchorRect, trapRef]);
 
   // Esc schliessen.
   useEffect(() => {

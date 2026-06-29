@@ -15,6 +15,7 @@ import { EntryStatusBadge } from "./entryStatus";
 import { BookingHistory } from "../booking/BookingHistory";
 import { DateCell, NotesCell, TicketCell, TagsCell } from "./entryCells";
 import type { QuickEditField } from "./EntryQuickEditDialog";
+import { EntryActionsDialog } from "./EntryActionsDialog";
 
 const COLUMN_COUNT = 7;
 
@@ -36,6 +37,7 @@ const helper = createColumnHelper<Entry>();
 export function EntryList(props: EntryListProps) {
   const [sorting, setSorting] = useState<SortingState>([{ id: "date", desc: true }]);
   const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [actionsEntry, setActionsEntry] = useState<Entry | null>(null);
 
   function toggleExpanded(id: number) {
     setExpandedId((current) => (current === id ? null : id));
@@ -89,25 +91,11 @@ export function EntryList(props: EntryListProps) {
       cell: (c) => {
         const entry = c.row.original;
         const canBook = entry.status === "draft" && entry.ticketIds.length > 0;
-        const canResume = entry.status === "draft" || entry.status === "booking_failed";
         return (
           <div className="flex justify-end gap-1">
             {canBook ? (
               <Button size="sm" onClick={() => props.onBook(entry)}>
                 Buchen
-              </Button>
-            ) : null}
-            {canResume ? (
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={props.timerRunning}
-                title={
-                  props.timerRunning ? "Es läuft bereits ein Timer — zuerst stoppen" : undefined
-                }
-                onClick={() => props.onResume(entry)}
-              >
-                Fortsetzen
               </Button>
             ) : null}
             {entry.status === "booked" ? (
@@ -123,11 +111,13 @@ export function EntryList(props: EntryListProps) {
             <Button size="sm" variant="outline" onClick={() => props.onEdit(entry)}>
               Bearbeiten
             </Button>
-            <Button size="sm" variant="ghost" onClick={() => props.onDuplicate(entry)}>
-              Duplizieren
-            </Button>
-            <Button size="sm" variant="ghost" onClick={() => props.onDelete(entry)}>
-              Löschen
+            <Button
+              size="sm"
+              variant="ghost"
+              aria-label="Weitere Aktionen"
+              onClick={() => setActionsEntry(entry)}
+            >
+              Aktionen
             </Button>
           </div>
         );
@@ -149,44 +139,54 @@ export function EntryList(props: EntryListProps) {
   }
 
   return (
-    <Table>
-      <THead>
-        {table.getHeaderGroups().map((hg) => (
-          <TR key={hg.id}>
-            {hg.headers.map((header) => (
-              <TH
-                key={header.id}
-                onClick={
-                  header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined
-                }
-                className={header.column.getCanSort() ? "cursor-pointer select-none" : ""}
-              >
-                {flexRender(header.column.columnDef.header, header.getContext())}
-                {header.column.getIsSorted() === "asc" ? " ▲" : ""}
-                {header.column.getIsSorted() === "desc" ? " ▼" : ""}
-              </TH>
-            ))}
-          </TR>
-        ))}
-      </THead>
-      <TBody>
-        {table.getRowModel().rows.map((row) => (
-          <Fragment key={row.id}>
-            <TR className={row.original.status === "booked" ? "bg-success-surface" : undefined}>
-              {row.getVisibleCells().map((cell) => (
-                <TD key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TD>
+    <>
+      <Table>
+        <THead>
+          {table.getHeaderGroups().map((hg) => (
+            <TR key={hg.id}>
+              {hg.headers.map((header) => (
+                <TH
+                  key={header.id}
+                  onClick={
+                    header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined
+                  }
+                  className={header.column.getCanSort() ? "cursor-pointer select-none" : ""}
+                >
+                  {flexRender(header.column.columnDef.header, header.getContext())}
+                  {header.column.getIsSorted() === "asc" ? " ▲" : ""}
+                  {header.column.getIsSorted() === "desc" ? " ▼" : ""}
+                </TH>
               ))}
             </TR>
-            {expandedId === row.original.id ? (
-              <TR>
-                <TD colSpan={COLUMN_COUNT} className="bg-muted">
-                  <BookingHistory entryId={row.original.id} ticketsById={props.ticketsById} />
-                </TD>
+          ))}
+        </THead>
+        <TBody>
+          {table.getRowModel().rows.map((row) => (
+            <Fragment key={row.id}>
+              <TR className={row.original.status === "booked" ? "bg-success-surface" : undefined}>
+                {row.getVisibleCells().map((cell) => (
+                  <TD key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TD>
+                ))}
               </TR>
-            ) : null}
-          </Fragment>
-        ))}
-      </TBody>
-    </Table>
+              {expandedId === row.original.id ? (
+                <TR>
+                  <TD colSpan={COLUMN_COUNT} className="bg-muted">
+                    <BookingHistory entryId={row.original.id} ticketsById={props.ticketsById} />
+                  </TD>
+                </TR>
+              ) : null}
+            </Fragment>
+          ))}
+        </TBody>
+      </Table>
+      <EntryActionsDialog
+        entry={actionsEntry}
+        timerRunning={props.timerRunning}
+        onResume={props.onResume}
+        onDuplicate={props.onDuplicate}
+        onDelete={props.onDelete}
+        onClose={() => setActionsEntry(null)}
+      />
+    </>
   );
 }

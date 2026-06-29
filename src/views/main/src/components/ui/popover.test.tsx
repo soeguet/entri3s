@@ -79,6 +79,33 @@ test("Klick ausserhalb ruft onClose, Klick innerhalb nicht", async () => {
 // Positionierung (getBoundingClientRect-abhaengig) laesst sich in jsdom nicht
 // sinnvoll testen, da jsdom keine echten Layout-Masse liefert (alle Werte = 0).
 
+test("anchorRect: leitet top/left aus dem Rect ab (jsdom-Fallback-Maße)", () => {
+  const anchor = createAnchor();
+  // Rect bewusst so gewählt, dass kein Clamping/Flip greift (Viewport 1024x768).
+  const rect = {
+    x: 100,
+    y: 50,
+    width: 80,
+    height: 30,
+    top: 50,
+    left: 100,
+    right: 180,
+    bottom: 80,
+    toJSON() {},
+  } as DOMRect;
+  render(
+    <Popover open anchor={anchor} anchorRect={rect} onClose={() => {}}>
+      <p>Inhalt</p>
+    </Popover>,
+  );
+  const dialog = screen.getByRole("dialog");
+  // popH/popW fallen in jsdom auf 300/320 zurück (offsetWidth/Height = 0).
+  // top = rect.bottom + 4 = 84; kein Flip (84 + 300 < 768), kein Clamp.
+  // left = rect.left = 100; kein Clamp.
+  expect(dialog).toHaveStyle({ top: "84px", left: "100px" });
+  anchor.remove();
+});
+
 test("a11y: role=dialog und aria-modal=true", () => {
   const anchor = createAnchor();
   render(
