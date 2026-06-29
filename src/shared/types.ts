@@ -330,6 +330,7 @@ export interface AppRPCType {
       getRunningEntry: { params: Record<string, never>; response: RpcResponse<Entry | null> };
       startEntry: { params: EntryStart; response: RpcResponse<number> };
       stopEntry: { params: { id: number }; response: RpcResponse<void> };
+      resumeEntry: { params: { id: number }; response: RpcResponse<void> };
       setEntryNotes: { params: { id: number; notes: string | null }; response: RpcResponse<void> };
       setEntryTags: { params: { id: number; tagIds: number[] }; response: RpcResponse<void> };
       createEntry: { params: EntryCreate; response: RpcResponse<number> };

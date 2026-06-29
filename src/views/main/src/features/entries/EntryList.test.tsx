@@ -20,6 +20,8 @@ test("rendert Entries mit Notiz und Status", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -38,6 +40,8 @@ test("zeigt die Tags-Spalte mit Tag-Namen", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -58,6 +62,8 @@ test("zeigt Buchen-Button nur für draft-Entry mit Ticket", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={onBook}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -76,6 +82,8 @@ test("zeigt Leermeldung ohne Entries", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -92,6 +100,8 @@ test("zeigt Wochentag im Datum", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,
@@ -112,6 +122,8 @@ test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={onQuickEdit}
       onDuplicate={noop}
     />,
@@ -125,6 +137,47 @@ test("Klick auf Tags-Zelle ruft onQuickEdit mit (entry, tags)", () => {
   );
 });
 
+test("zeigt Fortsetzen für draft und booking_failed, nicht für booked", () => {
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onResume={noop}
+      timerRunning={false}
+      onQuickEdit={noop}
+      onDuplicate={noop}
+    />,
+  );
+  // Fixtures: Entry 1 (draft) + Entry 4 (booking_failed) sind fortsetzbar.
+  expect(screen.getAllByRole("button", { name: "Fortsetzen" })).toHaveLength(2);
+});
+
+test("deaktiviert Fortsetzen wenn bereits ein Timer läuft", () => {
+  const onResume = vi.fn();
+  renderWithClient(
+    <EntryList
+      entries={entryFixtures}
+      ticketsById={ticketsById}
+      tagsById={tagsById}
+      onEdit={noop}
+      onDelete={noop}
+      onBook={noop}
+      onResume={onResume}
+      timerRunning={true}
+      onQuickEdit={noop}
+      onDuplicate={noop}
+    />,
+  );
+  const buttons = screen.getAllByRole("button", { name: "Fortsetzen" });
+  expect(buttons[0]).toBeDisabled();
+  fireEvent.click(buttons[0]);
+  expect(onResume).not.toHaveBeenCalled();
+});
+
 test("gebuchte Zeile hat bg-success-surface", () => {
   renderWithClient(
     <EntryList
@@ -134,6 +187,8 @@ test("gebuchte Zeile hat bg-success-surface", () => {
       onEdit={noop}
       onDelete={noop}
       onBook={noop}
+      onResume={noop}
+      timerRunning={false}
       onQuickEdit={noop}
       onDuplicate={noop}
     />,

@@ -1,18 +1,20 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fromZonedTime } from "date-fns-tz";
-import type { Entry, EntryFilter, EntryStatus } from "../../../../../shared/types";
-import { getEntries, getTickets, getProjects, getTags, deleteEntry, bookEntry } from "../../api";
+import type { Entry, EntryFilter } from "../../../../../shared/types";
+import {
+  getEntries,
+  getTickets,
+  getProjects,
+  getTags,
+  deleteEntry,
+  bookEntry,
+  resumeEntry,
+  getRunningEntry,
+} from "../../api";
 import { keys } from "../../lib/queryKeys";
 import { unwrap } from "../../lib/errors";
-import {
-  formatDuration,
-  rangeForPreset,
-  shiftDay,
-  singleDayBase,
-  todayBerlinYmd,
-  type RangePreset,
-} from "../../lib/dates";
+import { formatDuration, shiftDay, singleDayBase, todayBerlinYmd } from "../../lib/dates";
 import { useHotkey } from "../../lib/useHotkey";
 import { useCommands } from "../../lib/useCommand";
 import { buildFilterTree, resolveSelection } from "../../lib/filterTree";
@@ -24,7 +26,8 @@ import { EntryForm } from "./EntryForm";
 import { EntryQuickEditDialog, type QuickEditField } from "./EntryQuickEditDialog";
 import { EntriesFilters } from "./EntriesFilters";
 import { EntriesFiltersCompact } from "./EntriesFiltersCompact";
-import { loadCollapsed, saveCollapsed, loadFilterState, saveFilterState } from "./filterPrefs";
+import { loadCollapsed, saveCollapsed } from "./filterPrefs";
+import { useEntriesFilters } from "./useEntriesFilters";
 import { DayNavigator } from "./DayNavigator";
 import { GapBanner } from "./GapBanner";
 import { EntrySearchDialog } from "./EntrySearchDialog";
@@ -40,32 +43,7 @@ function dayEnd(date: string): string {
 
 export function EntriesPage() {
   const qc = useQueryClient();
-  // Filter-Zustand einmal beim Mount aus localStorage wiederherstellen (siehe
-  // filterPrefs.ts), sonst Default "today".
-  const [persisted] = useState(() => loadFilterState());
-  const [status, setStatus] = useState<EntryStatus | "">(persisted?.status ?? "");
-  const [from, setFrom] = useState(() =>
-    persisted ? persisted.from : rangeForPreset("today").from,
-  );
-  const [to, setTo] = useState(() => (persisted ? persisted.to : rangeForPreset("today").to));
-  const [activePreset, setActivePreset] = useState<RangePreset | null>(() =>
-    persisted ? persisted.preset : "today",
-  );
-  const [selectedTagIds, setSelectedTagIds] = useState<number[]>(persisted?.tagIds ?? []);
-  const [selectedNodes, setSelectedNodes] = useState<Set<string>>(
-    () => new Set(persisted?.nodes ?? []),
-  );
-
-  useEffect(() => {
-    saveFilterState({
-      status,
-      from,
-      to,
-      preset: activePreset,
-      tagIds: selectedTagIds,
-      nodes: [...selectedNodes],
-    });
-  }, [status, from, to, activePreset, selectedTagIds, selectedNodes]);
+  const filters = useEntriesFilters();
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Entry | undefined>(undefined);
   const [duplicating, setDuplicating] = useState<Entry | undefined>(undefined);
@@ -80,26 +58,6 @@ export function EntriesPage() {
     anchor: HTMLElement;
   } | null>(null);
   const [searchOpen, setSearchOpen] = useState(false);
-
-  function applyPreset(preset: RangePreset) {
-    const range = rangeForPreset(preset);
-    setFrom(range.from);
-    setTo(range.to);
-    setActivePreset(preset);
-  }
-  function clearRange() {
-    setFrom("");
-    setTo("");
-    setActivePreset(null);
-  }
-  function toggleTag(id: number) {
-    setSelectedTagIds((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]));
-  }
-  function onDay(day: string) {
-    setFrom(day);
-    setTo(day);
-    setActivePreset(null);
-  }
 
   const tickets = useQuery({
     queryKey: keys.tickets(),
@@ -126,13 +84,13 @@ export function EntriesPage() {
   const usedProjects = (projects.data ?? []).filter((p) => usedProjectIds.has(p.id));
 
   const tree = buildFilterTree(usedProjects, usedTickets);
-  const { projectIds, ticketIds } = resolveSelection(tree, selectedNodes);
+  const { projectIds, ticketIds } = resolveSelection(tree, filters.selectedNodes);
 
   const filter: EntryFilter = {};
-  if (status) filter.status = status;
-  if (from) filter.dateFrom = dayStart(from);
-  if (to) filter.dateTo = dayEnd(to);
-  if (selectedTagIds.length) filter.tagIds = selectedTagIds;
+  if (filters.status) filter.status = filters.status;
+  if (filters.from) filter.dateFrom = dayStart(filters.from);
+  if (filters.to) filter.dateTo = dayEnd(filters.to);
+  if (filters.selectedTagIds.length) filter.tagIds = filters.selectedTagIds;
   if (projectIds.length) filter.projectIds = projectIds;
   if (ticketIds.length) filter.ticketIds = ticketIds;
 
@@ -140,6 +98,13 @@ export function EntriesPage() {
     queryKey: keys.entries(filter),
     queryFn: async () => unwrap(await getEntries(filter)),
   });
+  // Laufenden Timer kennen, um "Fortsetzen" zu sperren, solange einer läuft.
+  // react-query dedupt das mit dem RunningTimerWidget (gleicher Query-Key).
+  const running = useQuery({
+    queryKey: keys.runningEntry(),
+    queryFn: async () => unwrap(await getRunningEntry()),
+  });
+  const timerRunning = running.data != null;
 
   const ticketsById = new Map((tickets.data ?? []).map((t) => [t.id, t]));
   const tagsById = new Map((tags.data ?? []).map((t) => [t.id, t]));
@@ -157,6 +122,14 @@ export function EntriesPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: keys.entries() }),
     meta: { successToast: "Zur Buchung eingereiht" },
   });
+  const resume = useMutation({
+    mutationFn: async (id: number) => unwrap(await resumeEntry(id)),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.runningEntry() });
+      qc.invalidateQueries({ queryKey: keys.entries() });
+    },
+    meta: { successToast: "Timer fortgesetzt" },
+  });
 
   function openCreate() {
     setEditing(undefined);
@@ -173,14 +146,13 @@ export function EntriesPage() {
     setDuplicating(entry);
     setFormOpen(true);
   }
+  function goDay(delta: number) {
+    filters.onDay(shiftDay(singleDayBase(filters.from, filters.to, todayBerlinYmd()), delta));
+  }
   useHotkey("n", openCreate);
-  useHotkey(",", () => {
-    onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), -1));
-  });
-  useHotkey(".", () => {
-    onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1));
-  });
-  useHotkey("t", () => onDay(todayBerlinYmd()));
+  useHotkey(",", () => goDay(-1));
+  useHotkey(".", () => goDay(+1));
+  useHotkey("t", () => filters.onDay(todayBerlinYmd()));
   useHotkey("f", () => setSearchOpen(true));
   // mod+shift+f öffnet hier die Entries-Suche. Der globale Ticket-Such-Launcher
   // deaktiviert seine gleiche Kombination auf /entries, damit diese Bindung gewinnt.
@@ -188,24 +160,29 @@ export function EntriesPage() {
 
   useCommands([
     { id: "entries:create", label: "Neuer Entry", section: "Entries", run: openCreate },
-    { id: "entries:today", label: "Heute", section: "Entries", run: () => onDay(todayBerlinYmd()) },
+    {
+      id: "entries:today",
+      label: "Heute",
+      section: "Entries",
+      run: () => filters.onDay(todayBerlinYmd()),
+    },
     {
       id: "entries:clear-filter",
       label: "Filter zurücksetzen",
       section: "Entries",
-      run: clearRange,
+      run: filters.clearRange,
     },
     {
       id: "entries:prev-day",
       label: "Vorheriger Tag",
       section: "Entries",
-      run: () => onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), -1)),
+      run: () => goDay(-1),
     },
     {
       id: "entries:next-day",
       label: "Nächster Tag",
       section: "Entries",
-      run: () => onDay(shiftDay(singleDayBase(from, to, todayBerlinYmd()), +1)),
+      run: () => goDay(+1),
     },
     {
       id: "entries:search",
@@ -220,7 +197,7 @@ export function EntriesPage() {
     if (window.confirm(`Entry #${entry.id} löschen?`)) remove.mutate(entry.id);
   }
 
-  const filteredDay = from && from === to ? from : undefined;
+  const filteredDay = filters.from && filters.from === filters.to ? filters.from : undefined;
 
   return (
     <div>
@@ -233,50 +210,51 @@ export function EntriesPage() {
       <div className="flex gap-6">
         {collapsed ? (
           <EntriesFiltersCompact
-            status={status}
-            onStatus={setStatus}
-            activePreset={activePreset}
-            onPreset={applyPreset}
-            selectedTagIds={selectedTagIds}
-            onToggleTag={toggleTag}
-            from={from}
-            to={to}
-            onClearRange={clearRange}
-            selectedNodes={selectedNodes}
-            onClearNodes={() => setSelectedNodes(new Set())}
+            status={filters.status}
+            onStatus={filters.setStatus}
+            activePreset={filters.activePreset}
+            onPreset={filters.applyPreset}
+            selectedTagIds={filters.selectedTagIds}
+            onToggleTag={filters.toggleTag}
+            from={filters.from}
+            to={filters.to}
+            onClearRange={filters.clearRange}
+            selectedNodes={filters.selectedNodes}
+            onClearNodes={() => filters.setSelectedNodes(new Set())}
             onExpand={() => setCollapsed(false)}
           />
         ) : (
           <EntriesFilters
-            status={status}
-            onStatus={setStatus}
-            from={from}
-            to={to}
-            activePreset={activePreset}
-            onPreset={applyPreset}
+            status={filters.status}
+            onStatus={filters.setStatus}
+            from={filters.from}
+            to={filters.to}
+            activePreset={filters.activePreset}
+            onPreset={filters.applyPreset}
             onFrom={(v) => {
-              setFrom(v);
-              setActivePreset(null);
+              filters.setFrom(v);
+              filters.setActivePreset(null);
             }}
             onTo={(v) => {
-              setTo(v);
-              setActivePreset(null);
+              filters.setTo(v);
+              filters.setActivePreset(null);
             }}
-            onClearRange={clearRange}
-            selectedTagIds={selectedTagIds}
-            onToggleTag={toggleTag}
+            onClearRange={filters.clearRange}
+            selectedTagIds={filters.selectedTagIds}
+            onToggleTag={filters.toggleTag}
             tree={tree}
-            selectedNodes={selectedNodes}
-            onNodes={setSelectedNodes}
+            selectedNodes={filters.selectedNodes}
+            onNodes={filters.setSelectedNodes}
             onCollapse={() => setCollapsed(true)}
           />
         )}
 
         <div className="min-w-0 flex-1">
-          <DayNavigator from={from} to={to} onDay={onDay} />
+          <DayNavigator from={filters.from} to={filters.to} onDay={filters.onDay} />
           <GapBanner />
 
           {book.isError ? <ErrorNote error={book.error} className="mb-3" /> : null}
+          {resume.isError ? <ErrorNote error={resume.error} className="mb-3" /> : null}
           {remove.isError ? <ErrorNote error={remove.error} className="mb-3" /> : null}
           {entries.isError ? <ErrorNote error={entries.error} className="mb-3" /> : null}
 
@@ -299,6 +277,8 @@ export function EntriesPage() {
                 onEdit={openEdit}
                 onDelete={confirmDelete}
                 onBook={(entry) => book.mutate(entry.id)}
+                onResume={(entry) => resume.mutate(entry.id)}
+                timerRunning={timerRunning}
                 onQuickEdit={(entry, field, anchor) => setQuickEdit({ entry, field, anchor })}
                 onDuplicate={openDuplicate}
               />

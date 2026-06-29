@@ -128,6 +128,19 @@ export function createEventQueueRepository(db: Database) {
     discardDead(id: number): void {
       db.run("DELETE FROM event_queue WHERE id = ? AND status = 'dead'", [id]);
     },
+
+    /**
+     * Entfernt alle Dead-Letter-Booking-Events eines Entries. Wird beim
+     * Fortsetzen (resume) eines `booking_failed`-Entries gebraucht: der Entry
+     * läuft danach wieder, ein hängendes Booking-Event darf ihn nicht erneut
+     * buchen. json_extract liest die entryId direkt aus dem JSON-Payload.
+     */
+    discardDeadByEntry(entryId: number): void {
+      db.run(
+        "DELETE FROM event_queue WHERE status = 'dead' AND type = 'booking' AND json_extract(payload, '$.entryId') = ?",
+        [entryId],
+      );
+    },
   };
 }
 

@@ -48,7 +48,9 @@ export function useFocusTrap(active: boolean) {
     if (!active) return;
     return () => {
       const prev = previousFocusRef.current;
-      if (prev instanceof HTMLElement) prev.focus();
+      // Nur fokussieren, wenn das vorherige Element noch im DOM haengt — sonst
+      // wuerde focus() auf einer detachten Node ins Leere laufen.
+      if (prev instanceof HTMLElement && prev.isConnected) prev.focus();
     };
   }, [active]);
 

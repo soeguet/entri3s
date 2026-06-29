@@ -25,8 +25,10 @@ interface EntryListProps {
   onEdit: (entry: Entry) => void;
   onDelete: (entry: Entry) => void;
   onBook: (entry: Entry) => void;
+  onResume: (entry: Entry) => void;
   onQuickEdit: (entry: Entry, field: QuickEditField, anchor: HTMLElement) => void;
   onDuplicate: (entry: Entry) => void;
+  timerRunning: boolean;
 }
 
 const helper = createColumnHelper<Entry>();
@@ -87,11 +89,25 @@ export function EntryList(props: EntryListProps) {
       cell: (c) => {
         const entry = c.row.original;
         const canBook = entry.status === "draft" && entry.ticketIds.length > 0;
+        const canResume = entry.status === "draft" || entry.status === "booking_failed";
         return (
           <div className="flex justify-end gap-1">
             {canBook ? (
               <Button size="sm" onClick={() => props.onBook(entry)}>
                 Buchen
+              </Button>
+            ) : null}
+            {canResume ? (
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={props.timerRunning}
+                title={
+                  props.timerRunning ? "Es läuft bereits ein Timer — zuerst stoppen" : undefined
+                }
+                onClick={() => props.onResume(entry)}
+              >
+                Fortsetzen
               </Button>
             ) : null}
             {entry.status === "booked" ? (

@@ -96,6 +96,46 @@ test("stop of a non-running entry throws", () => {
   expect(() => svc.stop(id)).toThrow("läuft nicht");
 });
 
+test("resume turns a draft back into a running timer with reset duration", () => {
+  const id = svc.create(input("2024-01-15T10:00:00.000Z", 42));
+  svc.resume(id);
+  const entry = repo.entries.getById(id)!;
+  expect(entry.status).toBe("running");
+  expect(entry.durationMinutes).toBe(0);
+  expect(svc.getRunning()?.id).toBe(id);
+});
+
+test("resume of a booking_failed entry removes its dead booking event", () => {
+  const id = svc.create(input("2024-01-15T10:00:00.000Z", 30));
+  repo.entries.updateStatus(id, "booking_failed");
+  // Ein dead-gelaufenes Booking-Event dieses Entries simulieren.
+  repo.eventQueue.enqueue("booking", { entryId: id });
+  for (let i = 0; i < 3; i++) repo.eventQueue.fail(repo.eventQueue.claimNext()!.id, "boom");
+  expect(repo.eventQueue.listDead()).toHaveLength(1);
+
+  svc.resume(id);
+
+  expect(repo.entries.getById(id)!.status).toBe("running");
+  expect(repo.entries.getById(id)!.durationMinutes).toBe(0);
+  expect(repo.eventQueue.listDead()).toHaveLength(0);
+});
+
+test("resume throws ALREADY_RUNNING when a timer is already running", () => {
+  svc.start({ ticketId: null, notes: null });
+  const id = svc.create(input("2024-01-15T10:00:00.000Z", 30));
+  expect(() => svc.resume(id)).toThrow("läuft bereits");
+});
+
+test("resume throws INVALID_STATUS for a booked entry", () => {
+  const id = svc.create(input("2024-01-15T10:00:00.000Z", 30));
+  repo.entries.updateStatus(id, "booked");
+  expect(() => svc.resume(id)).toThrow("kann nicht fortgesetzt werden");
+});
+
+test("resume of a missing entry throws NOT_FOUND", () => {
+  expect(() => svc.resume(999)).toThrow("nicht gefunden");
+});
+
 test("setNotes updates only the notes and keeps the entry running", () => {
   const id = svc.start({ ticketId: null, notes: "alt" });
   svc.setNotes(id, "neu");
