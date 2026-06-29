@@ -4,6 +4,7 @@ import {
   addTodoTask,
   createTodoList,
   deleteTodoTask,
+  indentTodoTask,
   moveTodoTask,
   reorderTodoTask,
   updateTodoTask,
@@ -89,6 +90,13 @@ export function useTodoMutations() {
     meta: { silentError: true },
   });
 
+  const indent = useMutation({
+    mutationFn: async (vars: { id: string; listId: string; direction: "indent" | "outdent" }) =>
+      unwrap(await indentTodoTask(vars.id, vars.listId, vars.direction)),
+    onSuccess: invalidate,
+    meta: { silentError: true },
+  });
+
   const createList = useMutation({
     mutationFn: async (name: string) => unwrap(await createTodoList(name)),
     onSuccess: invalidate,
@@ -120,5 +128,5 @@ export function useTodoMutations() {
     meta: { silentError: true },
   });
 
-  return { add, update, remove, move, reorder, createList, bulk };
+  return { add, update, remove, move, reorder, indent, createList, bulk };
 }

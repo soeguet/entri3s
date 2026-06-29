@@ -35,6 +35,7 @@ interface TodoSectionProps {
   onMove: (task: TodoTask, toList: string) => void;
   onOpenDetail: (task: TodoTask) => void;
   onDelete: (task: TodoTask) => void;
+  onIndent: (task: TodoTask, direction: "indent" | "outdent") => void;
   onReorder: (activeId: string, targetId: string, before: boolean) => void;
   // Mehrfachauswahl: aktiviert die Auswahl-Checkbox je Zeile.
   selectMode: boolean;
@@ -52,6 +53,7 @@ export function TodoSection(props: TodoSectionProps) {
   if (props.tasks.length === 0) return null;
 
   const taskIds = props.tasks.map((t) => t.id);
+  const sortableIds = props.tasks.filter((t) => t.depth === 0).map((t) => t.id);
 
   function handleDragEnd(event: DragEndEvent) {
     const overId = event.over?.id;
@@ -65,7 +67,7 @@ export function TodoSection(props: TodoSectionProps) {
       key={task.id}
       task={task}
       selected={props.selectedId === task.id}
-      sortable={props.reorderable}
+      sortable={props.reorderable && task.depth === 0}
       listNames={props.listNames}
       error={props.errorTaskId === task.id ? props.error : null}
       onSelect={() => props.onSelect(task.id)}
@@ -75,6 +77,8 @@ export function TodoSection(props: TodoSectionProps) {
       onMove={(toList) => props.onMove(task, toList)}
       onOpenDetail={() => props.onOpenDetail(task)}
       onDelete={() => props.onDelete(task)}
+      indentable={props.reorderable}
+      onIndent={(direction) => props.onIndent(task, direction)}
       selectMode={props.selectMode}
       selectedForBulk={props.selectedIds.has(task.id)}
       onSelectBulk={() => props.onSelectBulk(task)}
@@ -86,7 +90,7 @@ export function TodoSection(props: TodoSectionProps) {
       {props.section !== null ? <SectionHeader>{props.section}</SectionHeader> : null}
       {props.reorderable ? (
         <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
-          <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+          <SortableContext items={sortableIds} strategy={verticalListSortingStrategy}>
             <div role="list">{rows}</div>
           </SortableContext>
         </DndContext>

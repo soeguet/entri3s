@@ -1,7 +1,7 @@
 import { test, expect, vi, beforeEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider, createRootRoute, createRoute, createRouter } from "@tanstack/react-router";
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import * as api from "../../api";
 import { keys } from "../../lib/queryKeys";
@@ -258,9 +258,12 @@ test("Tastatur: 'o' öffnet den Detail-Dialog für die selektierte Zeile", async
   // "Alle"-View, damit der Task unabhängig vom heutigen Datum sichtbar ist.
   await user.click(await screen.findByRole("button", { name: /Alle\d/ }, { timeout: 3000 }));
 
-  // Zeile selektieren: Klick auf den Titel bubbelt zum onClick der Zeile
-  // (role="listitem" → onSelect) — öffnet selbst KEINEN Dialog.
-  await user.click(await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 }));
+  // Zeile selektieren: Klick auf den Zeilen-Container (role="listitem" → onSelect).
+  // Titel-Klick öffnet jetzt das Detail (Todoist-Stil) und stoppt die Propagation,
+  // selektiert also NICHT — daher direkt auf den Container klicken (fireEvent, damit
+  // das Event-Target der Container ist und nicht ein Kind-Button).
+  const title = await screen.findByText("OAuth-Redirect testen", undefined, { timeout: 3000 });
+  fireEvent.click(title.closest('[role="listitem"]')!);
 
   // Vor 'o': kein Dialog offen.
   expect(screen.queryByRole("dialog")).not.toBeInTheDocument();

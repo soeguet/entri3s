@@ -5,7 +5,9 @@ import {
   Calendar,
   FolderInput,
   GripVertical,
-  PanelRight,
+  IndentDecrease,
+  IndentIncrease,
+  Plus,
   Repeat,
   StickyNote,
   Trash2,
@@ -36,6 +38,10 @@ interface TodoRowProps {
   onMove: (toList: string) => void;
   // Öffnet das Detail-Panel für diese Zeile.
   onOpenDetail: () => void;
+  // Ein-/Ausrücken (Tiefe ±1, inkl. Subtree). Nur in der manuellen Listenansicht
+  // sinnvoll — der Aufrufer setzt indentable entsprechend.
+  indentable?: boolean;
+  onIndent: (direction: "indent" | "outdent") => void;
   // Löscht diese Zeile (nach Bestätigung im Dialog).
   onDelete: () => void;
   // Fehler der zuletzt versuchten Mutation auf GENAU diese Zeile (Konflikt).
@@ -59,8 +65,6 @@ const PRIORITY_MARK: Record<TodoTask["priority"], string | null> = {
 };
 
 export function TodoRow(props: TodoRowProps) {
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(props.task.title);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [moveOpen, setMoveOpen] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
@@ -84,18 +88,6 @@ export function TodoRow(props: TodoRowProps) {
   const mark = PRIORITY_MARK[props.task.priority];
   const hasDescription = props.task.description !== null && props.task.description.trim() !== "";
 
-  function startEdit() {
-    setDraft(props.task.title);
-    setEditing(true);
-  }
-  // BLUR-ONLY: kein Speichern während des Tippens. Bei Konflikt bleibt die
-  // Eingabe erhalten (der Aufrufer zeigt props.error inline, draft bleibt).
-  function commitEdit() {
-    setEditing(false);
-    const next = draft.trim();
-    if (next !== "" && next !== props.task.title) props.onRename(next);
-  }
-
   return (
     <div
       ref={props.sortable ? sortable.setNodeRef : undefined}
@@ -104,7 +96,7 @@ export function TodoRow(props: TodoRowProps) {
       onClick={props.onSelect}
       style={{ paddingLeft: `${props.task.depth * 1.5 + 0.75}rem`, ...sortableStyle }}
       className={cn(
-        "flex items-center gap-2 border-b border-border py-1.5 pr-3 text-sm",
+        "group flex items-center gap-2 border-b border-border py-1.5 pr-3 text-sm",
         props.selected && "bg-muted",
         props.sortable && sortable.isDragging && "opacity-50",
       )}
@@ -145,69 +137,38 @@ export function TodoRow(props: TodoRowProps) {
         onClick={(e) => e.stopPropagation()}
       />
 
-      {editing ? (
-        <input
-          autoFocus
-          aria-label="Titel bearbeiten"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={commitEdit}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") commitEdit();
-            if (e.key === "Escape") setEditing(false);
+      <div className="flex min-w-0 flex-1 flex-col">
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onOpenDetail();
           }}
-          onClick={(e) => e.stopPropagation()}
-          className="flex-1 rounded border border-input bg-card px-2 py-0.5 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        />
-      ) : (
-        // Titel + Notiz-Vorschau vertikal gruppiert, damit die Beschreibung
-        // schon in der Zeile sichtbar ist (vorher nur im Detail-Modal).
-        <div className="flex min-w-0 flex-1 flex-col">
+          className={cn(
+            "truncate text-left",
+            props.task.done && "text-muted-foreground line-through",
+          )}
+        >
+          {mark ? <span className="mr-1">{mark}</span> : null}
+          {props.task.title}
+        </button>
+        {hasDescription ? (
           <button
             type="button"
-            onDoubleClick={startEdit}
-            className={cn(
-              "truncate text-left",
-              props.task.done && "text-muted-foreground line-through",
-            )}
+            aria-label="Notiz öffnen"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onOpenDetail();
+            }}
+            className="flex min-w-0 items-start gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
           >
-            {mark ? <span className="mr-1">{mark}</span> : null}
-            {props.task.title}
+            <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
+            <span className="line-clamp-3 min-w-0 whitespace-pre-line">
+              {props.task.description}
+            </span>
           </button>
-          {hasDescription ? (
-            <button
-              type="button"
-              aria-label="Notiz öffnen"
-              onClick={(e) => {
-                e.stopPropagation();
-                props.onOpenDetail();
-              }}
-              className="flex min-w-0 items-start gap-1 text-left text-xs text-muted-foreground hover:text-foreground"
-            >
-              <StickyNote className="mt-0.5 h-3 w-3 shrink-0" />
-              {/* line-clamp-3 + whitespace-pre-line: echte "\n" als Umbrüche, bis
-                  zu 3 Zeilen mit automatischem "…" bei Überlauf. */}
-              <span className="line-clamp-3 min-w-0 whitespace-pre-line">
-                {props.task.description}
-              </span>
-            </button>
-          ) : null}
-        </div>
-      )}
-
-      {/* Details-Button: direkt hinter dem Titel, größer und leichter erreichbar
-          als die alte Position ganz rechts. Der Trash-Button bleibt rechts. */}
-      <button
-        type="button"
-        aria-label="Details öffnen"
-        onClick={(e) => {
-          e.stopPropagation();
-          props.onOpenDetail();
-        }}
-        className="flex shrink-0 items-center rounded p-1 text-muted-foreground hover:bg-muted"
-      >
-        <PanelRight className="h-4 w-4" />
-      </button>
+        ) : null}
+      </div>
 
       {props.task.tags.map((tag) => (
         <Badge key={tag} variant="secondary" className="shrink-0">
@@ -222,19 +183,111 @@ export function TodoRow(props: TodoRowProps) {
         </Badge>
       ) : null}
 
-      <button
-        ref={dateBtnRef}
-        type="button"
-        aria-label="Datum / Reschedule"
-        onClick={(e) => {
-          e.stopPropagation();
-          setPickerOpen(true);
-        }}
-        className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+      {props.task.due ? (
+        <button
+          ref={dateBtnRef}
+          type="button"
+          aria-label="Datum / Reschedule"
+          onClick={(e) => {
+            e.stopPropagation();
+            setPickerOpen(true);
+          }}
+          className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+        >
+          <Calendar className="h-3 w-3" />
+          {props.task.due}
+        </button>
+      ) : null}
+
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-0.5 transition-opacity",
+          pickerOpen || moveOpen ? "opacity-100" : "opacity-0 group-hover:opacity-100",
+        )}
       >
-        <Calendar className="h-3 w-3" />
-        {props.task.due ?? "—"}
-      </button>
+        <button
+          type="button"
+          aria-label="Unteraufgabe hinzufügen"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onOpenDetail();
+          }}
+          className="flex items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+        >
+          <Plus className="h-3 w-3" />
+        </button>
+
+        {props.indentable ? (
+          <>
+            {props.task.depth > 0 ? (
+              <button
+                type="button"
+                aria-label="Ausrücken"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  props.onIndent("outdent");
+                }}
+                className="flex items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+              >
+                <IndentDecrease className="h-3 w-3" />
+              </button>
+            ) : null}
+            <button
+              type="button"
+              aria-label="Einrücken"
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onIndent("indent");
+              }}
+              className="flex items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+            >
+              <IndentIncrease className="h-3 w-3" />
+            </button>
+          </>
+        ) : null}
+
+        {!props.task.due ? (
+          <button
+            ref={dateBtnRef}
+            type="button"
+            aria-label="Datum setzen"
+            onClick={(e) => {
+              e.stopPropagation();
+              setPickerOpen(true);
+            }}
+            className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+          >
+            <Calendar className="h-3 w-3" />
+          </button>
+        ) : null}
+
+        {moveTargets.length > 0 ? (
+          <button
+            ref={moveBtnRef}
+            type="button"
+            aria-label="In andere Liste verschieben"
+            onClick={(e) => {
+              e.stopPropagation();
+              setMoveOpen(true);
+            }}
+            className="flex items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
+          >
+            <FolderInput className="h-3 w-3" />
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          aria-label="Aufgabe löschen"
+          onClick={(e) => {
+            e.stopPropagation();
+            setDeleteConfirm(true);
+          }}
+          className="flex items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-danger-accent"
+        >
+          <Trash2 className="h-3 w-3" />
+        </button>
+      </div>
 
       <TodoDatePicker
         open={pickerOpen}
@@ -246,33 +299,6 @@ export function TodoRow(props: TodoRowProps) {
           props.onReschedule(due);
         }}
       />
-
-      {moveTargets.length > 0 ? (
-        <button
-          ref={moveBtnRef}
-          type="button"
-          aria-label="In andere Liste verschieben"
-          onClick={(e) => {
-            e.stopPropagation();
-            setMoveOpen(true);
-          }}
-          className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted"
-        >
-          <FolderInput className="h-3 w-3" />
-        </button>
-      ) : null}
-
-      <button
-        type="button"
-        aria-label="Aufgabe löschen"
-        onClick={(e) => {
-          e.stopPropagation();
-          setDeleteConfirm(true);
-        }}
-        className="flex shrink-0 items-center rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-danger-accent"
-      >
-        <Trash2 className="h-3 w-3" />
-      </button>
 
       <Dialog open={deleteConfirm} onClose={() => setDeleteConfirm(false)} title="Aufgabe löschen?">
         <p className="text-sm text-muted-foreground">

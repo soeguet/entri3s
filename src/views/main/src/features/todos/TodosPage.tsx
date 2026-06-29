@@ -136,10 +136,9 @@ export function TodosPage() {
     if (mut.add.isSuccess || mut.createList.isSuccess) setQuickAddKey((k) => k + 1);
   }, [mut.add.isSuccess, mut.createList.isSuccess]);
 
-  // Detail-Dialog NUR bei einem aus dem Dialog ausgelösten Speichern schließen.
-  // savedFromDetail.current trennt das von inline-Edits (Toggle/Rename), die
-  // dieselbe update-Mutation nutzen, aber den Dialog nicht schließen sollen. Bei
-  // Konflikt (isError) bleibt der Dialog offen, damit der Fehler sichtbar ist.
+  // Detail-Dialog NUR bei einem aus dem Dialog ausgelösten Speichern schließen
+  // (savedFromDetail.current trennt das vom inline-Toggle mit derselben update-
+  // Mutation). Bei Konflikt (isError) bleibt der Dialog offen für den Fehler.
   const savedFromDetail = useRef(false);
   useEffect(() => {
     if (mut.update.isSuccess && savedFromDetail.current) {
@@ -148,9 +147,7 @@ export function TodosPage() {
     }
   }, [mut.update.isSuccess]);
 
-  function selectedTask(): TodoTask | undefined {
-    return visible.find((t) => t.id === selectedId);
-  }
+  const selectedTask = (): TodoTask | undefined => visible.find((t) => t.id === selectedId);
   function moveSelection(delta: number) {
     if (visible.length === 0) return;
     const idx = visible.findIndex((t) => t.id === selectedId);
@@ -165,6 +162,7 @@ export function TodosPage() {
     selectedTask,
     onToggle: actions.onToggle,
     onReschedule: actions.onReschedule,
+    onIndent: actions.onIndent,
     openDetail: (task) => setDetailTaskId(task.id),
     openSearch: () => setSearchOpen(true),
     setView,
@@ -306,6 +304,7 @@ export function TodosPage() {
                 onMove={actions.onMove}
                 onOpenDetail={(task) => setDetailTaskId(task.id)}
                 onDelete={actions.onDelete}
+                onIndent={actions.onIndent}
                 onReorder={actions.onReorder}
                 selectMode={selection.selectMode}
                 selectedIds={selection.selectedIds}

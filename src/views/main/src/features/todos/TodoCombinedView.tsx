@@ -58,6 +58,7 @@ export function TodoCombinedView(props: TodoCombinedViewProps) {
             onMove={props.onMove}
             onOpenDetail={props.onOpenDetail}
             onDelete={props.onDelete}
+            onIndent={() => {}}
             onReorder={() => {}}
             selectMode={props.selectMode}
             selectedIds={props.selectedIds}

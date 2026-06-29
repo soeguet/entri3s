@@ -390,6 +390,10 @@ export interface AppRPCType {
         params: { listId: string; id: string; targetId: string; before: boolean };
         response: RpcResponse<void>;
       };
+      indentTodoTask: {
+        params: { id: string; listId: string; direction: "indent" | "outdent" };
+        response: RpcResponse<void>;
+      };
       // Gespeicherte Filter ("Saved Filters"): das Backend bleibt schema-agnostisch
       // und behandelt den Inhalt als opaken JSON-String (Muster wie Template.payload).
       // Die Struktur eines SavedFilter gehört dem Frontend.
