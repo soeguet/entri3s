@@ -12,6 +12,7 @@ import type {
   TodoTaskCreate,
   TodoTaskPatch,
 } from "../../../../shared/types";
+import { repairBridgeEncoding } from "../lib/bridgeEncoding";
 import { queryClient } from "../lib/queryClient";
 import { keys } from "../lib/queryKeys";
 import type { SyncStatus } from "../lib/queryKeys";
@@ -33,9 +34,10 @@ const rpc = Electroview.defineRPC<AppRPCType>({
       // RPC-Antwort. Früher wurde er hier verworfen ("null infos") — jetzt im Cache
       // ablegen, damit die TicketsPage ihn anzeigt, und auf der Konsole loggen.
       syncFailed: (payload) => {
-        console.error("Sync fehlgeschlagen:", payload.error);
-        queryClient.setQueryData<SyncStatus>(keys.syncStatus(), { error: payload.error });
-        toast.error(`Sync fehlgeschlagen: ${payload.error}`);
+        const error = repairBridgeEncoding(payload.error);
+        console.error("Sync fehlgeschlagen:", error);
+        queryClient.setQueryData<SyncStatus>(keys.syncStatus(), { error });
+        toast.error(`Sync fehlgeschlagen: ${error}`);
       },
       bookingCompleted: () => {
         queryClient.invalidateQueries({ queryKey: keys.entries() });
@@ -44,8 +46,9 @@ const rpc = Electroview.defineRPC<AppRPCType>({
         toast.success("Buchung abgeschlossen");
       },
       bookingFailed: (payload) => {
+        const error = repairBridgeEncoding(payload.error);
         queryClient.invalidateQueries({ queryKey: keys.deadEvents() });
-        toast.error(`Buchung fehlgeschlagen: ${payload.error}`);
+        toast.error(`Buchung fehlgeschlagen: ${error}`);
       },
       orphanDetected: () => {
         queryClient.invalidateQueries({ queryKey: keys.tickets() });
@@ -63,7 +66,19 @@ const rpc = Electroview.defineRPC<AppRPCType>({
 });
 
 const electroview = new Electroview({ rpc });
-const r = electroview.rpc!.request;
+
+// Jedes aufgelöste RPC-Ergebnis durch repairBridgeEncoding schicken (siehe
+// bridgeEncoding.ts: native Execute-Pfad korrumpiert UTF-8-Multibyte). Der Proxy
+// erhält die Signaturen, sodass die Export-Liste unverändert typsicher bleibt.
+const rawRequest = electroview.rpc!.request;
+const r = new Proxy(rawRequest, {
+  get(target, prop, receiver) {
+    const value = Reflect.get(target, prop, receiver);
+    if (typeof value !== "function") return value;
+    return (...args: unknown[]) =>
+      Promise.resolve(value.apply(target, args)).then(repairBridgeEncoding);
+  },
+}) as typeof rawRequest;
 
 export const getEntries = (filter: EntryFilter) => r.getEntries(filter);
 export const getEntry = (id: number) => r.getEntry({ id });
